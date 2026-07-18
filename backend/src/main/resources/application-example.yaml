@@ -11,10 +11,10 @@ spring:
   profiles:
     active: dev
   datasource:
-    url: jdbc:mysql://localhost:3306/store
+    url: jdbc:postgresql://localhost:5432/store
     username: your_db_username
     password: your_db_password
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    driver-class-name: org.postgresql.Driver
   jpa:
     show-sql: true
     hibernate:

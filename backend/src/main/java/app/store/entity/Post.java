@@ -25,8 +25,7 @@ public class Post extends BaseEntityLong {
     
     String thumbnailUrl;
     
-    @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "TEXT")
     String content;
     
     @Column(nullable = false)

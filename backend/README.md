@@ -64,7 +64,7 @@ A comprehensive e-commerce backend API built with Spring Boot, featuring authent
 |----------|-------------|
 | **Framework** | Spring Boot 3.4.5 |
 | **Language** | Java 21 |
-| **Database** | MySQL 8.0+ |
+| **Database** | PostgreSQL 16+ |
 | **Cache** | Redis |
 | **Security** | Spring Security, OAuth2 Resource Server, JWT |
 | **ORM** | Spring Data JPA, Hibernate |
@@ -82,7 +82,7 @@ Before running this application, ensure you have the following installed:
 
 - **Java Development Kit (JDK) 21** or higher
 - **Maven 3.6+**
-- **MySQL 8.0+**
+- **PostgreSQL 16+**
 - **Redis 6.0+**
 - **IDE** (IntelliJ IDEA, Eclipse, or VS Code recommended)
 
@@ -94,9 +94,9 @@ git clone <repository-url>
 cd store-be
 ```
 
-2. **Create MySQL database**
+2. **Create PostgreSQL database**
 ```sql
-CREATE DATABASE store CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE store;
 ```
 
 3. **Configure application properties**
@@ -120,7 +120,7 @@ Edit `src/main/resources/application.yaml` with your configuration:
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/store
+    url: jdbc:postgresql://localhost:5432/store
     username: your_db_username
     password: your_db_password
 ```
@@ -349,7 +349,7 @@ This project is licensed under the MIT License.
 |----------|-----------|
 | **Framework** | Spring Boot 3.4.5 |
 | **Ngôn ngữ** | Java 21 |
-| **Cơ sở dữ liệu** | MySQL 8.0+ |
+| **Cơ sở dữ liệu** | PostgreSQL 16+ |
 | **Cache** | Redis |
 | **Bảo mật** | Spring Security, OAuth2 Resource Server, JWT |
 | **ORM** | Spring Data JPA, Hibernate |
@@ -367,7 +367,7 @@ Trước khi chạy ứng dụng, đảm bảo bạn đã cài đặt:
 
 - **Java Development Kit (JDK) 21** trở lên
 - **Maven 3.6+**
-- **MySQL 8.0+**
+- **PostgreSQL 16+**
 - **Redis 6.0+**
 - **IDE** (Khuyên dùng IntelliJ IDEA, Eclipse, hoặc VS Code)
 
@@ -379,9 +379,9 @@ git clone <repository-url>
 cd store-be
 ```
 
-2. **Tạo cơ sở dữ liệu MySQL**
+2. **Tạo cơ sở dữ liệu PostgreSQL**
 ```sql
-CREATE DATABASE store CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE store;
 ```
 
 3. **Cấu hình application properties**
@@ -405,7 +405,7 @@ Chỉnh sửa `src/main/resources/application.yaml` với cấu hình của bạ
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/store
+    url: jdbc:postgresql://localhost:5432/store
     username: tên_người_dùng_db
     password: mật_khẩu_db
 ```
