@@ -1,5 +1,7 @@
 ## ⚠️ File mẫu - KHÔNG chứa giá trị thật
-## Copy file này thành application.yaml và điền giá trị thật vào
+## Copy file này thành application.yaml.
+## Các secret được đọc từ biến môi trường (xem .env.example).
+## Cú pháp ${VAR} = bắt buộc phải set; ${VAR:default} = có giá trị mặc định.
 
 server:
   port: 8080
@@ -11,9 +13,9 @@ spring:
   profiles:
     active: dev
   datasource:
-    url: jdbc:postgresql://localhost:5432/store
-    username: your_db_username
-    password: your_db_password
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${POSTGRES_DB:store}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     show-sql: true
@@ -27,9 +29,9 @@ spring:
       max-request-size: 10MB
   data:
     redis:
-      host: localhost
-      port: 6379
-      password: "your_redis_password"
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
       database: 0
       timeout: 5s
       lettuce:
@@ -40,10 +42,10 @@ spring:
           min-idle: 0
           max-wait: 2s
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: your_email@gmail.com
-    password: "your_app_password"       # Google App Password (16 ký tự)
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}          # Google App Password (16 ký tự)
     properties:
       mail:
         smtp:
@@ -57,7 +59,7 @@ spring:
           timeout: 5000
           writetimeout: 5000
   kafka:
-    bootstrap-servers: localhost:9094
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9094}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -76,14 +78,14 @@ logging:
     root: info
 
 jwt:
-  signerKey: "your_jwt_signer_key_base64"   # Tạo bằng: openssl rand -base64 48
-  access-duration: 3600                      # seconds (1 hour)
-  refresh-duration: 2592000                  # seconds (30 days)
+  signerKey: ${JWT_SIGNER_KEY}               # Tạo bằng: openssl rand -base64 48
+  access-duration: ${JWT_ACCESS_DURATION:3600}       # seconds (1 hour)
+  refresh-duration: ${JWT_REFRESH_DURATION:2592000}  # seconds (30 days)
 
 cloudinary:
-  cloud-name: your_cloud_name
-  api-key: your_cloudinary_api_key
-  api-secret: your_cloudinary_api_secret
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
 
 management:
   endpoints:
@@ -93,18 +95,18 @@ management:
 
 # SePay Payment Gateway Configuration
 sepay:
-  api-key: "YOUR_SEPAY_API_KEY"
-  bank-code: "MBBank"
-  bank-account-number: "0123456789"
-  bank-account-name: "NGUYEN VAN A"
-  bank-name: "MB Bank"
+  api-key: ${SEPAY_API_KEY}
+  bank-code: ${SEPAY_BANK_CODE:MBBank}
+  bank-account-number: ${SEPAY_BANK_ACCOUNT_NUMBER}
+  bank-account-name: ${SEPAY_BANK_ACCOUNT_NAME}
+  bank-name: ${SEPAY_BANK_NAME:MB Bank}
 
 # Google OAuth2 Configuration
 # Lấy từ Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs
 google:
-  client-id: "YOUR_GOOGLE_CLIENT_ID"
-  client-secret: "YOUR_GOOGLE_CLIENT_SECRET"
-  redirect-uri: "http://localhost:3000/auth/google/callback"
+  client-id: ${GOOGLE_CLIENT_ID}
+  client-secret: ${GOOGLE_CLIENT_SECRET}
+  redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:3000/auth/google/callback}
 
 app:
   kafka:
