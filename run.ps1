@@ -49,6 +49,14 @@ $ErrorActionPreference = 'Stop'
 $Root        = $PSScriptRoot
 $BackendDir  = Join-Path $Root 'backend'
 $FrontendDir = Join-Path $Root 'frontend'
+$LogsDir     = Join-Path $Root 'logs'
+$BackendLogs = Join-Path $LogsDir 'backend'
+$FrontendLogs= Join-Path $LogsDir 'frontend'
+
+# Ensure log directories exist.
+New-Item -ItemType Directory -Force -Path $BackendLogs, $FrontendLogs | Out-Null
+
+$RunStamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
 
 function Write-Step  { param($m) Write-Host "`n==> $m" -ForegroundColor Cyan }
 function Write-Ok    { param($m) Write-Host "    $m" -ForegroundColor Green }
@@ -127,11 +135,14 @@ if ($Only -contains 'backend') {
     Write-Step 'Launching backend (Spring Boot) in a new window...'
     Write-Warn2 'Ensure backend\src\main\resources\application.yaml has valid DB/Redis/JWT values.'
 
+    $backendLog = Join-Path $BackendLogs "console-$RunStamp.log"
     Start-Process -FilePath 'powershell.exe' -WorkingDirectory $BackendDir -ArgumentList @(
         '-NoExit', '-Command',
-        "Write-Host 'Backend: http://localhost:8080/api/v1' -ForegroundColor Cyan; .\mvnw.cmd spring-boot:run"
+        "Write-Host 'Backend: http://localhost:8080/api/v1' -ForegroundColor Cyan; Write-Host 'Logging console to $backendLog' -ForegroundColor DarkGray; .\mvnw.cmd spring-boot:run 2>&1 | Tee-Object -FilePath '$backendLog'"
     )
     Write-Ok 'Backend starting at http://localhost:8080/api/v1 (Swagger: /swagger-ui.html)'
+    Write-Ok "Backend console log: $backendLog"
+    Write-Ok "Backend app log:     $(Join-Path $BackendLogs 'backend.log')"
 }
 
 # --------------------------------------------------------------------------
@@ -150,11 +161,13 @@ if ($Only -contains 'frontend') {
 
     $installCmd = if ($SkipInstall) { '' } else { 'npm install; ' }
 
+    $frontendLog = Join-Path $FrontendLogs "console-$RunStamp.log"
     Start-Process -FilePath 'powershell.exe' -WorkingDirectory $FrontendDir -ArgumentList @(
         '-NoExit', '-Command',
-        "Write-Host 'Frontend: http://localhost:3000' -ForegroundColor Cyan; $installCmd npm run dev"
+        "Write-Host 'Frontend: http://localhost:3000' -ForegroundColor Cyan; Write-Host 'Logging console to $frontendLog' -ForegroundColor DarkGray; $installCmd npm run dev 2>&1 | Tee-Object -FilePath '$frontendLog'"
     )
     Write-Ok 'Frontend starting at http://localhost:3000'
+    Write-Ok "Frontend console log: $frontendLog"
 }
 
 Write-Step 'Done.'
