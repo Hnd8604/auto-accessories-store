@@ -422,9 +422,9 @@ Xem file/nhánh nào chưa được test, bổ sung. Đặt mục tiêu thực t
 ## Phần 5 — Checklist theo dõi tiến độ
 
 ### Backend
-- [ ] **B1** — `SlugUtilTest`, `SortUtilsTest`
-- [ ] **B2** — `ProductServiceTest`, `CategoryServiceTest`, `BrandServiceTest`
-- [ ] **B3** — `OrderServiceTest`, `CartServiceTest`, `PostServiceTest`
+- [x] **B1** — `SlugUtilTest`, `SortUtilsTest`
+- [x] **B2** — `ProductServiceTest`, `CategoryServiceTest`, `BrandServiceTest`
+- [x] **B3** — `OrderServiceTest`, `CartServiceTest`, `PostServiceTest`
 - [ ] **B4** — Auth/Payment/ResetPassword/Google/Otp + các service còn lại
 - [ ] **B5** — (tùy chọn) Controller slice test
 - [ ] **B6** — (tùy chọn) Repository slice test
