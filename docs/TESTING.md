@@ -208,17 +208,99 @@ Nếu test hàm dùng `SecurityContextHolder` (vd `getMyOrder`): set context tro
 
 ---
 
-### 🟡 Giai đoạn B4 — Các service còn lại
+### ✅ Giai đoạn B4 — Các service còn lại — ĐÃ HOÀN THÀNH
 
-Áp dụng đúng pattern B2/B3 cho phần còn lại. Ưu tiên theo mức độ logic:
+Toàn bộ 22 service còn lại đã có test. Tổng cộng **239 test, 0 failure**.
 
-**Ưu tiên cao (nhiều logic):**
-`AuthenticationService`, `PaymentService`, `ResetPasswordService`, `GoogleAuthService`, `OtpService`, `ProfessionalServiceService`
+| Nhóm | Test class | Số test | Điểm nhấn đã phủ |
+|---|---|---:|---|
+| **Cao** | `AuthenticationServiceTest` | 18 | register (trùng user/email/thiếu role), sai mật khẩu → `UNAUTHENTICATED`, refresh bằng accessToken → lỗi, token đã logout → lỗi, đổi mật khẩu 4 nhánh |
+| | `ResetPasswordServiceTest` | 12 | OTP hết hạn, sai OTP → tăng `otpAttempt`, quá 5 lần → **xoá phiên**, sai bước, cooldown gửi lại |
+| | `OtpServiceTest` | 6 | Redis lưu **hash** chứ không lưu OTP thô, OTP dùng 1 lần |
+| | `PaymentServiceTest` | 16 | QR VietQR, webhook SePay: tiền ra bị bỏ qua, thiếu tiền → không PAID, đơn đã PAID → bỏ qua, xác thực API key |
+| | `GoogleAuthServiceTest` | 6 | tạo user mới / link googleId theo email / cập nhật avatar, lỗi Google → `GOOGLE_AUTH_FAILED` |
+| | `ProfessionalServiceServiceTest` | 13 | parse/serialize `features` JSON, JSON hỏng không làm sập API, chọn ảnh primary |
+| **Vừa** | `UserServiceTest` | 12 | chỉ đổi password/roles khi request có gửi |
+| | `RoleServiceTest` | 8 | lưu DB **trước** rồi mới sync Redis (`inOrder`) |
+| | `PermissionServiceTest` | 5 | CRUD + not-found |
+| | `NotificationServiceTest` | 8 | tạo thông báo + push SSE, `markAsRead` của người khác → lỗi |
+| | `ProductImageServiceTest` / `ServiceImageServiceTest` | 9 + 8 | không upload Cloudinary khi entity không tồn tại, ảnh không thuộc sản phẩm → lỗi |
+| | `PostCategoryServiceTest` | 12 | trùng tên, slug chỉ đổi khi tên đổi, danh mục còn bài viết → không cho xoá |
+| | `BannerServiceTest` | 11 | `isActive` mặc định true, chỉ upload ảnh mới khi có file |
+| | `ConversationServiceTest` / `ChatMessageServiceTest` | 9 + 3 | tin từ CUSTOMER mới tăng unread, broadcast đúng topic |
+| **Thấp** | `SessionCartServiceTest` | 5 | cộng dồn số lượng cùng sản phẩm |
+| | `CartSyncServiceTest` | 3 | gộp giỏ session → giỏ DB rồi xoá session |
+| | `MailServiceTest` | 4 | subject/nội dung/người nhận đúng |
+| | `SseEmitterServiceTest` | 5 | 1 user nhiều tab = nhiều emitter |
+| | `OrderEventProducerTest` | 2 | gửi đúng topic, key = `orderId` |
+| | `OrderNotificationConsumerTest` | 4 | payload hỏng → **ném lỗi** để Kafka retry |
 
-**Ưu tiên vừa:**
-`UserService`, `RoleService`, `PermissionService`, `NotificationService`, `ProductImageService`, `ServiceImageService`, `PostCategoryService`, `BannerService`, `ConversationService`, `ChatMessageService`
+#### 🆕 6 kỹ thuật mới học được ở B4
 
-**Ưu tiên thấp (mỏng, ít logic):** `SessionCartService`, `CartSyncService`, `MailService` (chỉ verify gọi đúng), `SseEmitterService`, `OrderEventProducer`, `OrderNotificationConsumer`
+**1. `ReflectionTestUtils.setField` — nạp giá trị cho field `@Value`**
+
+Unit test không chạy Spring nên `@Value` luôn `null`. Set tay:
+```java
+@BeforeEach
+void setUp() {
+    ReflectionTestUtils.setField(authenticationService, "SIGNER_KEY", "…64 ký tự…");
+    ReflectionTestUtils.setField(authenticationService, "ACCESS_DURATION", 3600L);
+}
+```
+> ⚠️ HS512 bắt buộc khoá ≥ 64 ký tự, ngắn hơn sẽ ném `KeyLengthException`.
+
+**2. `@Spy` — object THẬT thay vì mock rỗng**
+
+`ObjectMapper` mà mock thì `readValue()` trả `null`, test mất ý nghĩa. Dùng đồ thật:
+```java
+@Spy ObjectMapper objectMapper = new ObjectMapper();
+@InjectMocks OrderNotificationConsumer consumer;   // @Spy cũng được tiêm vào
+```
+| | Mock | Spy |
+|---|---|---|
+| Hành vi mặc định | trả null/0/rỗng | chạy code thật |
+| Dùng cho | dependency I/O (DB, mail, Kafka) | tiện ích thuần (ObjectMapper, encoder) |
+
+**3. `mockConstruction` — chặn `new` bên trong service**
+
+`GoogleAuthService` tự `new RestTemplate()` nên không @Mock được. Mockito chặn luôn lệnh `new`:
+```java
+try (MockedConstruction<RestTemplate> ignored = mockConstruction(RestTemplate.class,
+        (mock, context) -> lenient().when(mock.postForEntity(anyString(), any(), eq(String.class)))
+                .thenReturn(ResponseEntity.ok("{\"access_token\":\"google-token\"}")))) {
+    googleAuthService.authenticateWithGoogle(request);   // không hề gọi mạng thật
+}
+```
+Chỉ có hiệu lực **trong khối try** → hết khối là `new RestTemplate()` trở lại bình thường.
+
+**4. `lenient()` — tắt cảnh báo "stub thừa"**
+
+`MockitoExtension` mặc định STRICT: stub khai báo mà không dùng → fail. Khi một stub chỉ dùng ở vài nhánh (như 2 instance RestTemplate, mỗi cái chỉ gọi 1 method), bọc `lenient()`.
+
+**5. `inOrder()` — kiểm THỨ TỰ gọi, không chỉ có gọi hay không**
+
+Có những chỗ sai thứ tự là sinh bug dữ liệu:
+```java
+var order = inOrder(roleRepository, rolePermissionRepository);
+order.verify(roleRepository).save(role);                          // ghi DB trước
+order.verify(rolePermissionRepository).syncRolePermissionsFromDb("ADMIN"); // rồi mới sync Redis
+```
+
+**6. Test có `SecurityContextHolder` — nhớ dọn ở `@AfterEach`**
+```java
+SecurityContextHolder.getContext().setAuthentication(
+        new UsernamePasswordAuthenticationToken("john", null, List.of()));
+…
+@AfterEach void tearDown() { SecurityContextHolder.clearContext(); }
+```
+Không dọn → context rò rỉ sang test sau, gây fail ngẫu nhiên tuỳ thứ tự chạy.
+
+**Mẹo nhỏ khác dùng trong B4**
+- Mock lồng nhau cho Redis: mock `RedisTemplate` **và** `ValueOperations`, rồi `when(redis.opsForValue()).thenReturn(valueOps)`.
+- Field có khởi tạo sẵn (`PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);`) **không** vào constructor của `@RequiredArgsConstructor` → không mock được → test bằng `BCryptPasswordEncoder` thật.
+- Kiểm token thật thay vì so chuỗi: `SignedJWT.parse(token).getJWTClaimsSet().getSubject()`.
+- Giả file upload: `new MockMultipartFile("file", "anh.png", "image/png", bytes)`.
+- `MimeMessageHelper(message, true, …)` tạo multipart → phải duyệt đệ quy `Multipart` mới lấy được HTML để assert.
 
 > Với service có logic bảo mật (Auth, ResetPassword, Otp): test kỹ nhánh **sai mật khẩu / OTP hết hạn / token không hợp lệ** — đây là nơi bug gây hậu quả nặng nhất.
 
@@ -392,6 +474,11 @@ Xem file/nhánh nào chưa được test, bổ sung. Đặt mục tiêu thực t
 | Kiểm gọi N lần | `verify(mock, times(2)).f()` |
 | Bắt tham số | `ArgumentCaptor.forClass(X.class)` |
 | Khớp bất kỳ / cụ thể | `any()`, `anyLong()`, `eq(val)` |
+| Object thật (không mock) | `@Spy ObjectMapper m = new ObjectMapper()` |
+| Chặn `new X()` trong service | `mockConstruction(X.class, (mock, ctx) -> …)` |
+| Bỏ qua cảnh báo stub thừa | `lenient().when(…)` |
+| Kiểm thứ tự gọi | `inOrder(a, b); order.verify(a)…` |
+| Set field `@Value` | `ReflectionTestUtils.setField(svc, "KEY", val)` |
 
 ### AssertJ (Backend)
 
@@ -425,7 +512,7 @@ Xem file/nhánh nào chưa được test, bổ sung. Đặt mục tiêu thực t
 - [x] **B1** — `SlugUtilTest`, `SortUtilsTest`
 - [x] **B2** — `ProductServiceTest`, `CategoryServiceTest`, `BrandServiceTest`
 - [x] **B3** — `OrderServiceTest`, `CartServiceTest`, `PostServiceTest`
-- [ ] **B4** — Auth/Payment/ResetPassword/Google/Otp + các service còn lại
+- [x] **B4** — Auth/Payment/ResetPassword/Google/Otp + 22 service còn lại (239 test, 0 failure)
 - [ ] **B5** — (tùy chọn) Controller slice test
 - [ ] **B6** — (tùy chọn) Repository slice test
 - [ ] **B7** — (tùy chọn) Integration test với Testcontainers
@@ -439,12 +526,19 @@ Xem file/nhánh nào chưa được test, bổ sung. Đặt mục tiêu thực t
 
 ---
 
-## Bắt đầu ngay
+## Đang ở đâu & làm gì tiếp
 
-Việc **đầu tiên** nên làm: tạo `backend/src/test/java/app/store/utils/SlugUtilTest.java` theo mẫu ở [Giai đoạn B1](#-giai-đoạn-b1--hàm-thuần-không-mock--dễ-nhất-bắt-đầu-từ-đây), rồi chạy:
+**Đã xong:** B1 → B4. Toàn bộ tầng service của backend đã được phủ unit test.
 
 ```bash
-cd backend && ./mvnw test -Dtest=SlugUtilTest
+cd backend && ./mvnw test        # 239 test, ~20 giây, không cần Postgres/Redis/Kafka
 ```
 
-Khi thấy `Tests run: X, Failures: 0` — bạn đã viết unit test đầu tiên. Cứ thế đi tiếp theo checklist. 💪
+**Bước tiếp theo — chọn 1 trong 2 hướng:**
+
+| Hướng | Khi nào chọn | Bắt đầu từ |
+|---|---|---|
+| **B5 — Controller slice test** | muốn kiểm tầng HTTP + phân quyền `@PreAuthorize` (ở B1–B4 annotation này KHÔNG chạy) | `ProductController`, `OrderController`, `AuthenticationController` |
+| **F1 — Frontend** | muốn phủ nốt nửa còn lại của dự án | cài Vitest + `cn.test.ts`, `contentRenderer.test.ts` |
+
+Gợi ý: làm **F1** trước — frontend hiện đang 0% coverage, giá trị thu về lớn hơn B5. 💪
