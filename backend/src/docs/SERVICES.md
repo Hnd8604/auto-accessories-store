@@ -200,7 +200,7 @@ File `ServiceImageRepository.java`:
 
 - **`SecurityConfig.java`**: `GET /services/**` và `GET /service-images/**` là **public**; các thao tác ghi yêu cầu authentication + authority.
 - **`ErrorCode.java`**: `SERVICE_NOT_EXISTED` (7001), `SERVICE_IMAGE_NOT_EXISTED` (7002).
-- **`SeedRolePerms.java`**: 7 permission cấp cho role `ADMIN` — `SERVICE_CREATE/UPDATE/DELETE`, `SERVICE_IMAGE_CREATE/UPDATE/DELETE/SET_PRIMARY` (kiểm soát qua `@PreAuthorize`).
+- **`V2__seed_roles_permissions.sql`**: 7 permission cấp cho role `ADMIN` — `SERVICE_CREATE/UPDATE/DELETE`, `SERVICE_IMAGE_CREATE/UPDATE/DELETE/SET_PRIMARY` (kiểm soát qua `@PreAuthorize`).
 
 ---
 

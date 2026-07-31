@@ -1,0 +1,150 @@
+# ==============================================================
+# Compose dùng trên SERVER (production).
+# Khác docker-compose.yml (dev): dùng image đã build sẵn trên
+# ghcr.io thay vì build tại chỗ -> deploy chỉ mất vài giây.
+#
+# Trên server cần đúng 2 file: docker-compose.prod.yml và .env
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Đặt IMAGE_OWNER=<github-user>/<repo> trong .env, ví dụ:
+#   IMAGE_OWNER=hnd8604/auto_accessories_store
+#   IMAGE_TAG=latest
+#
+# Lần deploy ĐẦU TIÊN (database còn rỗng) .env bắt buộc phải có
+# ADMIN_PASSWORD, nếu không backend sẽ dừng khởi động kèm thông báo rõ ràng.
+# Các lần deploy sau tài khoản đã tồn tại nên biến này không còn cần nữa.
+# ==============================================================
+
+services:
+  postgres:
+    container_name: postgres
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [backend]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+  redis:
+    container_name: redis
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks: [backend]
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a $$REDIS_PASSWORD ping | grep PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+  kafka:
+    container_name: kafka
+    image: apache/kafka-native:3.9.0
+    restart: unless-stopped
+    environment:
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID:-5L6g3nShT-eMCtK--X86sw}
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: PLAINTEXT://:29092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks: [backend]
+    healthcheck:
+      test: ['CMD-SHELL', 'nc -z localhost 29092']
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+  backend:
+    container_name: store-backend
+    image: ghcr.io/${IMAGE_OWNER}-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+    # env_file nạp toàn bộ JWT_SIGNER_KEY / MAIL_* / CLOUDINARY_* / SEPAY_* /
+    # GOOGLE_* mà application.yaml đọc qua ${...}. Thiếu env_file thì app
+    # không khởi động được (đây là lỗi của docker-compose.yml bản dev).
+    env_file: .env
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    networks: [backend]
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          wget -qO- http://localhost:8080/api/v1/actuator/health
+          | grep -q '"status":"UP"'
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '5' }
+
+  frontend:
+    container_name: store-frontend
+    image: ghcr.io/${IMAGE_OWNER}-frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on: [backend]
+    # nginx.conf trong image đã proxy /api/v1 -> http://backend:8080
+    ports:
+      - '80:3000'
+    networks: [backend]
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+volumes:
+  postgres_data:
+  redis_data:
+  kafka_data:
+
+networks:
+  backend:
+    driver: bridge

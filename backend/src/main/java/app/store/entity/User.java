@@ -16,6 +16,8 @@ import java.util.Set;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Entity
+// `user` là từ khoá reserved của PostgreSQL -> phải đặt tên khác, giống Order -> "orders"
+@Table(name = "users")
 public class User extends BaseEntityUUID {
 
     @Column(nullable = false, unique = true)

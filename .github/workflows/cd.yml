@@ -1,0 +1,111 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Deploy lên server sau khi push image?'
+        type: boolean
+        default: false
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false # không huỷ deploy đang chạy giữa đường
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ---------------------------------------------------------------
+  # Build & push image lên GitHub Container Registry (ghcr.io)
+  # Không cần secret: dùng GITHUB_TOKEN có sẵn
+  # ---------------------------------------------------------------
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # cần để push lên ghcr.io
+    strategy:
+      matrix:
+        include:
+          - name: backend
+            context: ./backend
+          - name: frontend
+            context: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.name }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  # ---------------------------------------------------------------
+  # Deploy: SSH vào server, pull image mới và restart bằng docker compose
+  # Chỉ chạy khi có tag v* hoặc bấm Run workflow với deploy=true
+  # Yêu cầu secrets: SSH_HOST, SSH_USER, SSH_KEY (+ tuỳ chọn SSH_PORT)
+  # và biến DEPLOY_PATH trỏ tới thư mục chứa docker-compose.prod.yml + .env
+  # ---------------------------------------------------------------
+  deploy:
+    needs: build-push
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read # để server `docker pull` được bằng GITHUB_TOKEN
+    environment: production # bật "required reviewers" ở Settings để cần approve trước khi deploy
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true # dừng ngay khi một lệnh fail
+          script: |
+            set -e
+            cd ${{ vars.DEPLOY_PATH || '/opt/auto_accessories_store' }}
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker image prune -f
+            docker compose -f docker-compose.prod.yml ps
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 20); do
+            if curl -fsS "https://${{ vars.APP_DOMAIN || 'trungduongauto.store' }}/api/v1/actuator/health" | grep -q '"status":"UP"'; then
+              echo "Backend UP"; exit 0
+            fi
+            echo "Chờ backend khởi động... ($i/20)"; sleep 10
+          done
+          echo "Health check thất bại"; exit 1

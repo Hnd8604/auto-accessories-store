@@ -33,11 +33,14 @@ build/
 .vscode/
 
 ### Security - chứa secrets (API keys, JWT key, DB password, Google OAuth, ...) ###
-src/main/resources/application.yaml
 src/main/resources/application.yml
 src/main/resources/application-*.yaml
 src/main/resources/application-*.yml
 !src/main/resources/application-example.yaml
+# application.yaml ĐƯỢC track: mọi secret trong đó đều đọc từ ${ENV_VAR},
+# không có giá trị thật. Cần track vì CI build jar từ bản clone sạch —
+# thiếu file này thì image không có config và app không khởi động được.
+# => Tuyệt đối không hardcode giá trị thật vào file này.
 
 ### Environment files ###
 .env

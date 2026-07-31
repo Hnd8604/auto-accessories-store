@@ -104,7 +104,15 @@ The API starts at **http://localhost:8080/api/v1**
 - Swagger UI: **http://localhost:8080/api/v1/swagger-ui.html**
 - Health check: **http://localhost:8080/api/v1/actuator/health**
 
-> On first run, Hibernate (`ddl-auto: update`) creates the schema automatically.
+> On first run, Flyway applies the migrations in
+> `backend/src/main/resources/db/migration/` to create the schema. Hibernate runs
+> with `ddl-auto: validate` and never modifies the database — it only fails fast if
+> the entities and the schema disagree.
+>
+> Changing an entity therefore requires a new migration file (`V2__...sql`,
+> `V3__...sql`, ...). Never edit a migration that has already been applied —
+> Flyway stores its checksum and will refuse to start. `SchemaMigrationTest` catches
+> a missing migration in CI.
 
 To build a runnable JAR instead:
 
