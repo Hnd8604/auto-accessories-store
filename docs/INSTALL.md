@@ -14,7 +14,7 @@ Install the following before you begin.
 | **JDK** | 21 | Build & run the backend | `java -version` |
 | **Node.js** | 18+ (LTS) | Build & run the frontend | `node -v` |
 | **npm** | 9+ (bundled with Node) | Frontend package manager | `npm -v` |
-| **Docker + Docker Compose** | latest | Run PostgreSQL, Redis & Kafka | `docker -v` |
+| **Docker + Docker Compose** | latest | Run PostgreSQL & Redis | `docker -v` |
 | **Git** | latest | Clone the repo | `git --version` |
 
 > Maven is **not** required — the backend ships with the Maven Wrapper (`mvnw` / `mvnw.cmd`).
@@ -36,9 +36,9 @@ cd auto_accessories_store
 
 ---
 
-## 3. Start infrastructure (PostgreSQL, Redis, Kafka)
+## 3. Start infrastructure (PostgreSQL, Redis)
 
-The backend depends on PostgreSQL, Redis, and Kafka. The easiest way to run them is via the
+The backend depends on PostgreSQL and Redis. The easiest way to run them is via the
 provided Docker Compose file.
 
 ```bash
@@ -54,15 +54,14 @@ docker compose --profile infra up -d
 This starts:
 - **PostgreSQL 16**   → `localhost:5432`  (database `store`)
 - **Redis 7.4**   → `localhost:6379`
-- **Kafka 3.9**   → `localhost:9094`
 
-Optional dev tools (RedisInsight on `:5540`, Kafka UI on `:8090`):
+Optional dev tools (RedisInsight on `:5540`):
 
 ```bash
 docker compose --profile tools up -d
 ```
 
-> **No Docker?** Install PostgreSQL 16, Redis 7, and Kafka 3.9 manually and make sure they
+> **No Docker?** Install PostgreSQL 16 and Redis 7 manually and make sure they
 > listen on the ports above.
 
 ---
@@ -181,9 +180,8 @@ cd backend
 docker compose --profile infra --profile app up -d --build
 ```
 
-> Note: the `frontend` service builds from `../store-fe` in
-> [docker-compose.yml](backend/docker-compose.yml). Adjust that build context to
-> `../frontend` if you run the frontend container from this repo layout.
+> Note: [docker-compose.yml](../docker-compose.yml) is at the project root.
+> Build contexts point to `./backend` and `./frontend`.
 
 ---
 
@@ -195,6 +193,5 @@ docker compose --profile infra --profile app up -d --build
 | Backend can't connect to PostgreSQL | Ensure `docker compose --profile infra up -d` is running; verify credentials match between `.env` and `application.yaml` |
 | `password authentication failed for user ...` | PostgreSQL username/password mismatch in `application.yaml` |
 | Redis auth error | `spring.data.redis.password` must match `REDIS_PASSWORD` in `.env` |
-| Kafka connection refused | Confirm the `kafka` container is healthy: `docker compose ps` |
-| Port already in use (5432/6379/9094/8080/3000) | Stop the conflicting process or change the port |
+| Port already in use (5432/6379/8080/3000) | Stop the conflicting process or change the port |
 | Frontend `/api` calls 404/timeout | Make sure the backend is running on `:8080` |

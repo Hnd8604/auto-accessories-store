@@ -42,7 +42,7 @@ Assert  (Kiểm chứng): so sánh kết quả thực tế với kết quả mon
     /________\    Unit test           ← NHIỀU NHẤT, nhanh, rẻ (bắt đầu từ đây)
 ```
 
-Ta **bắt đầu từ đáy**: unit test thuần — mock hết dependency, không cần DB/Redis/Kafka.
+Ta **bắt đầu từ đáy**: unit test thuần — mock hết dependency, không cần DB/Redis.
 
 ### Cái gì NÊN và KHÔNG NÊN test
 
@@ -70,7 +70,7 @@ cd backend
 ./mvnw test -Dtest=SlugUtilTest      # chạy riêng 1 class
 ```
 
-> ⚠️ Lưu ý: `StoreApplicationTests.java` hiện có `@SpringBootTest` — nó cần Postgres/Redis/Kafka + biến môi trường thật nên sẽ **fail** khi chạy unit test. Ở Giai đoạn 1 ta sẽ tạm `@Disabled` nó để tách khỏi vòng unit test.
+> ⚠️ Lưu ý: `StoreApplicationTests.java` hiện có `@SpringBootTest` — nó cần Postgres/Redis + biến môi trường thật nên sẽ **fail** khi chạy unit test. Ở Giai đoạn 1 ta sẽ tạm `@Disabled` nó để tách khỏi vòng unit test.
 
 ### Frontend — cần cài Vitest (làm ở Giai đoạn F1)
 
@@ -187,14 +187,14 @@ class ProductServiceTest {
 
 | File cần test | Điểm giá trị cao |
 |---|---|
-| `service/OrderService.java` | tính `totalPrice` nhiều item, trừ tồn kho, xoá cart item khi về 0, `quantity > stock` → `IllegalArgumentException`, **Kafka lỗi vẫn không hỏng đơn**, `cancelOrder` hoàn kho + trạng thái sai → lỗi |
+| `service/OrderService.java` | tính `totalPrice` nhiều item, trừ tồn kho, xoá cart item khi về 0, `quantity > stock` → `IllegalArgumentException`, **event publish lỗi vẫn không hỏng đơn**, `cancelOrder` hoàn kho + trạng thái sai → lỗi |
 | `service/CartService.java` | thêm/xoá/cập nhật item, gộp cart |
 | `service/PostService.java` | tạo/sửa slug, phân trang |
 
 **Kỹ thuật mới:**
 ```java
 // Method trả về void → dùng doThrow (KHÔNG dùng when().thenThrow())
-doThrow(new RuntimeException("Kafka down"))
+doThrow(new RuntimeException("Event publish failed"))
     .when(orderEventProducer).publishOrderCreated(any());
 
 assertThatCode(() -> orderService.createOrderFromCart(request))
@@ -232,8 +232,8 @@ Toàn bộ 22 service còn lại đã có test. Tổng cộng **239 test, 0 fail
 | | `CartSyncServiceTest` | 3 | gộp giỏ session → giỏ DB rồi xoá session |
 | | `MailServiceTest` | 4 | subject/nội dung/người nhận đúng |
 | | `SseEmitterServiceTest` | 5 | 1 user nhiều tab = nhiều emitter |
-| | `OrderEventProducerTest` | 2 | gửi đúng topic, key = `orderId` |
-| | `OrderNotificationConsumerTest` | 4 | payload hỏng → **ném lỗi** để Kafka retry |
+| | `OrderEventProducerTest` | 2 | gửi đúng event qua `ApplicationEventPublisher` |
+| | `OrderNotificationConsumerTest` | 3 | nhận event object trực tiếp, gửi mail + tạo notification |
 
 #### 🆕 6 kỹ thuật mới học được ở B4
 
@@ -259,7 +259,7 @@ void setUp() {
 | | Mock | Spy |
 |---|---|---|
 | Hành vi mặc định | trả null/0/rỗng | chạy code thật |
-| Dùng cho | dependency I/O (DB, mail, Kafka) | tiện ích thuần (ObjectMapper, encoder) |
+| Dùng cho | dependency I/O (DB, mail, event publisher) | tiện ích thuần (ObjectMapper, encoder) |
 
 **3. `mockConstruction` — chặn `new` bên trong service**
 
@@ -531,7 +531,7 @@ Xem file/nhánh nào chưa được test, bổ sung. Đặt mục tiêu thực t
 **Đã xong:** B1 → B4. Toàn bộ tầng service của backend đã được phủ unit test.
 
 ```bash
-cd backend && ./mvnw test        # 239 test, ~20 giây, không cần Postgres/Redis/Kafka
+cd backend && ./mvnw test        # ~20 giây, không cần Postgres/Redis
 ```
 
 **Bước tiếp theo — chọn 1 trong 2 hướng:**

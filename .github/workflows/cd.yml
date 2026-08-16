@@ -58,10 +58,31 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
+      # Biến VITE_* bị nhúng cứng vào bundle lúc build nên phải truyền ở đây,
+      # không thể set lúc chạy container. Chỉnh domain tại Settings → Variables
+      # (APP_DOMAIN) thay vì sửa Dockerfile.
+      - name: Build args cho frontend
+        id: buildargs
+        if: matrix.name == 'frontend'
+        run: |
+          domain="${{ vars.APP_DOMAIN || 'trungduongauto.store' }}"
+          {
+            echo 'args<<EOF'
+            echo "VITE_API_BASE_URL=/api/v1"
+            echo "VITE_GOOGLE_REDIRECT_URI=https://${domain}/auth/google/callback"
+            echo "VITE_GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}"
+            echo "VITE_COMPANY_HOTLINE=${{ vars.COMPANY_HOTLINE }}"
+            echo "VITE_COMPANY_EMAIL=${{ vars.COMPANY_EMAIL }}"
+            echo "VITE_COMPANY_ADDRESS=${{ vars.COMPANY_ADDRESS }}"
+            echo "VITE_COMPANY_HOURS=${{ vars.COMPANY_HOURS }}"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
+          build-args: ${{ steps.buildargs.outputs.args }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

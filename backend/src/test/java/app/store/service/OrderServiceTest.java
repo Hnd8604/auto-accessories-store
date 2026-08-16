@@ -179,7 +179,7 @@ public class OrderServiceTest {
     }
 
     @Test
-    void createOrderFromCart_shouldNotFail_whenKafkaPublishThrows() {
+    void createOrderFromCart_shouldNotFail_whenEventPublishThrows() {
         User user = buildUser();
         Product product = new Product();
         product.setId(1L);
@@ -202,9 +202,9 @@ public class OrderServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
         when(orderMapper.toOrderResponse(any())).thenReturn(new OrderResponse());
-        doThrow(new RuntimeException("Kafka down")).when(orderEventProducer).publishOrderCreated(any());
+        doThrow(new RuntimeException("Event publish failed")).when(orderEventProducer).publishOrderCreated(any());
 
-        // Kafka lỗi nhưng đơn hàng vẫn phải tạo thành công (try/catch nuốt lỗi)
+        // Event publish lỗi nhưng đơn hàng vẫn phải tạo thành công (try/catch nuốt lỗi)
         assertThatCode(() -> orderService.createOrderFromCart(request))
                 .doesNotThrowAnyException();
 

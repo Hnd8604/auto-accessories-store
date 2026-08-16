@@ -63,20 +63,6 @@ spring:
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9094}
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      properties:
-        spring.json.add.type.headers: false
-    consumer:
-      group-id: store-notification-group
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-    listener:
-      missing-topics-fatal: false
 
 logging:
   level:
@@ -105,6 +91,13 @@ management:
     web:
       exposure:
         include: health,info
+  health:
+    # Mặc định Spring ping thử SMTP khi check health -> /actuator/health trả
+    # 503 mỗi khi Gmail chập chờn hoặc App Password hết hạn, khiến container
+    # bị đánh dấu unhealthy và bước health check của CD fail dù web vẫn chạy
+    # bình thường. Gửi mail không phải điều kiện sống/chết của app.
+    mail:
+      enabled: false
 
 # SePay Payment Gateway Configuration
 sepay:
@@ -129,7 +122,3 @@ app:
     username: ${ADMIN_USERNAME:admin}
     password: ${ADMIN_PASSWORD:}
     email: ${ADMIN_EMAIL:admin@gmail.com}
-  kafka:
-    topics:
-      order-created: order.created
-      order-status-changed: order.status.changed

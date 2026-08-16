@@ -37,7 +37,7 @@ jobs:
 
   # ---------------------------------------------------------------
   # Backend: Spring Boot 3.4 / Java 21 / Maven
-  # 239 unit test đều dùng Mockito nên KHÔNG cần Postgres/Redis/Kafka.
+  # Unit test đều dùng Mockito nên KHÔNG cần Postgres/Redis.
   # (240 khi tính cả SchemaMigrationTest)
   # Riêng SchemaMigrationTest cần Postgres -> dùng service container.
   # ---------------------------------------------------------------

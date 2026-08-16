@@ -1,0 +1,14 @@
+# File .env dùng khi deploy nằm cạnh docker-compose.prod.yml ở thư mục này
+# và chứa toàn bộ mật khẩu DB, JWT key, Cloudinary, SePay, Google OAuth.
+# Trước đây root không có .gitignore nên `git add .` sẽ commit thẳng nó lên.
+.env
+.env.*
+!.env.prod.example
+
+# Log sinh ra khi chạy local
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

@@ -3,12 +3,12 @@ package app.store.service;
 import app.store.dto.event.OrderCreatedEvent;
 import app.store.dto.event.OrderStatusChangedEvent;
 import app.store.enums.NotificationType;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.text.NumberFormat;
@@ -19,15 +19,13 @@ import java.util.Locale;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
 public class OrderNotificationConsumer {
-    ObjectMapper objectMapper;
     MailService mailService;
     NotificationService notificationService;
 
-    @KafkaListener(topics = "${app.kafka.topics.order-created}", groupId = "${spring.kafka.consumer.group-id}")
-    public void handleOrderCreated(String payload) {// payload là json string
+    @Async
+    @EventListener
+    public void handleOrderCreated(OrderCreatedEvent event) {
         try {
-            OrderCreatedEvent event = objectMapper.readValue(payload, OrderCreatedEvent.class); // json -> object
-
             // 1. Gửi email thông báo
             mailService.sendOrderCreatedEmail(
                     event.getUserEmail(),
@@ -50,16 +48,14 @@ public class OrderNotificationConsumer {
             log.info("Processed order-created notification. orderId={}, orderCode={}",
                     event.getOrderId(), event.getOrderCode());
         } catch (Exception ex) {
-            log.error("Failed to process order-created event payload={}", payload, ex);
-            throw new RuntimeException(ex);
+            log.error("Failed to process order-created event orderId={}", event.getOrderId(), ex);
         }
     }
 
-    @KafkaListener(topics = "${app.kafka.topics.order-status-changed}", groupId = "${spring.kafka.consumer.group-id}")
-    public void handleOrderStatusChanged(String payload) {
+    @Async
+    @EventListener
+    public void handleOrderStatusChanged(OrderStatusChangedEvent event) {
         try {
-            OrderStatusChangedEvent event = objectMapper.readValue(payload, OrderStatusChangedEvent.class);
-
             // 1. Gửi email thông báo
             mailService.sendOrderStatusChangedEmail(
                     event.getUserEmail(),
@@ -86,8 +82,7 @@ public class OrderNotificationConsumer {
             log.info("Processed order-status-changed notification. orderId={}, orderCode={}, {} -> {}",
                     event.getOrderId(), event.getOrderCode(), event.getOldStatus(), event.getNewStatus());
         } catch (Exception ex) {
-            log.error("Failed to process order-status-changed event payload={}", payload, ex);
-            throw new RuntimeException(ex);
+            log.error("Failed to process order-status-changed event orderId={}", event.getOrderId(), ex);
         }
     }
 }

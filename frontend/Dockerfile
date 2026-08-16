@@ -1,3 +1,14 @@
+# syntax=docker/dockerfile:1
+
+# ==============================================================
+# Frontend image — build Vite rồi serve bằng nginx.
+# Nginx đảm nhiệm toàn bộ: TLS, serve file tĩnh, proxy /api/v1.
+#
+# Build tại thư mục frontend/:
+#   docker build -t store-frontend \
+#     --build-arg VITE_GOOGLE_REDIRECT_URI=https://example.com/auth/google/callback .
+# ==============================================================
+
 # ---- Stage 1: Build ----
 FROM node:22-alpine AS builder
 WORKDIR /app
@@ -6,32 +17,48 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# Biến VITE_* được nhúng thẳng vào bundle LÚC BUILD -> phải truyền qua
+# --build-arg. Đặt chúng lúc `docker run` sẽ không có tác dụng gì.
+ARG VITE_API_BASE_URL=/api/v1
+ARG VITE_GOOGLE_REDIRECT_URI=https://trungduongauto.store/auth/google/callback
+ARG VITE_GOOGLE_CLIENT_ID=
+ARG VITE_COMPANY_HOTLINE=
+ARG VITE_COMPANY_EMAIL=
+ARG VITE_COMPANY_ADDRESS=
+ARG VITE_COMPANY_HOURS=
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
+    VITE_GOOGLE_REDIRECT_URI=$VITE_GOOGLE_REDIRECT_URI \
+    VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID \
+    VITE_COMPANY_HOTLINE=$VITE_COMPANY_HOTLINE \
+    VITE_COMPANY_EMAIL=$VITE_COMPANY_EMAIL \
+    VITE_COMPANY_ADDRESS=$VITE_COMPANY_ADDRESS \
+    VITE_COMPANY_HOURS=$VITE_COMPANY_HOURS
+
 # Copy source and build
 COPY . .
-RUN VITE_API_BASE_URL=/api/v1 \
-    VITE_GOOGLE_REDIRECT_URI=https://trungduongauto.store/auth/google/callback \
-    npm run build
+RUN npm run build
 
 # ---- Stage 2: Serve ----
-FROM alpine:3.20
+FROM nginx:1.27-alpine
 
-# Install nginx
-RUN apk add --no-cache nginx
+# Cài openssl (để tạo self-signed cert tạm khi chưa có cert thật)
+# và curl (để tải ssl-dhparams.pem nếu cần).
+# Cả hai đều có sẵn trong nginx:alpine, chỉ khai báo để rõ ý.
 
-# Remove default nginx content
-RUN rm -rf /usr/share/nginx/html/*
+# nginx.conf chứa biến ${APP_DOMAIN} -> copy vào templates/, entrypoint
+# sẽ envsubst rồi ghi ra conf.d/default.conf.
+COPY nginx.conf /etc/nginx/templates/default.conf.template
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
-# Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx config (Alpine uses http.d instead of conf.d)
-COPY nginx.conf /etc/nginx/http.d/default.conf
+# Nginx cần chạy root để bind port 80/443. Worker processes vẫn chạy
+# dưới user nginx (cấu hình mặc định của image nginx:alpine).
 
-# Setup required directories and permissions for non-root user
-RUN mkdir -p /var/log/nginx /var/lib/nginx /run/nginx && \
-    chown -R nginx:nginx /usr/share/nginx/html /var/log/nginx /var/lib/nginx /run/nginx
+EXPOSE 80 443
 
-USER nginx
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:80/healthz | grep -q ok || exit 1
 
-EXPOSE 3000
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/docker-entrypoint.sh"]

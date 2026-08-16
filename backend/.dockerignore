@@ -1,10 +1,15 @@
 # Build output
 target/
 
+# Logs sinh ra lúc chạy local, không được lọt vào image
+logs/
+*.log
+
 # IDE
 .idea/
 *.iml
 .vscode/
+.run/
 
 # Git
 .git/

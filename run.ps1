@@ -6,7 +6,7 @@
     Convenience launcher for local development on Windows.
 
     By default it:
-      1. Starts PostgreSQL, Redis and Kafka via Docker Compose (--profile infra)
+      1. Starts PostgreSQL and Redis via Docker Compose (--profile infra)
       2. Launches the Spring Boot backend in a new window   (http://localhost:8080/api/v1)
       3. Launches the Vite frontend dev server in a new window (http://localhost:3000)
 
@@ -100,10 +100,10 @@ if (($Only -contains 'backend') -and -not (Test-Path (Join-Path $BackendDir 'mvn
 Write-Ok 'Prerequisites OK.'
 
 # --------------------------------------------------------------------------
-# 1. Infrastructure (PostgreSQL, Redis, Kafka)
+# 1. Infrastructure (PostgreSQL, Redis)
 # --------------------------------------------------------------------------
 if ($Only -contains 'infra') {
-    Write-Step 'Starting infrastructure (PostgreSQL, Redis, Kafka)...'
+    Write-Step 'Starting infrastructure (PostgreSQL, Redis)...'
 
     $envFile = Join-Path $BackendDir '.env'
     if (-not (Test-Path $envFile)) {
@@ -121,7 +121,7 @@ if ($Only -contains 'infra') {
     try {
         docker compose --profile infra up -d
         if ($LASTEXITCODE -ne 0) { throw 'docker compose failed to start infrastructure.' }
-        Write-Ok 'Infrastructure containers are up: postgres:5432, redis:6379, kafka:9094.'
+        Write-Ok 'Infrastructure containers are up: postgres:5432, redis:6379.'
     }
     finally {
         Pop-Location

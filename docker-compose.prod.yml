@@ -49,6 +49,11 @@ services:
       --appendonly yes
       --maxmemory 256mb
       --maxmemory-policy allkeys-lru
+    # Healthcheck bên dưới dùng $$REDIS_PASSWORD -> biến này phải tồn tại
+    # BÊN TRONG container. Thiếu dòng này healthcheck luôn WRONGPASS,
+    # redis mãi unhealthy và backend không bao giờ được khởi động.
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     networks: [backend]
@@ -62,36 +67,6 @@ services:
       driver: json-file
       options: { max-size: '10m', max-file: '3' }
 
-  kafka:
-    container_name: kafka
-    image: apache/kafka-native:3.9.0
-    restart: unless-stopped
-    environment:
-      CLUSTER_ID: ${KAFKA_CLUSTER_ID:-5L6g3nShT-eMCtK--X86sw}
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENERS: PLAINTEXT://:29092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_LOG_DIRS: /var/lib/kafka/data
-    volumes:
-      - kafka_data:/var/lib/kafka/data
-    networks: [backend]
-    healthcheck:
-      test: ['CMD-SHELL', 'nc -z localhost 29092']
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
-    logging:
-      driver: json-file
-      options: { max-size: '10m', max-file: '3' }
 
   backend:
     container_name: store-backend
@@ -100,7 +75,6 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
-      kafka: { condition: service_healthy }
     # env_file nạp toàn bộ JWT_SIGNER_KEY / MAIL_* / CLOUDINARY_* / SEPAY_* /
     # GOOGLE_* mà application.yaml đọc qua ${...}. Thiếu env_file thì app
     # không khởi động được (đây là lỗi của docker-compose.yml bản dev).
@@ -111,13 +85,12 @@ services:
       DB_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     networks: [backend]
     healthcheck:
       test:
         - CMD-SHELL
         - >-
-          wget -qO- http://localhost:8080/api/v1/actuator/health
+          wget -qO- http://127.0.0.1:8080/api/v1/actuator/health
           | grep -q '"status":"UP"'
       interval: 15s
       timeout: 5s
@@ -127,23 +100,58 @@ services:
       driver: json-file
       options: { max-size: '10m', max-file: '5' }
 
+  # Nginx đứng ngoài cùng: TLS, serve file tĩnh, proxy /api/v1.
+  # Chứng chỉ Let's Encrypt do certbot quản lý (service bên dưới).
+  # Port 80 bắt buộc mở kể cả khi chỉ dùng HTTPS vì ACME cần nó.
   frontend:
     container_name: store-frontend
     image: ghcr.io/${IMAGE_OWNER}-frontend:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    depends_on: [backend]
-    # nginx.conf trong image đã proxy /api/v1 -> http://backend:8080
+    depends_on:
+      backend: { condition: service_healthy }
     ports:
-      - '80:3000'
+      - '80:80'
+      - '443:443'
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+    volumes:
+      # Chứng chỉ Let's Encrypt. PHẢI persist, nếu mất thì mỗi lần deploy
+      # lại xin chứng chỉ mới và sẽ dính rate limit (5 lần/domain/tuần).
+      - certbot_etc:/etc/letsencrypt
+      # Webroot cho ACME challenge — certbot ghi file xác thực vào đây,
+      # nginx serve /.well-known/acme-challenge/ từ đây.
+      - certbot_webroot:/var/www/certbot
     networks: [backend]
     logging:
       driver: json-file
       options: { max-size: '10m', max-file: '3' }
 
+  # Certbot tự động gia hạn chứng chỉ Let's Encrypt.
+  # Container chạy vòng lặp: renew → sleep 12h → renew → ...
+  # Lần deploy ĐẦU TIÊN phải chạy thủ công `certbot certonly` (xem DEPLOY.md).
+  certbot:
+    container_name: certbot
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    depends_on: [frontend]
+    volumes:
+      - certbot_etc:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    entrypoint: >
+      /bin/sh -c "trap exit TERM;
+      while :; do
+        certbot renew --webroot -w /var/www/certbot --quiet --deploy-hook 'echo Certificate renewed';
+        sleep 12h & wait $${!};
+      done"
+    logging:
+      driver: json-file
+      options: { max-size: '5m', max-file: '2' }
+
 volumes:
   postgres_data:
   redis_data:
-  kafka_data:
+  certbot_etc:
+  certbot_webroot:
 
 networks:
   backend:

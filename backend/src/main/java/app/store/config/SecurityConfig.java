@@ -25,7 +25,11 @@ public class SecurityConfig {
             "/session-carts/**",
             "/auth/login", "/auth/google", "/auth/introspect", "/auth/logout", "/auth/refresh", "/auth/password/reset/**",
             "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
-            "/ws/**"
+            "/ws/**",
+            // Healthcheck của Docker/CD gọi endpoint này. Không permitAll thì
+            // nó trả 401 -> container luôn unhealthy dù app chạy bình thường.
+            // Chỉ mở health, các endpoint actuator khác vẫn cần đăng nhập.
+            "/actuator/health", "/actuator/health/**"
     };
 
     @Autowired
