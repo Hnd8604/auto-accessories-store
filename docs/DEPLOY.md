@@ -49,19 +49,38 @@ dig +short trungduongauto.store    # phải ra đúng IP VPS
 > nhiều lần và dính **rate limit của Let's Encrypt (5 lần/domain/tuần)**.
 > Luôn kiểm tra DNS trước.
 
-## 3. Đưa file lên server
+## 3. Tạo GitHub Personal Access Token
 
-Server chỉ cần đúng **2 file**:
+Repo và Docker image đều là **private**, nên cần tạo 1 token dùng chung
+cho cả clone repo (bước 4) lẫn pull image (bước 6).
+
+1. Vào [GitHub → Settings → Developer settings → Personal access tokens → **Tokens (classic)**](https://github.com/settings/tokens)
+2. Bấm **Generate new token (classic)**
+3. Đặt tên (vd: `vps-deploy`), chọn thời hạn
+4. Tick scope **`repo`** (clone private repo) và **`read:packages`** (pull image từ ghcr.io)
+5. Bấm **Generate token** → **copy ngay** (chỉ hiện 1 lần)
+
+Ghi lại token này — sẽ dùng ở bước 4 và bước 6.
+
+## 4. Đưa file lên server
+
+Server chỉ cần đúng **2 file**: `docker-compose.prod.yml` và `.env`.
 
 ```bash
 sudo mkdir -p /opt/auto_accessories_store && cd /opt/auto_accessories_store
 
-# Lấy từ repo (hoặc scp lên)
-curl -O https://raw.githubusercontent.com/hnd8604/auto_accessories_store/main/docker-compose.prod.yml
-curl -o .env https://raw.githubusercontent.com/hnd8604/auto_accessories_store/main/.env.prod.example
+# Clone bằng HTTPS + token (thay <TOKEN> bằng token ở bước 3)
+git clone --depth 1 https://<TOKEN>@github.com/hnd8604/auto_accessories_store.git _repo
+
+# Lấy 2 file cần thiết
+cp _repo/docker-compose.prod.yml .
+cp _repo/.env.prod.example .env
+
+# Xoá repo — không cần giữ source trên server
+rm -rf _repo
 ```
 
-## 4. Điền `.env`
+## 5. Điền `.env`
 
 ```bash
 nano .env
@@ -82,12 +101,11 @@ Bắt buộc phải sửa:
 `ADMIN_PASSWORD` chỉ dùng khi database còn rỗng. Từ lần deploy sau tài khoản
 admin đã tồn tại nên biến này bị bỏ qua.
 
-## 5. Khởi động + lấy chứng chỉ TLS
+## 6. Khởi động + lấy chứng chỉ TLS
 
 ```bash
-# Đăng nhập ghcr.io để pull image (dùng GitHub Personal Access Token
-# có scope read:packages). Bỏ qua nếu package để public.
-echo "<GITHUB_TOKEN>" | docker login ghcr.io -u <github-user> --password-stdin
+# Đăng nhập ghcr.io bằng token ở bước 3
+echo "<TOKEN>" | docker login ghcr.io -u hnd8604 --password-stdin
 
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
@@ -126,7 +144,7 @@ curl https://<domain>/api/v1/actuator/health       # {"status":"UP"}
 
 ---
 
-## 6. Deploy tự động qua GitHub Actions
+## 7. Deploy tự động qua GitHub Actions
 
 Workflow [.github/workflows/cd.yml](../.github/workflows/cd.yml) build image
 và deploy qua SSH. Khai báo trong **Settings → Secrets and variables → Actions**:
@@ -158,7 +176,7 @@ Chỉ push lên `main` thì chỉ build image, không deploy.
 
 ---
 
-## 7. Vận hành
+## 8. Vận hành
 
 ```bash
 # Xem log
