@@ -97,7 +97,7 @@ jobs:
   # ---------------------------------------------------------------
   deploy:
     needs: build-push
-    if: startsWith(github.ref, 'refs/tags/v') || inputs.deploy
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'true')
     runs-on: ubuntu-latest
     permissions:
       contents: read
