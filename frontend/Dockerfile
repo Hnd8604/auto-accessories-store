@@ -43,7 +43,8 @@ FROM nginx:1.27-alpine
 
 # Cài openssl (để tạo self-signed cert tạm khi chưa có cert thật)
 # và curl (để tải ssl-dhparams.pem nếu cần).
-# Cả hai đều có sẵn trong nginx:alpine, chỉ khai báo để rõ ý.
+# nginx:alpine chỉ có libssl, KHÔNG có CLI openssl → phải cài thêm.
+RUN apk add --no-cache openssl curl
 
 # nginx.conf chứa biến ${APP_DOMAIN} -> copy vào templates/, entrypoint
 # sẽ envsubst rồi ghi ra conf.d/default.conf.

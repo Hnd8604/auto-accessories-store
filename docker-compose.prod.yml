@@ -8,7 +8,7 @@
 #   docker compose -f docker-compose.prod.yml up -d
 #
 # Đặt IMAGE_OWNER=<github-user>/<repo> trong .env, ví dụ:
-#   IMAGE_OWNER=hnd8604/auto_accessories_store
+#   IMAGE_OWNER=hnd8604/auto-accessories-store   ← dùng dấu gạch ngang (ghcr.io tự đổi _ thành -)
 #   IMAGE_TAG=latest
 #
 # Lần deploy ĐẦU TIÊN (database còn rỗng) .env bắt buộc phải có
