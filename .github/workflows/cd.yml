@@ -71,10 +71,6 @@ jobs:
             echo "VITE_API_BASE_URL=/api/v1"
             echo "VITE_GOOGLE_REDIRECT_URI=https://${domain}/auth/google/callback"
             echo "VITE_GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}"
-            echo "VITE_COMPANY_HOTLINE=${{ vars.COMPANY_HOTLINE }}"
-            echo "VITE_COMPANY_EMAIL=${{ vars.COMPANY_EMAIL }}"
-            echo "VITE_COMPANY_ADDRESS=${{ vars.COMPANY_ADDRESS }}"
-            echo "VITE_COMPANY_HOURS=${{ vars.COMPANY_HOURS }}"
             echo EOF
           } >> "$GITHUB_OUTPUT"
 
@@ -93,7 +89,7 @@ jobs:
   # Deploy: SSH vào server, pull image mới và restart bằng docker compose
   # Chỉ chạy khi có tag v* hoặc bấm Run workflow với deploy=true
   # Yêu cầu secrets: SSH_HOST, SSH_USER, SSH_KEY (+ tuỳ chọn SSH_PORT)
-  # và biến DEPLOY_PATH trỏ tới thư mục chứa docker-compose.prod.yml + .env
+  # và biến DEPLOY_PATH trỏ tới thư mục chứa docker-compose.prod.yml + .env.prod
   # ---------------------------------------------------------------
   deploy:
     needs: build-push
@@ -115,11 +111,22 @@ jobs:
           script: |
             set -e
             cd ${{ vars.DEPLOY_PATH || '/opt/auto_accessories_store' }}
+            # Chốt chặn cho lần đổi tên .env -> .env.prod. Thiếu file này thì
+            # mọi ${...} trong compose phân giải thành chuỗi rỗng và container
+            # dựng lên với mật khẩu trống — hỏng im lặng. Thà dừng deploy, giữ
+            # nguyên container đang chạy, còn hơn.
+            if [ ! -f .env.prod ]; then
+              echo "Khong tim thay .env.prod trong $(pwd)"
+              if [ -f .env ]; then
+                echo "Van con file .env cu. Chay MOT LAN tren server:  mv .env .env.prod"
+              fi
+              exit 1
+            fi
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose --env-file .env.prod -f docker-compose.prod.yml pull
+            docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --remove-orphans
             docker image prune -f
-            docker compose -f docker-compose.prod.yml ps
+            docker compose --env-file .env.prod -f docker-compose.prod.yml ps
 
       - name: Health check
         run: |

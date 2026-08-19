@@ -3,18 +3,29 @@
 # Khác docker-compose.yml (dev): dùng image đã build sẵn trên
 # ghcr.io thay vì build tại chỗ -> deploy chỉ mất vài giây.
 #
-# Trên server cần đúng 2 file: docker-compose.prod.yml và .env
-#   docker compose -f docker-compose.prod.yml pull
-#   docker compose -f docker-compose.prod.yml up -d
+# Trên server cần đúng 2 file: docker-compose.prod.yml và .env.prod
 #
-# Đặt IMAGE_OWNER=<github-user>/<repo> trong .env, ví dụ:
+# ⚠️ ĐỔI TÊN: file env của prod trước đây là `.env`, nay là `.env.prod` cho đối
+#    xứng với `.env.dev` của máy local. Trên VPS phải `mv .env .env.prod` MỘT LẦN
+#    trước lần deploy kế tiếp, nếu không compose sẽ dựng container với biến rỗng.
+#
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml pull
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+#
+# Đặt IMAGE_OWNER=<github-user>/<repo> trong .env.prod, ví dụ:
 #   IMAGE_OWNER=hnd8604/auto-accessories-store   ← dùng dấu gạch ngang (ghcr.io tự đổi _ thành -)
 #   IMAGE_TAG=latest
 #
-# Lần deploy ĐẦU TIÊN (database còn rỗng) .env bắt buộc phải có
+# Lần deploy ĐẦU TIÊN (database còn rỗng) .env.prod bắt buộc phải có
 # ADMIN_PASSWORD, nếu không backend sẽ dừng khởi động kèm thông báo rõ ràng.
 # Các lần deploy sau tài khoản đã tồn tại nên biến này không còn cần nữa.
 # ==============================================================
+
+# Tên project pin cứng. Không khai thì Compose suy ra từ tên thư mục deploy,
+# nghĩa là đổi DEPLOY_PATH là volume đổi tên theo và DATABASE PRODUCTION coi
+# như biến mất. Giá trị này khớp đúng tên đang chạy trên VPS hiện tại
+# (kiểm tra bằng `docker compose ls`), nên khai vào đây là no-op an toàn.
+name: auto_accessories_store
 
 services:
   postgres:
@@ -75,10 +86,10 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
-    # env_file nạp toàn bộ JWT_SIGNER_KEY / MAIL_* / CLOUDINARY_* / SEPAY_* /
+    # env_file (.env.prod) nạp toàn bộ JWT_SIGNER_KEY / MAIL_* / CLOUDINARY_* / SEPAY_* /
     # GOOGLE_* mà application.yaml đọc qua ${...}. Thiếu env_file thì app
-    # không khởi động được (đây là lỗi của docker-compose.yml bản dev).
-    env_file: .env
+    # không khởi động được.
+    env_file: .env.prod
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres

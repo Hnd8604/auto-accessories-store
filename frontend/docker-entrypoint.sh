@@ -40,11 +40,36 @@ EOF
 fi
 
 DH_PARAM="/etc/letsencrypt/ssl-dhparams.pem"
+
+# Cả hai URL trả về CÙNG một group ffdhe2048 (RFC 7919), 424 byte.
+# Certbot đã chuyển sang layout src/ nên đường dẫn cũ
+# (certbot/certbot/ssl-dhparams.pem) giờ trả 404 — giữ URL thứ hai làm dự phòng
+# cho lần đổi cấu trúc tiếp theo.
+DH_URLS="https://raw.githubusercontent.com/certbot/certbot/main/certbot/src/certbot/ssl-dhparams.pem
+https://ssl-config.mozilla.org/ffdhe2048.txt"
+
 if [ ! -f "$DH_PARAM" ]; then
-    # DH params 2048-bit từ Mozilla — dùng bản hardcoded để tránh generate lâu
-    curl -sS https://raw.githubusercontent.com/certbot/certbot/master/certbot/certbot/ssl-dhparams.pem \
-        -o "$DH_PARAM" 2>/dev/null || \
-    openssl dhparam -out "$DH_PARAM" 2048 2>/dev/null
+    # Tải vào file tạm rồi mới mv: KHÔNG BAO GIỜ để nginx thấy một $DH_PARAM
+    # dở dang hoặc chứa rác. Hai cái bẫy đã từng làm nginx không load được:
+    #   • thiếu -f  → HTTP 404 vẫn exit 0, body "404: Not Found" ghi vào file
+    #   • không validate → file hỏng chỉ lộ ra lúc nginx load, quá muộn
+    DH_TMP="$DH_PARAM.tmp.$$"
+    for url in $DH_URLS; do
+        if curl -fsSL "$url" -o "$DH_TMP" \
+           && openssl dhparam -in "$DH_TMP" -check -noout >/dev/null 2>&1; then
+            mv "$DH_TMP" "$DH_PARAM"
+            echo "==> Đã tải ssl-dhparams.pem từ $url"
+            break
+        fi
+        echo "==> Nguồn không dùng được: $url"
+        rm -f "$DH_TMP"
+    done
+
+    if [ ! -f "$DH_PARAM" ]; then
+        echo "==> Không tải được ssl-dhparams.pem hợp lệ, tự generate (mất ~1-2 phút)..."
+        openssl dhparam -out "$DH_TMP" 2048 2>/dev/null
+        mv "$DH_TMP" "$DH_PARAM"
+    fi
 fi
 
 echo "==> Khởi động nginx cho $DOMAIN"

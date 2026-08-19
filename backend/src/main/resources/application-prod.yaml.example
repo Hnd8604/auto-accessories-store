@@ -1,0 +1,42 @@
+## ==============================================================
+## File MẪU cho profile "prod".
+##
+## KHÔNG cần copy gì sau khi clone: application-prod.yaml bản thật đã nằm sẵn
+## trong repo (nó không chứa secret nào — mọi secret đọc từ ${ENV_VAR} lấy ở
+## .env.prod ngoài thư mục gốc). CI cũng build image từ chính file đó.
+##
+## File này để làm mẫu khi cần dựng thêm MÔI TRƯỜNG MỚI, ví dụ staging:
+##   cp application-prod.yaml.example application-staging.yaml
+## rồi khai báo tên file mới vào !src/main/resources/... trong backend/.gitignore
+## (luật application-*.yaml chặn mặc định để không ai lỡ commit file chứa secret).
+##
+## Nguyên tắc: chỉ đặt vào đây thứ THỰC SỰ khác giữa các môi trường.
+## Thứ gì giống nhau ở mọi nơi thì để trong application.yaml.
+## ==============================================================
+
+
+spring:
+  # Server không có TTY, mã màu ANSI chỉ làm bẩn log file.
+  output.ansi.enabled: NEVER
+  jpa:
+    # BẮT BUỘC false. Bật lên là mỗi request ghi vài chục dòng SQL vào
+    # backend.log, đầy đĩa VPS chỉ sau vài ngày.
+    show-sql: false
+
+logging:
+  level:
+    # Cố ý để info chứ không phải warn: log khởi động (Flyway chạy migration
+    # nào, Tomcat bind cổng nào) là thứ đầu tiên cần xem khi deploy hỏng.
+    root: info
+    app.store: info
+    # Chốt chặn thứ hai cho show-sql, phòng khi ai đó bật nhầm ở nơi khác.
+    org.hibernate.SQL: warn
+    org.hibernate.orm.jdbc.bind: warn
+
+app:
+  cors:
+    # APP_DOMAIN đến từ env_file .env.prod (xem .env.prod.example ở thư mục gốc).
+    # Thực tế nginx proxy /api/v1 nên request là same-origin và không cần
+    # CORS; khai báo ở đây để nếu sau này tách domain api.* thì đã đúng sẵn,
+    # và để không bao giờ có localhost trong danh sách của prod.
+    allowed-origins: https://${APP_DOMAIN:localhost},https://www.${APP_DOMAIN:localhost}

@@ -28,7 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { CloudinaryApi } from "@/services/cloudinary";
+import { ImagesApi } from "@/services/images";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface RichTextEditorProps {
@@ -219,26 +219,26 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     setTimeout(() => textarea.focus(), 0);
   };
 
-  const uploadImageToCloudinary = async (file: File): Promise<string> => {
-    if (!CloudinaryApi.isImageFile(file)) {
+  const uploadImage = async (file: File): Promise<string> => {
+    if (!ImagesApi.isImageFile(file)) {
       throw new Error("File không phải là ảnh");
     }
 
-    if (!CloudinaryApi.isValidFileSize(file, 10)) {
+    if (!ImagesApi.isValidFileSize(file, 10)) {
       throw new Error("Kích thước file vượt quá 10MB");
     }
 
     setIsUploading(true);
-    setUploadProgress("Đang tải lên Cloudinary...");
+    setUploadProgress("Đang tải ảnh lên...");
 
     try {
-      const response = await CloudinaryApi.uploadImage(file, "store/posts/content");
+      const response = await ImagesApi.upload(file, "store/posts/content");
       setUploadProgress("Hoàn tất!");
-      return response.secure_url;
+      return response.imageUrl;
     } catch (error) {
-      console.error("Cloudinary upload error:", error);
+      console.error("Image upload error:", error);
       throw new Error(
-        error instanceof Error ? error.message : "Không thể tải ảnh lên Cloudinary"
+        error instanceof Error ? error.message : "Không thể tải ảnh lên"
       );
     } finally {
       setIsUploading(false);
@@ -249,7 +249,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const handleFileSelect = (file: File) => {
     console.log('📂 handleFileSelect called:', file.name);
     
-    if (!CloudinaryApi.isImageFile(file)) {
+    if (!ImagesApi.isImageFile(file)) {
       console.log('❌ Not an image file');
       toast({
         variant: "destructive",
@@ -259,7 +259,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       return;
     }
 
-    if (!CloudinaryApi.isValidFileSize(file, 10)) {
+    if (!ImagesApi.isValidFileSize(file, 10)) {
       console.log('❌ File too large');
       toast({
         variant: "destructive",
@@ -290,10 +290,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     if (!selectedImageFile) return;
 
     try {
-      const cloudinaryUrl = await uploadImageToCloudinary(selectedImageFile);
+      const uploadedUrl = await uploadImage(selectedImageFile);
       
       const altText = imageAlt || selectedImageFile.name.split(".")[0] || "image";
-      let imageMarkdown = `\n![${altText}](${cloudinaryUrl})`;
+      let imageMarkdown = `\n![${altText}](${uploadedUrl})`;
       
       if (imageCaption) {
         imageMarkdown += `\n*${imageCaption}*`;
@@ -713,7 +713,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           <DialogHeader>
             <DialogTitle>Chèn ảnh</DialogTitle>
             <DialogDescription>
-              Tải ảnh lên Cloudinary hoặc nhập URL ảnh có sẵn
+              Tải ảnh lên hoặc nhập URL ảnh có sẵn
             </DialogDescription>
           </DialogHeader>
           
@@ -811,7 +811,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                     </label>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Ảnh sẽ được xem trước trước khi tải lên Cloudinary
+                    Ảnh sẽ được xem trước trước khi tải lên
                   </p>
                 </div>
               )}

@@ -36,17 +36,25 @@ build/
 src/main/resources/application.yml
 src/main/resources/application-*.yaml
 src/main/resources/application-*.yml
-!src/main/resources/application-example.yaml
+!src/main/resources/application.yaml.example
+# application-dev.yaml và application-prod.yaml ĐƯỢC track: chúng chỉ chứa
+# khác biệt về hành vi giữa hai môi trường (show-sql, log level, CORS origin),
+# không có secret nào — secret vẫn đọc hết từ ${ENV_VAR}. Bắt buộc phải track
+# vì CI build image từ bản clone sạch; thiếu application-prod.yaml thì prod
+# âm thầm rơi về giá trị mặc định mà không báo lỗi gì.
+!src/main/resources/application-dev.yaml
+!src/main/resources/application-prod.yaml
 # application.yaml ĐƯỢC track: mọi secret trong đó đều đọc từ ${ENV_VAR},
 # không có giá trị thật. Cần track vì CI build jar từ bản clone sạch —
 # thiếu file này thì image không có config và app không khởi động được.
 # => Tuyệt đối không hardcode giá trị thật vào file này.
 
 ### Environment files ###
+# File .env đã chuyển hết ra THƯ MỤC GỐC (.env.dev / .env.prod), nằm cạnh
+# compose file tương ứng — xem .gitignore ở gốc. Giữ lại luật chặn ở đây
+# thuần tuý làm lưới an toàn, phòng ai đó lỡ tạo lại backend/.env.
 .env
 .env.*
-!.env.example
-!.env.template
 
 ### OS files ###
 .DS_Store

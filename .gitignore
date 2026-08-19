@@ -1,8 +1,16 @@
-# File .env dùng khi deploy nằm cạnh docker-compose.prod.yml ở thư mục này
-# và chứa toàn bộ mật khẩu DB, JWT key, Cloudinary, SePay, Google OAuth.
-# Trước đây root không có .gitignore nên `git add .` sẽ commit thẳng nó lên.
+# ==============================================================
+# Biến môi trường. Cả hai môi trường đều đặt file .env ở THƯ MỤC GỐC này,
+# ngay cạnh compose file tương ứng:
+#
+#   .env.dev   ← docker-compose.yml       (máy local)
+#   .env.prod  ← docker-compose.prod.yml  (VPS)
+#
+# Chúng chứa mật khẩu DB, JWT key, Cloudinary, SePay, Google OAuth.
+# Chỉ hai file *.example được commit; bản thật thì không, bao giờ cũng vậy.
+# ==============================================================
 .env
 .env.*
+!.env.dev.example
 !.env.prod.example
 
 # Log sinh ra khi chạy local

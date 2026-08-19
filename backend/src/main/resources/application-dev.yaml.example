@@ -1,0 +1,37 @@
+## ==============================================================
+## File MẪU cho profile "dev".
+##
+## KHÔNG cần copy gì sau khi clone: application-dev.yaml bản thật đã nằm sẵn
+## trong repo (nó không chứa secret nào — mọi secret đọc từ ${ENV_VAR} lấy ở
+## .env.dev ngoài thư mục gốc). CI cũng build image từ chính file đó.
+##
+## File này để làm mẫu khi cần dựng thêm MÔI TRƯỜNG MỚI, ví dụ staging:
+##   cp application-dev.yaml.example application-staging.yaml
+## rồi khai báo tên file mới vào !src/main/resources/... trong backend/.gitignore
+## (luật application-*.yaml chặn mặc định để không ai lỡ commit file chứa secret).
+##
+## Nguyên tắc: chỉ đặt vào đây thứ THỰC SỰ khác giữa các môi trường.
+## Thứ gì giống nhau ở mọi nơi thì để trong application.yaml.
+## ==============================================================
+
+
+spring:
+  # Log màu cho terminal. Trên server không có TTY nên prod tắt.
+  output.ansi.enabled: ALWAYS
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    root: info
+    app.store: debug
+    # Hibernate 6: in luôn giá trị tham số đã bind vào câu SQL ở trên.
+    # Cực kỳ hữu ích khi debug query, nhưng lộ dữ liệu người dùng -> chỉ dev.
+    org.hibernate.orm.jdbc.bind: trace
+
+app:
+  cors:
+    # Vite dev server (3000) và cổng mặc định của Vite (5173).
+    # Ở dev frontend gọi thẳng backend :8080 nên đây là cross-origin thật,
+    # khác prod nơi nginx proxy /api/v1 thành same-origin.
+    allowed-origins: http://localhost:3000,http://localhost:5173
