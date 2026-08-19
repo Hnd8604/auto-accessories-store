@@ -3,13 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Phone, Mail, MapPin, Clock, MessageCircle, Star } from "lucide-react";
-
-const COMPANY_INFO = {
-  hotline: import.meta.env.VITE_COMPANY_HOTLINE,
-  email: import.meta.env.VITE_COMPANY_EMAIL,
-  address: import.meta.env.VITE_COMPANY_ADDRESS,
-  hours: import.meta.env.VITE_COMPANY_HOURS,
-};
+import { COMPANY } from "@/constants/company";
 
 export const Contact = () => {
   return (
@@ -40,7 +34,7 @@ export const Contact = () => {
                   </div>
                   <div>
                     <div className="font-semibold text-foreground">Hotline</div>
-                    <div className="text-muted-foreground">{COMPANY_INFO.hotline}</div>
+                    <div className="text-muted-foreground">{COMPANY.hotline}</div>
                   </div>
                 </div>
 
@@ -50,7 +44,7 @@ export const Contact = () => {
                   </div>
                   <div>
                     <div className="font-semibold text-foreground">Email</div>
-                    <div className="text-muted-foreground">{COMPANY_INFO.email}</div>
+                    <div className="text-muted-foreground">{COMPANY.email}</div>
                   </div>
                 </div>
 
@@ -60,7 +54,7 @@ export const Contact = () => {
                   </div>
                   <div>
                     <div className="font-semibold text-foreground">Địa Chỉ</div>
-                    <div className="text-muted-foreground">{COMPANY_INFO.address}</div>
+                    <div className="text-muted-foreground">{COMPANY.address}</div>
                   </div>
                 </div>
 
@@ -70,7 +64,7 @@ export const Contact = () => {
                   </div>
                   <div>
                     <div className="font-semibold text-foreground">Giờ Làm Việc</div>
-                    <div className="text-muted-foreground">{COMPANY_INFO.hours}</div>
+                    <div className="text-muted-foreground">{COMPANY.hours}</div>
                   </div>
                 </div>
               </CardContent>

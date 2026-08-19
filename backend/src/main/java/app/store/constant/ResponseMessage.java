@@ -120,5 +120,9 @@ public final class ResponseMessage {
     public static final String MARK_NOTIFICATION_READ_SUCCESS = "Notification marked as read";
     public static final String MARK_ALL_NOTIFICATIONS_READ_SUCCESS = "All notifications marked as read";
 
+    // Image Messages
+    public static final String UPLOAD_IMAGE_SUCCESS = "Image uploaded successfully";
+
+
 
 }

@@ -1,24 +1,45 @@
 export const API_BASE_URL: string =
-  (import.meta as any)?.env?.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
+  import.meta.env.VITE_API_BASE_URL || "/api/v1";
+
+export const WS_URL: string =
+  import.meta.env.VITE_WS_URL ||
+  (/^https?:\/\//.test(API_BASE_URL)
+    ? `${API_BASE_URL}/ws`
+    : `${window.location.origin}${API_BASE_URL}/ws`);
 
 export const ACCESS_TOKEN_KEY = "access_token";
 export const REFRESH_TOKEN_KEY = "refresh_token";
 
-// Google OAuth2 Configuration
-export const GOOGLE_CLIENT_ID: string =
-  (import.meta as any)?.env?.VITE_GOOGLE_CLIENT_ID || "990160635393-5s2c8e26gt5m459ib69su6l1a5r52vca.apps.googleusercontent.com";
-export const GOOGLE_REDIRECT_URI: string =
-  (import.meta as any)?.env?.VITE_GOOGLE_REDIRECT_URI || "http://localhost:3000/auth/google/callback";
+// Cảnh báo khi thiếu biến bắt buộc. Biến VITE_* được nhúng cứng lúc build, nên
+// thiếu là thiếu vĩnh viễn trong bundle — báo sớm ở console còn hơn để người
+// dùng bấm nút rồi nhận trang lỗi khó hiểu từ phía Google.
+function required(name: string, value: string | undefined): string {
+  if (!value) {
+    console.error(
+      `[config] Thiếu biến môi trường ${name}. Dev: thêm vào frontend/.env. ` +
+        `Prod: đặt build-arg trong .github/workflows/cd.yml (Settings → Variables).`
+    );
+    return "";
+  }
+  return value;
+}
 
-// Cloudinary Configuration
-// Note: These should be moved to environment variables in production
-export const CLOUDINARY_CONFIG = {
-  cloudName: "dsgftzhzt",
-  apiKey: "991924558367536",
-  apiSecret: "HR2QU9_z_Bzvk4lxaoAR_U69dTQ",
-  uploadPreset: "ml_default", // You need to create an unsigned upload preset in Cloudinary dashboard
-  // Alternative: use signed upload via backend API for better security
-};
+// Google OAuth2 Configuration
+//
+// Client ID KHÔNG còn giá trị mặc định hardcode. Giá trị cũ nằm thẳng trong
+// source nghĩa là dev và prod buộc phải dùng chung một OAuth client, và đổi
+// client thì phải sửa code rồi build lại.
+export const GOOGLE_CLIENT_ID: string = required(
+  "VITE_GOOGLE_CLIENT_ID",
+  import.meta.env.VITE_GOOGLE_CLIENT_ID
+);
+export const GOOGLE_REDIRECT_URI: string =
+  import.meta.env.VITE_GOOGLE_REDIRECT_URI ||
+  `${window.location.origin}/auth/google/callback`;
+
+// Cloudinary: frontend không còn cấu hình gì cả. Upload đi qua backend
+// (POST /images/upload) và backend trả về URL đầy đủ, nên trình duyệt không
+// cần cloud name, api key hay secret nữa.
 
 export type HttpHeaders = Record<string, string>;
 

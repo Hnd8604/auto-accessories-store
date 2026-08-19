@@ -1,3 +1,13 @@
+# ==============================================================
+# Cấu hình CHUNG cho mọi môi trường.
+#
+# Những gì KHÁC nhau giữa dev và prod không nằm ở đây mà ở:
+#   application-dev.yaml   ← mặc định khi chạy `mvnw spring-boot:run`
+#   application-prod.yaml  ← Dockerfile/compose set SPRING_PROFILES_ACTIVE=prod
+#
+# Nguyên tắc: cùng một artifact, khác biệt duy nhất đến từ config bên ngoài.
+# Đừng thêm lại show-sql / logging.level / cors vào file này.
+# ==============================================================
 
 server:
   port: 8080
@@ -5,7 +15,6 @@ server:
     context-path: /api/v1
 
 spring:
-  output.ansi.enabled: ALWAYS
   profiles:
     active: dev
   datasource:
@@ -14,7 +23,6 @@ spring:
     password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
-    show-sql: true
     hibernate:
       # Schema do Flyway quản lý. `validate` chỉ đối chiếu entity với DB
       # rồi fail nếu lệch — KHÔNG bao giờ tự sửa schema nữa.
@@ -65,8 +73,6 @@ spring:
           writetimeout: 5000
 
 logging:
-  level:
-    root: info
   file:
     name: ${LOG_PATH:../logs/backend}/backend.log
   logback:

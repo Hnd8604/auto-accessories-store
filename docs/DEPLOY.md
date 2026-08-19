@@ -64,7 +64,18 @@ Ghi lại token này — sẽ dùng ở bước 4 và bước 6.
 
 ## 4. Đưa file lên server
 
-Server chỉ cần đúng **2 file**: `docker-compose.prod.yml` và `.env`.
+Server chỉ cần đúng **2 file**: `docker-compose.prod.yml` và `.env.prod`.
+
+> ⚠️ **Đổi tên (một lần).** File env của prod trước đây tên là `.env`. Nay là
+> `.env.prod`, cho đối xứng với `.env.dev` của máy local và để Compose không bao
+> giờ tự nhặt nhầm file. Trên VPS đang chạy, làm đúng một lần:
+>
+> ```bash
+> cd $DEPLOY_PATH && mv .env .env.prod
+> ```
+>
+> Bước deploy trong CD sẽ dừng lại và nhắc nếu bạn quên, nên không có nguy cơ
+> container bị dựng lại với biến rỗng.
 
 ```bash
 sudo mkdir -p /opt/auto_accessories_store && cd /opt/auto_accessories_store
@@ -74,16 +85,16 @@ git clone --depth 1 https://<TOKEN>@github.com/hnd8604/auto_accessories_store.gi
 
 # Lấy 2 file cần thiết
 cp _repo/docker-compose.prod.yml .
-cp _repo/.env.prod.example .env
+cp _repo/.env.prod.example .env.prod
 
 # Xoá repo — không cần giữ source trên server
 rm -rf _repo
 ```
 
-## 5. Điền `.env`
+## 5. Điền `.env.prod`
 
 ```bash
-nano .env
+nano .env.prod
 ```
 
 Bắt buộc phải sửa:
@@ -107,8 +118,8 @@ admin đã tồn tại nên biến này bị bỏ qua.
 # Đăng nhập ghcr.io bằng token ở bước 3
 echo "<TOKEN>" | docker login ghcr.io -u hnd8604 --password-stdin
 
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 ```
 
 Lần đầu nginx khởi động với **self-signed cert tạm** (tự tạo bởi entrypoint).
@@ -118,13 +129,13 @@ Site truy cập được ngay qua HTTPS nhưng trình duyệt sẽ cảnh báo "
 
 ```bash
 # Xin chứng chỉ (thay domain và email cho đúng)
-docker compose -f docker-compose.prod.yml run --rm certbot certonly \
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm certbot certonly \
   --webroot -w /var/www/certbot \
   -d trungduongauto.store -d www.trungduongauto.store \
   --email you@example.com --agree-tos --no-eff-email
 
 # Reload nginx để dùng chứng chỉ mới
-docker compose -f docker-compose.prod.yml exec frontend nginx -s reload
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec frontend nginx -s reload
 ```
 
 Từ đây certbot container sẽ **tự động gia hạn** mỗi 12 giờ. Sau khi gia hạn
@@ -138,7 +149,7 @@ thành công, chạy lệnh reload nginx để áp dụng cert mới:
 Kiểm tra:
 
 ```bash
-docker compose -f docker-compose.prod.yml ps      # tất cả phải là healthy
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps      # tất cả phải là healthy
 curl https://<domain>/api/v1/actuator/health       # {"status":"UP"}
 ```
 
@@ -165,11 +176,13 @@ và deploy qua SSH. Khai báo trong **Settings → Secrets and variables → Act
 | `DEPLOY_PATH` | `/opt/auto_accessories_store` |
 | `APP_DOMAIN` | Domain — dùng cho cả health check lẫn build frontend |
 | `GOOGLE_CLIENT_ID` | Nhúng vào bundle frontend lúc build |
-| `COMPANY_HOTLINE`, `COMPANY_EMAIL`, `COMPANY_ADDRESS`, `COMPANY_HOURS` | Thông tin hiển thị ở footer |
 
 > Biến `VITE_*` bị **nhúng cứng vào bundle JavaScript lúc build**, không đọc
-> lúc chạy container. Đổi domain hay hotline thì phải build lại image frontend,
-> sửa `.env` trên server không có tác dụng.
+> lúc chạy container. Đổi domain thì phải build lại image frontend, sửa
+> `.env.prod` trên server không có tác dụng.
+>
+> Thông tin liên hệ (hotline, email, địa chỉ, giờ làm việc) không đi qua biến
+> môi trường: sửa thẳng ở `frontend/src/constants/company.ts` rồi build lại.
 
 Deploy chạy khi push tag `v*`, hoặc bấm **Run workflow** với `deploy = true`.
 Chỉ push lên `main` thì chỉ build image, không deploy.
@@ -180,12 +193,12 @@ Chỉ push lên `main` thì chỉ build image, không deploy.
 
 ```bash
 # Xem log
-docker compose -f docker-compose.prod.yml logs -f backend
-docker compose -f docker-compose.prod.yml logs -f frontend
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f backend
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f frontend
 
 # Cập nhật lên image mới nhất
-docker compose -f docker-compose.prod.yml pull && \
-docker compose -f docker-compose.prod.yml up -d && \
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull && \
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d && \
 docker image prune -f
 
 # Backup database (chạy định kỳ bằng cron)

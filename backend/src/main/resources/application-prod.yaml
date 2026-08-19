@@ -1,0 +1,34 @@
+# ==============================================================
+# Profile PROD — chạy trong container trên VPS.
+# Kích hoạt bởi `ENV SPRING_PROFILES_ACTIVE=prod` trong backend/Dockerfile,
+# docker-compose.prod.yml set lại một lần nữa cho tường minh.
+#
+# Chỉ đặt ở đây những khoá THỰC SỰ khác dev. Thứ gì giống nhau ở cả hai
+# môi trường thì để trong application.yaml.
+# ==============================================================
+
+spring:
+  # Server không có TTY, mã màu ANSI chỉ làm bẩn log file.
+  output.ansi.enabled: NEVER
+  jpa:
+    # BẮT BUỘC false. Bật lên là mỗi request ghi vài chục dòng SQL vào
+    # backend.log, đầy đĩa VPS chỉ sau vài ngày.
+    show-sql: false
+
+logging:
+  level:
+    # Cố ý để info chứ không phải warn: log khởi động (Flyway chạy migration
+    # nào, Tomcat bind cổng nào) là thứ đầu tiên cần xem khi deploy hỏng.
+    root: info
+    app.store: info
+    # Chốt chặn thứ hai cho show-sql, phòng khi ai đó bật nhầm ở nơi khác.
+    org.hibernate.SQL: warn
+    org.hibernate.orm.jdbc.bind: warn
+
+app:
+  cors:
+    # APP_DOMAIN đến từ env_file .env.prod (xem .env.prod.example ở thư mục gốc).
+    # Thực tế nginx proxy /api/v1 nên request là same-origin và không cần
+    # CORS; khai báo ở đây để nếu sau này tách domain api.* thì đã đúng sẵn,
+    # và để không bao giờ có localhost trong danh sách của prod.
+    allowed-origins: https://${APP_DOMAIN:localhost},https://www.${APP_DOMAIN:localhost}

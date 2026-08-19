@@ -1,9 +1,8 @@
 import { useEffect, useRef, useCallback } from "react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
+import { WS_URL } from "@/constants/config";
 import type { ChatMessage, SendMessagePayload } from "../types";
-
-const WS_URL = "http://localhost:8080/api/v1/ws";
 
 interface UseStompChatOptions {
   conversationId: string | null;

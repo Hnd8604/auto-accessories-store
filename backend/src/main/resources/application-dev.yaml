@@ -1,0 +1,29 @@
+# ==============================================================
+# Profile DEV — chạy trên máy local.
+# Kích hoạt mặc định qua `spring.profiles.active: dev` ở application.yaml,
+# nên `mvnw spring-boot:run` không cần truyền thêm gì.
+#
+# Chỉ đặt ở đây những khoá THỰC SỰ khác prod. Thứ gì giống nhau ở cả hai
+# môi trường thì để trong application.yaml.
+# ==============================================================
+
+spring:
+  # Log màu cho terminal. Trên server không có TTY nên prod tắt.
+  output.ansi.enabled: ALWAYS
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    root: info
+    app.store: debug
+    # Hibernate 6: in luôn giá trị tham số đã bind vào câu SQL ở trên.
+    # Cực kỳ hữu ích khi debug query, nhưng lộ dữ liệu người dùng -> chỉ dev.
+    org.hibernate.orm.jdbc.bind: trace
+
+app:
+  cors:
+    # Vite dev server (3000) và cổng mặc định của Vite (5173).
+    # Ở dev frontend gọi thẳng backend :8080 nên đây là cross-origin thật,
+    # khác prod nơi nginx proxy /api/v1 thành same-origin.
+    allowed-origins: http://localhost:3000,http://localhost:5173

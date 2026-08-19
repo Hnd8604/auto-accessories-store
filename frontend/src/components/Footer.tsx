@@ -1,11 +1,6 @@
 import { Car, Phone, Mail, MapPin, Facebook, Instagram, Youtube } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const COMPANY_INFO = {
-  hotline: import.meta.env.VITE_COMPANY_HOTLINE,
-  email: import.meta.env.VITE_COMPANY_EMAIL,
-  address: import.meta.env.VITE_COMPANY_ADDRESS,
-};
+import { COMPANY } from "@/constants/company";
 
 export const Footer = () => {
   return (
@@ -66,15 +61,15 @@ export const Footer = () => {
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <Phone className="h-4 w-4 text-primary" />
-                <span className="text-primary-foreground/80">{COMPANY_INFO.hotline}</span>
+                <span className="text-primary-foreground/80">{COMPANY.hotline}</span>
               </div>
               <div className="flex items-center gap-3">
                 <Mail className="h-4 w-4 text-primary" />
-                <span className="text-primary-foreground/80">{COMPANY_INFO.email}</span>
+                <span className="text-primary-foreground/80">{COMPANY.email}</span>
               </div>
               <div className="flex items-start gap-3">
                 <MapPin className="h-4 w-4 text-primary mt-1" />
-                <span className="text-primary-foreground/80">{COMPANY_INFO.address}</span>
+                <span className="text-primary-foreground/80">{COMPANY.address}</span>
               </div>
             </div>
           </div>

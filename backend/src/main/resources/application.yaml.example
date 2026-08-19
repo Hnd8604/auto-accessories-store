@@ -1,7 +1,12 @@
 ## ⚠️ File mẫu - KHÔNG chứa giá trị thật
-## Copy file này thành application.yaml.
-## Các secret được đọc từ biến môi trường (xem .env.example).
-## Cú pháp ${VAR} = bắt buộc phải set; ${VAR:default} = có giá trị mặc định.
+##
+## ĐÃ ĐỔI TÊN từ application-example.yaml: hậu tố `-example` trùng đúng quy ước
+## đặt tên profile của Spring (application-{profile}.yaml), nên nó trông y hệt
+## một profile thật nằm cạnh application-dev.yaml / application-prod.yaml.
+##
+## Đây chỉ là bản chụp tham khảo của application.yaml (file đó đã được track
+## trong git và không chứa secret nào). Nó KHÔNG tự động đồng bộ, nên xem
+## application.yaml mới là nguồn đúng.
 
 server:
   port: 8080
@@ -65,20 +70,6 @@ spring:
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9094}
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      properties:
-        spring.json.add.type.headers: false
-    consumer:
-      group-id: store-notification-group
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-    listener:
-      missing-topics-fatal: false
 
 logging:
   level:
@@ -131,7 +122,3 @@ app:
     username: ${ADMIN_USERNAME:admin}
     password: ${ADMIN_PASSWORD:}
     email: ${ADMIN_EMAIL:admin@gmail.com}
-  kafka:
-    topics:
-      order-created: order.created
-      order-status-changed: order.status.changed

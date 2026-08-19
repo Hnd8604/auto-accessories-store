@@ -26,10 +26,10 @@ dist-ssr
 # ======================== Security - Sensitive files ========================
 
 # Environment variables (API keys, secrets, etc.)
+# Frontend khong con file .env rieng — bien VITE_* nam trong .env.dev o thu
+# muc goc (xem vite.config.ts). Giu luat chan nay lam luoi an toan.
 .env
 .env.*
-!.env.example
-!.env.template
 
 # OS files
 Thumbs.db
@@ -42,4 +42,4 @@ Desktop.ini
 *.crt
 *.p12
 *.pfx
-*.jks
+*.jks

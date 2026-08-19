@@ -8,7 +8,7 @@ import { isAdmin } from "@/features/auth/hooks/useAuth";
 import { AuthService } from "@/features/auth/api/auth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-const COMPANY_HOTLINE = String(import.meta.env.VITE_COMPANY_HOTLINE);
+import { COMPANY, COMPANY_HOTLINE_TEL } from "@/constants/company";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -210,11 +210,11 @@ export const Header = memo(() => {
               <div className="flex items-center justify-end gap-3 md:gap-4">
                 {/* Phone */}
                 <a
-                  href={`tel:${COMPANY_HOTLINE.replace(/\s/g, '')}`}
+                  href={`tel:${COMPANY_HOTLINE_TEL}`}
                   className="hidden lg:flex items-center gap-2 text-sm text-gray-300 hover:text-white transition-colors"
                 >
                   <Phone className="h-4 w-4" />
-                  <span>{COMPANY_HOTLINE}</span>
+                  <span>{COMPANY.hotline}</span>
                 </a>
 
                 {/* User Authentication */}

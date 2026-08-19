@@ -53,6 +53,12 @@ $LogsDir     = Join-Path $Root 'logs'
 $BackendLogs = Join-Path $LogsDir 'backend'
 $FrontendLogs= Join-Path $LogsDir 'frontend'
 
+# File env của DEV. Nằm ở thư mục gốc cạnh docker-compose.yml, song song với
+# .env.prod của production (dùng bởi docker-compose.prod.yml trên VPS).
+# Cả hai cùng chỗ nên luôn phải chỉ đích danh, không để Compose tự đoán.
+$DevEnvFile     = Join-Path $Root '.env.dev'
+$DevEnvExample  = Join-Path $Root '.env.dev.example'
+
 # Ensure log directories exist.
 New-Item -ItemType Directory -Force -Path $BackendLogs, $FrontendLogs | Out-Null
 
@@ -67,19 +73,62 @@ function Test-Command {
     return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
+# Mọi lệnh docker compose của dev đều đi qua đây: chạy từ $Root với
+# --env-file trỏ thẳng vào .env.dev ở thư mục gốc.
+#
+# Trước đây script Push-Location vào backend\ rồi mới gọi `docker compose`;
+# Compose đi ngược lên tìm thấy docker-compose.yml ở gốc nhưng lại lấy .env
+# từ thư mục đang đứng, nên vô tình đúng. Chạy y hệt lệnh đó từ thư mục gốc
+# là các biến POSTGRES_* rỗng và container dựng lên với mật khẩu trống.
+function Invoke-DevCompose {
+    param([Parameter(Mandatory)][string[]]$ComposeArgs)
+
+    # Chưa có .env.dev thì bỏ qua --env-file để Compose báo lỗi thiếu biến
+    # một cách bình thường, thay vì chết vì "env file not found".
+    $envArgs = @()
+    if (Test-Path $DevEnvFile) { $envArgs = @('--env-file', $DevEnvFile) }
+
+    Push-Location $Root
+    try {
+        docker compose @envArgs @ComposeArgs
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+# Spring Boot KHÔNG tự đọc .env.dev — chỉ Docker Compose làm được điều đó.
+# Chạy `mvnw spring-boot:run` mà không nạp file này thì ${POSTGRES_USER},
+# ${JWT_SIGNER_KEY}... trong application.yaml không phân giải được và app chết
+# ngay lúc khởi động. Nạp vào tiến trình hiện tại rồi Start-Process bên dưới
+# cho cửa sổ backend kế thừa.
+function Import-DevEnv {
+    if (-not (Test-Path $DevEnvFile)) {
+        Write-Warn2 "Khong tim thay $DevEnvFile - backend se thieu bien moi truong."
+        return
+    }
+    Get-Content $DevEnvFile |
+        Where-Object { $_ -match '^\s*[A-Za-z_][A-Za-z0-9_]*=' } |
+        ForEach-Object {
+            $parts = $_ -split '=', 2
+            $name  = $parts[0].Trim()
+            # Cắt comment cuối dòng (đứng sau >= 2 khoảng trắng) nhưng giữ
+            # nguyên giá trị có khoảng trắng, vd SEPAY_BANK_ACCOUNT_NAME=NGUYEN VAN A
+            $value = ($parts[1] -replace '\s{2,}#.*$', '').Trim()
+            [Environment]::SetEnvironmentVariable($name, $value, 'Process')
+        }
+    # Backend chạy ngoài docker nên trỏ về cổng mà compose publish ra localhost.
+    [Environment]::SetEnvironmentVariable('DB_HOST', 'localhost', 'Process')
+    [Environment]::SetEnvironmentVariable('REDIS_HOST', 'localhost', 'Process')
+}
+
 # --------------------------------------------------------------------------
 # Stop mode
 # --------------------------------------------------------------------------
 if ($Stop) {
     Write-Step 'Stopping Docker infrastructure...'
-    Push-Location $BackendDir
-    try {
-        docker compose --profile infra down
-        Write-Ok 'Infrastructure stopped.'
-    }
-    finally {
-        Pop-Location
-    }
+    Invoke-DevCompose @('--profile', 'infra', 'down')
+    Write-Ok 'Infrastructure stopped.'
     return
 }
 
@@ -105,27 +154,19 @@ Write-Ok 'Prerequisites OK.'
 if ($Only -contains 'infra') {
     Write-Step 'Starting infrastructure (PostgreSQL, Redis)...'
 
-    $envFile = Join-Path $BackendDir '.env'
-    if (-not (Test-Path $envFile)) {
-        $example = Join-Path $BackendDir '.env.example'
-        if (Test-Path $example) {
-            Copy-Item $example $envFile
-            Write-Warn2 'Created backend\.env from .env.example - review the passwords inside it.'
+    if (-not (Test-Path $DevEnvFile)) {
+        if (Test-Path $DevEnvExample) {
+            Copy-Item $DevEnvExample $DevEnvFile
+            Write-Warn2 'Created .env.dev from .env.dev.example - review the passwords inside it.'
         }
         else {
-            Write-Warn2 'No backend\.env found and no .env.example to copy. Docker Compose may fail.'
+            Write-Warn2 'No .env.dev found and no .env.dev.example to copy. Docker Compose may fail.'
         }
     }
 
-    Push-Location $BackendDir
-    try {
-        docker compose --profile infra up -d
-        if ($LASTEXITCODE -ne 0) { throw 'docker compose failed to start infrastructure.' }
-        Write-Ok 'Infrastructure containers are up: postgres:5432, redis:6379.'
-    }
-    finally {
-        Pop-Location
-    }
+    Invoke-DevCompose @('--profile', 'infra', 'up', '-d')
+    if ($LASTEXITCODE -ne 0) { throw 'docker compose failed to start infrastructure.' }
+    Write-Ok 'Infrastructure containers are up: postgres:5432, redis:6379.'
 }
 
 # --------------------------------------------------------------------------
@@ -133,7 +174,8 @@ if ($Only -contains 'infra') {
 # --------------------------------------------------------------------------
 if ($Only -contains 'backend') {
     Write-Step 'Launching backend (Spring Boot) in a new window...'
-    Write-Warn2 'Ensure backend\src\main\resources\application.yaml has valid DB/Redis/JWT values.'
+    Import-DevEnv
+    Write-Ok "Loaded environment variables from $DevEnvFile"
 
     $backendLog = Join-Path $BackendLogs "console-$RunStamp.log"
     Start-Process -FilePath 'powershell.exe' -WorkingDirectory $BackendDir -ArgumentList @(
@@ -151,13 +193,8 @@ if ($Only -contains 'backend') {
 if ($Only -contains 'frontend') {
     Write-Step 'Launching frontend (Vite) in a new window...'
 
-    if (-not (Test-Path (Join-Path $FrontendDir '.env'))) {
-        $feExample = Join-Path $FrontendDir '.env.example'
-        if (Test-Path $feExample) {
-            Copy-Item $feExample (Join-Path $FrontendDir '.env')
-            Write-Warn2 'Created frontend\.env from .env.example.'
-        }
-    }
+    # Không còn frontend\.env. Vite đọc thẳng .env.dev ở thư mục gốc — xem
+    # phần loadEnv trong frontend\vite.config.ts.
 
     $installCmd = if ($SkipInstall) { '' } else { 'npm install; ' }
 

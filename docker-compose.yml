@@ -1,3 +1,31 @@
+# ==============================================================
+# Compose dùng khi DEV trên máy local — CHỈ hạ tầng.
+#
+# Backend chạy bằng `mvnw spring-boot:run`, frontend bằng `npm run dev`
+# (xem run.ps1). File này chỉ dựng PostgreSQL + Redis cho chúng kết nối tới.
+# Bản chạy trên server là docker-compose.prod.yml, hoàn toàn tách biệt.
+#
+#   docker compose --env-file .env.dev --profile infra up -d
+#   docker compose --env-file .env.dev --profile tools up -d   # RedisInsight
+#
+# --env-file là BẮT BUỘC. File env của dev là .env.dev, của production là
+# .env.prod (dùng bởi docker-compose.prod.yml trên VPS) — cả hai cùng nằm ở
+# thư mục gốc này nên phải chỉ đích danh. Không truyền --env-file thì Compose
+# đi tìm file tên `.env` trần và không thấy gì, mọi biến thành chuỗi rỗng.
+#
+# Trước đây file này còn `profile: app` build cả backend/frontend. Nó hỏng
+# (thiếu env_file, map sai cổng, build ra URL của domain production) và trùng
+# vai trò với docker-compose.prod.yml nên đã bỏ. Cần test image giống prod
+# thì dùng thẳng docker-compose.prod.yml.
+# ==============================================================
+
+# Tên project pin cứng. Nếu không khai, Compose suy ra từ thư mục đang đứng —
+# nghĩa là container/volume đổi tên theo chỗ gõ lệnh. Chạy từ backend/ sinh ra
+# volume `backend_postgres_data`, chạy từ gốc sinh ra `auto_accessories_store_
+# postgres_data`, và database dev cũ biến mất không dấu vết. Pin ở đây thì gõ
+# lệnh ở đâu cũng ra đúng một project.
+name: auto_accessories_store
+
 services:
 
   # ======================== Infrastructure ========================
@@ -71,66 +99,6 @@ services:
         limits:
           memory: 512M
 
-  # ======================== Application ========================
-
-  backend:
-    container_name: store-backend
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    restart: "no"
-    profiles:
-      - app
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
-    networks:
-      - backend
-    ports:
-      - "8080:8080"
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "5"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  frontend:
-    container_name: store-frontend
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    restart: "no"
-    profiles:
-      - app
-    depends_on:
-      - backend
-    ports:
-      - "3000:3000"
-    networks:
-      - backend
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-
   # ======================== Dev Tools (optional) ========================
   # Start with: docker compose --profile tools up -d
 
@@ -149,8 +117,6 @@ services:
       - backend
     profiles:
       - tools
-
-
 
 volumes:
   postgres_data:
