@@ -28,7 +28,7 @@ interface SessionProduct {
 }
 
 export default function CartPage() {
-  const { cart, sessionCart, isAuthenticated, itemCount, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { cart, sessionCart, isAuthenticated, itemCount, totalPrice, updateQuantity, removeFromCart, clearCart } = useCart();
   const queryClient = useQueryClient();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [productImages, setProductImages] = useState<Record<number, string>>({});
@@ -36,10 +36,6 @@ export default function CartPage() {
   const navigate = useNavigate();
 
   const cartItems = useMemo(() => cart?.items || [], [cart?.items]);
-  const totalPrice = useMemo(() => 
-    cartItems.reduce((sum, item) => sum + item.totalPrice, 0),
-    [cartItems]
-  );
 
   // Fetch session cart products for guest users
   useEffect(() => {

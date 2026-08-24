@@ -17,6 +17,7 @@ export interface ProductImageRequest {
 }
 
 export interface ProductImageUpdateRequest {
+  imageUrl?: string;
   altText?: string;
   isPrimary: boolean;
   sortOrder: number;

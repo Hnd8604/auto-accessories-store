@@ -137,7 +137,7 @@ class AuthHttpClient {
     this.pendingQueue = [];
   }
 
-  async request<T = any>(
+  async request<T = unknown>(
     path: string,
     options: RequestOptions = {}
   ): Promise<T> {
@@ -145,6 +145,7 @@ class AuthHttpClient {
       url: path,
       method: options.method || "GET",
       headers: options.headers,
+      params: options.params,
       data: options.body,
       signal: options.signal,
     };
@@ -179,7 +180,7 @@ class SimpleHttpClient {
     });
   }
 
-  async request<T = any>(
+  async request<T = unknown>(
     path: string,
     options: RequestOptions = {}
   ): Promise<T> {
@@ -187,6 +188,7 @@ class SimpleHttpClient {
       url: path,
       method: options.method || "GET",
       headers: options.headers,
+      params: options.params,
       data: options.body,
       signal: options.signal,
     };

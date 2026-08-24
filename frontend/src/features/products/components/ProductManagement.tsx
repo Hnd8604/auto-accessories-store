@@ -270,7 +270,7 @@ export const ProductManagement = ({
       form.reset();
       resetUploadImages();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Lỗi tạo sản phẩm",
@@ -293,7 +293,7 @@ export const ProductManagement = ({
       setEditingProduct(null);
       form.reset();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Lỗi cập nhật sản phẩm",
@@ -312,7 +312,7 @@ export const ProductManagement = ({
       });
       queryClient.invalidateQueries({ queryKey: ["products"] });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Lỗi xóa sản phẩm",

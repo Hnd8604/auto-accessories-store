@@ -35,9 +35,11 @@ export interface PageResponse<T> {
   empty: boolean;
 }
 
-// Pagination request params
-export interface PaginationParams {
+// Pagination request params.
+// Dung type alias thay vi interface: chi type alias moi co implicit index
+// signature, nho vay moi truyen thang duoc vao RequestOptions["params"].
+export type PaginationParams = {
   page?: number;
   size?: number;
   sort?: string;
-}
+};

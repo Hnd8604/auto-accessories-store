@@ -70,7 +70,7 @@ export const ServiceManagement = () => {
       setIsCreateOpen(false);
       form.reset();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể tạo dịch vụ." });
     },
   });
@@ -85,7 +85,7 @@ export const ServiceManagement = () => {
       setSelectedService(null);
       form.reset();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể cập nhật dịch vụ." });
     },
   });
@@ -96,7 +96,7 @@ export const ServiceManagement = () => {
       toast({ title: "Thành công!", description: "Dịch vụ đã được xóa." });
       queryClient.invalidateQueries({ queryKey: ["services"] });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể xóa dịch vụ." });
     },
   });

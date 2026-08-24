@@ -7,7 +7,7 @@ import { Checkout } from "@/features/cart/components/Checkout";
 import { useCart } from "@/context/cart-context";
 
 export const Cart = () => {
-  const { cart, itemCount, updateQuantity, removeFromCart, isLoading, clearCart } = useCart();
+  const { cart, itemCount, totalPrice, updateQuantity, removeFromCart, isLoading, clearCart } = useCart();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
   const formatPrice = (price: number) => {
@@ -18,7 +18,6 @@ export const Cart = () => {
   };
 
   const cartItems = cart?.items || [];
-  const totalPrice = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
 
   const handleUpdateQuantity = async (itemId: number, newQuantity: number) => {
     if (newQuantity === 0) {

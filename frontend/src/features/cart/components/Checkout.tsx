@@ -41,7 +41,7 @@ interface CheckoutProps {
 
 export const Checkout = ({ isOpen, onClose, onComplete }: CheckoutProps) => {
   const { toast } = useToast();
-  const { cart, itemCount, clearCart } = useCart();
+  const { cart, itemCount, totalPrice, clearCart } = useCart();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [productImages, setProductImages] = useState<Record<number, string>>({});
@@ -53,7 +53,7 @@ export const Checkout = ({ isOpen, onClose, onComplete }: CheckoutProps) => {
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
       nameRecipient: user?.fullName || "",
-      phoneRecipient: user?.phone || "",
+      phoneRecipient: user?.phoneNumber || "",
       addressRecipient: "",
       note: "",
     },
@@ -86,7 +86,7 @@ export const Checkout = ({ isOpen, onClose, onComplete }: CheckoutProps) => {
         onClose();
       }
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Đặt hàng thất bại",
@@ -127,7 +127,7 @@ export const Checkout = ({ isOpen, onClose, onComplete }: CheckoutProps) => {
       fetchImages();
     }
   }, [cartItems]);
-  const totalPrice = cart?.totalPrice || 0;
+
   const shippingFee = totalPrice >= 20000000 ? 0 : 30000;
   const finalTotal = totalPrice + shippingFee;
 

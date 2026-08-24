@@ -85,7 +85,7 @@ export function DataTable<T>({
                 <TableCell key={column.key} className={column.className}>
                   {column.render
                     ? column.render(item)
-                    : String((item as any)[column.key] || "-")}
+                    : String((item as Record<string, unknown>)[column.key] || "-")}
                 </TableCell>
               ))}
               {actions && actions.length > 0 && (

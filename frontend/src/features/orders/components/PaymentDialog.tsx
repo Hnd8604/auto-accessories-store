@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PaymentsApi } from "@/features/orders/api";
 import type { PaymentResponse } from "@/features/orders/types";
+import { getErrorMessage } from "@/utils/errors";
 import {
     Dialog,
     DialogContent,
@@ -88,11 +89,11 @@ export const PaymentDialog = ({
                 // Start polling for payment status
                 startPolling(orderId);
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             toast({
                 variant: "destructive",
                 title: "Lỗi tạo thanh toán",
-                description: error.message || "Không thể tạo QR thanh toán",
+                description: getErrorMessage(error, "Không thể tạo QR thanh toán"),
             });
         } finally {
             setIsCreating(false);

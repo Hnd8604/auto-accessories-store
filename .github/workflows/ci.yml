@@ -124,17 +124,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Hiện code còn 66 lỗi eslint (chủ yếu no-explicit-any) -> để advisory,
-      # bỏ continue-on-error sau khi đã dọn sạch để chặn PR làm hồi quy.
-      - name: Lint (advisory)
-        continue-on-error: true
-        run: npm run lint
+      # Vite dùng plugin-react-swc nên `npm run build` KHÔNG type-check
+      # -> bước này là hàng rào type duy nhất, phải chặn.
+      - name: Type check
+        run: npm run typecheck
 
-      # Vite dùng plugin-react-swc nên `npm run build` KHÔNG type-check.
-      # Hiện có 17 lỗi type -> cũng để advisory, siết lại sau khi fix.
-      - name: Type check (advisory)
-        continue-on-error: true
-        run: npx tsc --noEmit -p tsconfig.app.json
+      # Còn 30 warning react-hooks/exhaustive-deps: vẫn hiện trong log nhưng
+      # eslint exit 0 nên không chặn PR. Thêm --max-warnings 0 sau khi dọn nốt.
+      - name: Lint
+        run: npm run lint
 
       - name: Build
         run: npm run build

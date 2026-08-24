@@ -12,7 +12,8 @@ import type {
 } from "../types";
 
 export const UsersApi = {
-  getAll: (params?: PaginationParams) => http.request<ApiResponse<PageResponse<UserResponse>>>(`/users${buildQuery(params)}`),
+  getAll: (params?: PaginationParams) =>
+    http.request<ApiResponse<PageResponse<UserResponse>>>("/users", { params }),
   getById: (userId: string) =>
     http.request<ApiResponse<UserResponse>>(`/users/${userId}`),
   getMyInfo: () => http.request<ApiResponse<UserResponse>>("/users/my-info"),
@@ -31,14 +32,3 @@ export const UsersApi = {
       method: "DELETE",
     }),
 };
-
-function buildQuery(params?: Record<string, any>): string {
-  if (!params) return "";
-  const usp = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v === undefined || v === null || v === "") return;
-    usp.append(k, String(v));
-  });
-  const qs = usp.toString();
-  return qs ? `?${qs}` : "";
-}

@@ -6,7 +6,7 @@
 #
 # Build tại thư mục frontend/:
 #   docker build -t store-frontend \
-#     --build-arg VITE_GOOGLE_REDIRECT_URI=https://example.com/auth/google/callback .
+#     --build-arg VITE_GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com .
 # ==============================================================
 
 # ---- Stage 1: Build ----
@@ -19,11 +19,14 @@ RUN npm ci
 
 # Biến VITE_* được nhúng thẳng vào bundle LÚC BUILD -> phải truyền qua
 # --build-arg. Đặt chúng lúc `docker run` sẽ không có tác dụng gì.
+#
+# KHÔNG có VITE_GOOGLE_REDIRECT_URI ở đây (trước là hardcode domain thật).
+# src/constants/config.ts tự suy ra `${window.location.origin}/auth/google/callback`,
+# nên bundle không cần biết domain nào cả -> cùng một image chạy được trên mọi
+# domain, và đổi tên miền không phải build lại frontend.
 ARG VITE_API_BASE_URL=/api/v1
-ARG VITE_GOOGLE_REDIRECT_URI=https://trungduongauto.store/auth/google/callback
 ARG VITE_GOOGLE_CLIENT_ID=
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
-    VITE_GOOGLE_REDIRECT_URI=$VITE_GOOGLE_REDIRECT_URI \
     VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 
 
