@@ -101,13 +101,16 @@ Bắt buộc phải sửa:
 
 | Biến | Ghi chú |
 |---|---|
-| `APP_DOMAIN` | Domain đã trỏ ở bước 2 |
+| `APP_DOMAIN` | Domain đã trỏ ở bước 2. **Nguồn duy nhất của tên miền** — xem [Đổi tên miền](#đổi-tên-miền) |
 | `ACME_EMAIL` | Email nhận cảnh báo chứng chỉ sắp hết hạn |
 | `POSTGRES_PASSWORD`, `REDIS_PASSWORD` | Đặt mật khẩu mạnh |
 | `JWT_SIGNER_KEY` | Sinh bằng `openssl rand -base64 48` |
-| `MAIL_*`, `CLOUDINARY_*`, `SEPAY_*`, `GOOGLE_*` | Giá trị thật của bạn |
-| `GOOGLE_REDIRECT_URI` | Phải khớp **chính xác** với Authorized redirect URI khai trong Google Cloud Console |
+| `MAIL_*`, `CLOUDINARY_*`, `SEPAY_*`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Giá trị thật của bạn |
 | `ADMIN_PASSWORD` | **Bắt buộc ở lần deploy đầu tiên**, thiếu thì backend không khởi động |
+
+`GOOGLE_REDIRECT_URI` **không còn khai trong `.env.prod`**: backend tự suy ra
+`https://${APP_DOMAIN}/auth/google/callback`. Chỉ khai lại nếu callback nằm ở
+host khác `APP_DOMAIN`.
 
 `ADMIN_PASSWORD` chỉ dùng khi database còn rỗng. Từ lần deploy sau tài khoản
 admin đã tồn tại nên biến này bị bỏ qua.
@@ -160,6 +163,9 @@ curl https://<domain>/api/v1/actuator/health       # {"status":"UP"}
 Workflow [.github/workflows/cd.yml](../.github/workflows/cd.yml) build image
 và deploy qua SSH. Khai báo trong **Settings → Secrets and variables → Actions**:
 
+> Giải thích chi tiết **từng job** của CI và CD làm gì, và vì sao có job bị
+> `skipped`: xem [CI-CD.md](CI-CD.md).
+
 **Secrets**
 
 | Tên | Giá trị |
@@ -174,18 +180,116 @@ và deploy qua SSH. Khai báo trong **Settings → Secrets and variables → Act
 | Tên | Giá trị |
 |---|---|
 | `DEPLOY_PATH` | `/opt/auto_accessories_store` |
-| `APP_DOMAIN` | Domain — dùng cho cả health check lẫn build frontend |
+| `APP_DOMAIN` | **Chỉ** dùng cho health check sau deploy. Domain thật của ứng dụng là `APP_DOMAIN` trong `.env.prod` trên VPS |
 | `GOOGLE_CLIENT_ID` | Nhúng vào bundle frontend lúc build |
 
 > Biến `VITE_*` bị **nhúng cứng vào bundle JavaScript lúc build**, không đọc
-> lúc chạy container. Đổi domain thì phải build lại image frontend, sửa
-> `.env.prod` trên server không có tác dụng.
+> lúc chạy container — nên `GOOGLE_CLIENT_ID` phải là repository variable, sửa
+> `.env.prod` không có tác dụng với frontend. Đổi client ID thì phải build lại
+> image frontend.
+>
+> Riêng redirect URI thì không: frontend suy ra từ `window.location.origin` lúc
+> chạy, nên bundle không phụ thuộc domain.
+
+### Sự kiện nào chạy gì
+
+Repo có **hai** workflow chạy độc lập —
+[ci.yml](../.github/workflows/ci.yml) (test) và
+[cd.yml](../.github/workflows/cd.yml) (build image + deploy). GitHub gộp check
+của cả hai vào chung một danh sách trên cùng commit, nên đừng nhìn số check để
+đoán workflow nào đang chạy.
+
+| Hành động | CI | CD build & push image | CD deploy (SSH lên VPS) |
+|---|---|---|---|
+| Push lên nhánh bất kỳ ngoài `main` (`develop`…) | ❌ | ❌ | ❌ |
+| Mở / cập nhật PR vào `main` | ✅ 4 job | ❌ | ❌ |
+| Merge PR → push `main` | ✅ | ✅ `latest` + `<short-sha>` | ⊘ skipped |
+| Push tag `v1.2.3` | ❌ | ✅ `1.2.3` | ✅ **deploy thật** |
+| **Run workflow** với `deploy = true` | ❌ | ✅ `<short-sha>` | ✅ **deploy thật** |
+
+Hai điều hay nhầm:
+
+- **PR không bao giờ deploy.** `cd.yml` không có trigger `pull_request`, nên PR
+  chỉ chạy CI, thậm chí còn không build image.
+- **Không có nhánh nào tên `deploy`.** Cả hai workflow chỉ lắng nghe `main`
+  (và tag `v*`); push lên một nhánh tên `deploy` sẽ không chạy check nào cả.
+
+Vì vậy vòng đời bình thường là ba bước tách rời:
+
+```bash
+# 1. PR develop -> main       : CI kiểm tra, chưa build image
+# 2. merge vào main           : image lên ghcr.io, VPS CHƯA đổi gì
+# 3. deploy khi thấy ổn:
+git tag v1.2.3 && git push origin v1.2.3
+#    hoặc: Actions -> CD -> Run workflow -> branch main, deploy = true
+```
+
+### Vì sao push `main` hiện "5 successful, 2 skipped"
+
+Đó là 7 check của cả hai workflow cộng lại, và 2 cái skipped là **cố ý**:
+
+| Check | Workflow | Kết quả khi push `main` |
+|---|---|---|
+| `changes`, `backend`, `frontend` | CI | ✅ |
+| `docker-build` | CI | ⊘ chỉ chạy ở PR — push `main` đã có CD build image thật, build lại là thừa |
+| `build-push (backend)`, `build-push (frontend)` | CD | ✅ |
+| `deploy` | CD | ⊘ chỉ chạy khi có tag `v*` hoặc `deploy = true` |
+
+Skipped **không** tính là fail — GitHub vẫn báo "All checks have passed".
+Từng job làm gì bên trong: [CI-CD.md](CI-CD.md).
+
+### Deploy phiên bản nào
+
+Deploy chạy khi push tag `v*`, hoặc bấm **Run workflow** với `deploy = true`.
+Tag image được chốt trong workflow rồi truyền xuống server, **không** lấy từ
+`IMAGE_TAG` trong `.env.prod`:
+
+| Kích hoạt bằng | Image được deploy |
+|---|---|
+| Push tag `v1.2.3` | `1.2.3` |
+| Run workflow từ `main` | 7 ký tự đầu của commit sha |
+
+Đây là chi tiết quan trọng: push tag `v1.2.3` **không** tạo ra tag `latest`
+(`metadata-action` chỉ gắn `latest` cho default branch). Nếu server tự đọc
+`IMAGE_TAG=latest` thì deploy một tag sẽ dựng lên bản `main` gần nhất chứ không
+phải bản vừa tag. Sau khi deploy, CD ghi tag thật vào `.env.prod` để `docker
+compose up -d` chạy tay về sau không âm thầm hạ cấp.
+
+### Rollback
+
+Mọi tag đều bất biến và image cũ được giữ lại ít nhất 7 ngày, nên quay lui là
+đổi một dòng:
+
+```bash
+cd /opt/auto_accessories_store
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps   # xem tag đang chạy
+sed -i 's|^IMAGE_TAG=.*|IMAGE_TAG=1.2.2|' .env.prod                 # tag muốn quay về
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --wait
+```
+
+> Rollback chỉ lùi **code**, không lùi **database**. Nếu bản lỗi đã chạy
+> migration Flyway phá vỡ tương thích ngược thì phải restore từ backup — xem
+> phần Vận hành bên dưới.
+
+## Đổi tên miền
+
+Sửa **một** dòng `APP_DOMAIN` trong `.env.prod` trên VPS rồi deploy lại — nginx
+(`server_name` + đường dẫn cert), CORS của backend và Google redirect URI đều
+suy ra từ đó. Frontend không cần build lại.
+
+Ba việc ngoài `.env.prod` vẫn phải làm tay:
+
+1. Trỏ bản ghi A của domain mới về IP VPS — **trước** khi deploy, nếu không
+   certbot không xin được chứng chỉ.
+2. Xin chứng chỉ cho domain mới: `certbot certonly` (xem bước 6).
+3. Cập nhật **Authorized redirect URIs** trong Google Cloud Console thành
+   `https://<domain-mới>/auth/google/callback`.
+
+Nếu dùng repository variable `APP_DOMAIN` cho health check thì cập nhật luôn,
+không thì bước health check của CD sẽ gọi vào domain cũ và báo đỏ.
 >
 > Thông tin liên hệ (hotline, email, địa chỉ, giờ làm việc) không đi qua biến
 > môi trường: sửa thẳng ở `frontend/src/constants/company.ts` rồi build lại.
-
-Deploy chạy khi push tag `v*`, hoặc bấm **Run workflow** với `deploy = true`.
-Chỉ push lên `main` thì chỉ build image, không deploy.
 
 ---
 
@@ -196,10 +300,11 @@ Chỉ push lên `main` thì chỉ build image, không deploy.
 docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f backend
 docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f frontend
 
-# Cập nhật lên image mới nhất
+# Cập nhật thủ công sang một tag cụ thể (bình thường cứ để CD làm)
+sed -i 's|^IMAGE_TAG=.*|IMAGE_TAG=1.2.3|' .env.prod && \
 docker compose --env-file .env.prod -f docker-compose.prod.yml pull && \
-docker compose --env-file .env.prod -f docker-compose.prod.yml up -d && \
-docker image prune -f
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --wait && \
+docker image prune -f --filter "until=168h"
 
 # Backup database (chạy định kỳ bằng cron)
 docker exec postgres pg_dump -U store_user store | gzip > backup-$(date +%F).sql.gz
@@ -216,7 +321,8 @@ gunzip -c backup-2026-07-31.sql.gz | docker exec -i postgres psql -U store_user 
 | Trình duyệt báo cert không an toàn | Chưa chạy `certbot certonly` (vẫn dùng self-signed tạm) |
 | `backend` unhealthy | Xem `logs backend`. Lần đầu thường do thiếu `ADMIN_PASSWORD` |
 | Backend không khởi động, log báo Flyway | Schema lệch. Xem [SchemaMigrationTest](../backend/src/test/java/app/store/SchemaMigrationTest.java) |
-| Đăng nhập Google lỗi `redirect_uri_mismatch` | `GOOGLE_REDIRECT_URI` không khớp Google Cloud Console, hoặc frontend build với domain khác |
+| Đăng nhập Google lỗi `redirect_uri_mismatch` | Authorized redirect URI trong Google Cloud Console chưa phải `https://$APP_DOMAIN/auth/google/callback` |
+| Backend không khởi động, log báo `Could not resolve placeholder 'APP_DOMAIN'` | Thiếu `APP_DOMAIN` trong `.env.prod` |
 | Upload ảnh lỗi 413 | Ảnh vượt 10MB (giới hạn ở cả nginx lẫn Spring) |
 
 > **Không bao giờ chạy `docker compose down -v` trên server** — cờ `-v` xoá

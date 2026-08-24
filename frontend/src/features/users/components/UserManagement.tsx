@@ -171,19 +171,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         description: "Người dùng đã được tạo thành công",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       console.error("Error creating user:", error);
-      let errorMessage = "Có lỗi xảy ra khi tạo người dùng";
-
-      if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-
       toast({
         title: "Lỗi",
-        description: errorMessage,
+        description: error.message || "Có lỗi xảy ra khi tạo người dùng",
         variant: "destructive",
       });
     },
@@ -203,29 +195,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         description: "Người dùng đã được cập nhật thành công",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       console.error("Error updating user:", error);
-      console.error("Error details:", {
-        response: error?.response,
-        data: error?.response?.data,
-        status: error?.response?.status,
-        message: error?.message,
-        stack: error?.stack,
-      });
-
-      let errorMessage = "Có lỗi xảy ra khi cập nhật người dùng";
-
-      if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error?.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-
       toast({
         title: "Lỗi",
-        description: errorMessage,
+        description: error.message || "Có lỗi xảy ra khi cập nhật người dùng",
         variant: "destructive",
       });
     },
@@ -241,19 +215,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         description: "Người dùng đã được xóa thành công",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       console.error("Error deleting user:", error);
-      let errorMessage = "Có lỗi xảy ra khi xóa người dùng";
-
-      if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-
       toast({
         title: "Lỗi",
-        description: errorMessage,
+        description: error.message || "Có lỗi xảy ra khi xóa người dùng",
         variant: "destructive",
       });
     },

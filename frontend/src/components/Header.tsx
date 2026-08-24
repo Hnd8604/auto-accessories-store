@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SearchBar } from "@/components/SearchBar";
 import { ChangePasswordDialog } from "@/features/auth/components/ChangePasswordDialog";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
+import type { UserResponse, RoleResponse } from "@/features/users/types";
 
 import { memo, useCallback, useState, useEffect } from "react";
 
@@ -155,7 +156,7 @@ export const Header = memo(() => {
     }
   }, [logout, queryClient, navigate]);
 
-  const getUserInitials = useCallback((user: any) => {
+  const getUserInitials = useCallback((user: UserResponse | null) => {
     if (user?.fullName) {
       const names = user.fullName.split(' ');
       if (names.length >= 2) {
@@ -169,13 +170,13 @@ export const Header = memo(() => {
     return "U";
   }, []);
 
-  const getHighestRole = useCallback((user: any) => {
+  const getHighestRole = useCallback((user: UserResponse | null) => {
     if (!user?.roles || user.roles.length === 0) {
       return "USER";
     }
 
     // Check if user has ADMIN role
-    const hasAdmin = user.roles.some((role: any) =>
+    const hasAdmin = user.roles.some((role: RoleResponse) =>
       role.name?.toUpperCase() === "ADMIN"
     );
 

@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Fetch user info to restore session
           const { UsersApi } = await import("@/features/users/api/users");
           const response = await UsersApi.getMyInfo();
-          const userData = (response as any).result ?? response;
+          const userData = response.result ?? null;
           setUser(userData);
         } catch (error) {
           console.error("Failed to restore session:", error);

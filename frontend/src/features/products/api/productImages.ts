@@ -9,7 +9,8 @@ import type { ProductImageRequest, ProductImageResponse, ProductImageUpdateReque
 export const ProductImagesApi = {
   getAll: (params?: PaginationParams) =>
     http.request<ApiResponse<PageResponse<ProductImageResponse>>>(
-      `/product-images${buildQuery(params)}`
+      "/product-images",
+      { params }
     ),
   getById: (id: number) =>
     http.request<ApiResponse<ProductImageResponse>>(
@@ -87,14 +88,3 @@ export const ProductImagesApi = {
       { method: "POST" }
     ),
 };
-
-function buildQuery(params?: Record<string, any>): string {
-  if (!params) return "";
-  const usp = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v === undefined || v === null || v === "") return;
-    usp.append(k, String(v));
-  });
-  const qs = usp.toString();
-  return qs ? `?${qs}` : "";
-}

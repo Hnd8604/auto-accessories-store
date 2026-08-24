@@ -33,10 +33,23 @@ logging:
     org.hibernate.SQL: warn
     org.hibernate.orm.jdbc.bind: warn
 
+google:
+  # Suy ra từ APP_DOMAIN thay vì khai riêng GOOGLE_REDIRECT_URI trong .env.prod.
+  # Trước đây hai biến này độc lập: đổi domain mà quên sửa một cái là Google trả
+  # redirect_uri_mismatch, rất khó lần ra. Nay đổi domain chỉ cần sửa APP_DOMAIN.
+  #
+  # Cố ý KHÔNG có giá trị mặc định cho APP_DOMAIN: thiếu biến thì app dừng ngay
+  # lúc khởi động kèm tên biến, hơn là chạy lên rồi hỏng login về sau.
+  #
+  # Vẫn ghi đè được bằng GOOGLE_REDIRECT_URI nếu callback nằm ở host khác.
+  # Giá trị cuối cùng phải khớp CHÍNH XÁC với Authorized redirect URI khai
+  # trong Google Cloud Console — chỗ đó bắt buộc sửa tay.
+  redirect-uri: ${GOOGLE_REDIRECT_URI:https://${APP_DOMAIN}/auth/google/callback}
+
 app:
   cors:
     # APP_DOMAIN đến từ env_file .env.prod (xem .env.prod.example ở thư mục gốc).
     # Thực tế nginx proxy /api/v1 nên request là same-origin và không cần
     # CORS; khai báo ở đây để nếu sau này tách domain api.* thì đã đúng sẵn,
     # và để không bao giờ có localhost trong danh sách của prod.
-    allowed-origins: https://${APP_DOMAIN:localhost},https://www.${APP_DOMAIN:localhost}
+    allowed-origins: https://${APP_DOMAIN},https://www.${APP_DOMAIN}

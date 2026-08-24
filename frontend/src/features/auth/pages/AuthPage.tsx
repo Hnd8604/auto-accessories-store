@@ -113,7 +113,7 @@ const AuthPage = () => {
         navigate("/");
       }
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Đăng nhập thất bại.",
@@ -132,7 +132,7 @@ const AuthPage = () => {
       });
       // Chuyển sang tab đăng nhập hoặc xử lý tiếp
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Đăng ký thất bại.",

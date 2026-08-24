@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import { UseFormReturn } from "react-hook-form";
+import { UseFormReturn, FieldValues } from "react-hook-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -22,7 +22,7 @@ export interface ManagementConfig<T, TForm> {
   // Data
   data: T[];
   isLoading: boolean;
-  error?: any;
+  error?: Error | null;
 
   // Pagination
   currentPage?: number;
@@ -71,7 +71,7 @@ export interface ManagementConfig<T, TForm> {
   hideView?: boolean;
 }
 
-export function CRUDManagement<T, TForm = any>({
+export function CRUDManagement<T, TForm extends FieldValues = FieldValues>({
   resourceName,
   resourceNamePlural,
   data,

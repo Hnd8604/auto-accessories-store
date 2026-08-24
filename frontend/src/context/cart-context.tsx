@@ -12,6 +12,7 @@ import { SessionCartsApi } from "@/features/cart/api/session-carts";
 import { useAuth } from "./auth-context";
 import type { CartResponse, CartItemRequest } from "@/features/cart/types";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/utils/errors";
 
 interface CartContextType {
   cart: CartResponse | null;
@@ -24,6 +25,7 @@ interface CartContextType {
   updateQuantity: (itemId: number, quantity: number) => Promise<void>;
   clearCart: () => void;
   itemCount: number;
+  totalPrice: number;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -102,7 +104,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         description: "Đã thêm sản phẩm vào giỏ hàng",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: "Lỗi",
         description: error?.message || "Không thể thêm sản phẩm vào giỏ hàng",
@@ -149,11 +151,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           title: "Thành công",
           description: "Đã thêm sản phẩm vào giỏ hàng",
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Failed to add to session cart:", error);
         toast({
           title: "Lỗi",
-          description: error?.message || "Không thể thêm sản phẩm vào giỏ hàng",
+          description: getErrorMessage(error, "Không thể thêm sản phẩm vào giỏ hàng"),
           variant: "destructive",
         });
       }
@@ -203,8 +205,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       updateQuantity,
       clearCart,
       itemCount,
+      totalPrice,
     }),
-    [cart, cartId, sessionCart, isLoading, isAuthenticated, addToCart, removeFromCart, updateQuantity, clearCart, itemCount]
+    [cart, cartId, sessionCart, isLoading, isAuthenticated, addToCart, removeFromCart, updateQuantity, clearCart, itemCount, totalPrice]
   );
 
   return (

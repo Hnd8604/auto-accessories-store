@@ -341,7 +341,7 @@ export const Products = ({
                   variant={selectedCategoryId === category.id ? "default" : "outline"}
                   onClick={() => setSelectedCategoryId(category.id)}
                   className="transition-all duration-300"
-                  disabled={isFetching && !isLoading}
+                  disabled={isFetching && !productsLoading}
                 >
                   {category.name}
                 </Button>

@@ -48,7 +48,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
 
-  const eventSourceRef = useRef<EventSource | null>(null);
+  // SSE ở đây chạy bằng fetch + AbortController chứ không phải EventSource,
+  // nên ref chỉ cần đúng một hàm close().
+  const eventSourceRef = useRef<{ close: () => void } | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
@@ -59,9 +61,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
       try {
         setIsLoading(true);
         const res = await NotificationsApi.getMyNotifications(pageNum, 10);
-        const pageData: PageResponse<NotificationResponse> | undefined = (
-          res as any
-        )?.result;
+        const pageData: PageResponse<NotificationResponse> | undefined =
+          res.result;
         if (pageData) {
           setNotifications((prev) =>
             append ? [...prev, ...pageData.content] : pageData.content
@@ -81,7 +82,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   const fetchUnreadCount = useCallback(async () => {
     try {
       const res = await NotificationsApi.getUnreadCount();
-      const count = (res as any)?.result ?? 0;
+      const count = res.result ?? 0;
       setUnreadCount(count);
     } catch (error) {
       console.error("Failed to fetch unread count:", error);
@@ -176,8 +177,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
                 }
               }
             }
-          } catch (error: any) {
-            if (error.name !== "AbortError") {
+          } catch (error: unknown) {
+            if (error instanceof Error && error.name !== "AbortError") {
               console.error("SSE stream error:", error);
               // Reconnect after 5 seconds
               reconnectTimeoutRef.current = setTimeout(connectSSE, 5000);
@@ -186,8 +187,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
         };
 
         processStream();
-      } catch (error: any) {
-        if (error.name !== "AbortError") {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name !== "AbortError") {
           console.error("SSE connection error:", error);
           reconnectTimeoutRef.current = setTimeout(connectSSE, 5000);
         }
@@ -199,7 +200,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
     // Store abort controller for cleanup
     eventSourceRef.current = {
       close: () => abortController.abort(),
-    } as any;
+    };
   }, []);
 
   // ─── Effects ────────────────────────────────────────────────

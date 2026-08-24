@@ -112,7 +112,7 @@ export const ServiceImageManagement = ({
       setSelectedFile(null);
       form.reset();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể thêm ảnh." });
     },
   });
@@ -127,7 +127,7 @@ export const ServiceImageManagement = ({
       setEditingImage(null);
       form.reset();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể cập nhật ảnh." });
     },
   });
@@ -139,7 +139,7 @@ export const ServiceImageManagement = ({
       queryClient.invalidateQueries({ queryKey: ["serviceImages", serviceId] });
       queryClient.invalidateQueries({ queryKey: ["services"] });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể xóa ảnh." });
     },
   });
@@ -151,7 +151,7 @@ export const ServiceImageManagement = ({
       queryClient.invalidateQueries({ queryKey: ["serviceImages", serviceId] });
       queryClient.invalidateQueries({ queryKey: ["services"] });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể đặt ảnh chính." });
     },
   });
