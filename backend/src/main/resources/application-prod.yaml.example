@@ -46,6 +46,11 @@ google:
   # trong Google Cloud Console — chỗ đó bắt buộc sửa tay.
   redirect-uri: ${GOOGLE_REDIRECT_URI:https://${APP_DOMAIN}/auth/google/callback}
 
+payos:
+  # Cùng lý do với google.redirect-uri: suy ra từ APP_DOMAIN để không bao giờ trỏ về localhost.
+  return-url: ${PAYOS_RETURN_URL:https://${APP_DOMAIN}/}
+  cancel-url: ${PAYOS_CANCEL_URL:https://${APP_DOMAIN}/}
+
 app:
   cors:
     # APP_DOMAIN đến từ env_file .env.prod (xem .env.prod.example ở thư mục gốc).

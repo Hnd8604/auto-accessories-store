@@ -210,14 +210,16 @@ Nếu test hàm dùng `SecurityContextHolder` (vd `getMyOrder`): set context tro
 
 ### ✅ Giai đoạn B4 — Các service còn lại — ĐÃ HOÀN THÀNH
 
-Toàn bộ 22 service còn lại đã có test. Tổng cộng **239 test, 0 failure**.
+Toàn bộ 22 service còn lại đã có test. Toàn backend hiện có **252 test, 0 failure** (2 test skip: `StoreApplicationTests` bị `@Disabled`, `SchemaMigrationTest` chỉ chạy khi có `TEST_DB_URL`).
 
 | Nhóm | Test class | Số test | Điểm nhấn đã phủ |
 |---|---|---:|---|
 | **Cao** | `AuthenticationServiceTest` | 18 | register (trùng user/email/thiếu role), sai mật khẩu → `UNAUTHENTICATED`, refresh bằng accessToken → lỗi, token đã logout → lỗi, đổi mật khẩu 4 nhánh |
 | | `ResetPasswordServiceTest` | 12 | OTP hết hạn, sai OTP → tăng `otpAttempt`, quá 5 lần → **xoá phiên**, sai bước, cooldown gửi lại |
 | | `OtpServiceTest` | 6 | Redis lưu **hash** chứ không lưu OTP thô, OTP dùng 1 lần |
-| | `PaymentServiceTest` | 16 | QR VietQR, webhook SePay: tiền ra bị bỏ qua, thiếu tiền → không PAID, đơn đã PAID → bỏ qua, xác thực API key |
+| | `PaymentServiceTest` | 29 | link payOS: tạo mới / dùng lại khi còn `PENDING` / huỷ và thay khi sắp hết hạn / mở link mới khi đã huỷ, `description` ≤ 9 ký tự, tiền lẻ → từ chối, payOS đã báo trả nhưng chưa có webhook → ghi nhận ngay; đối soát khi poll; webhook: `code` ≠ `00`, thiếu tiền → không PAID, đơn đã PAID → vẫn lưu `Payment`, trùng `reference` → bỏ qua, thiếu `amount` → từ chối; huỷ link khi huỷ đơn |
+| | `PayosGatewayTest` | 9 | chạy **SDK payOS thật**: chữ ký webhook (neo vector `openssl`), body bị sửa / sai key / thiếu chữ ký / không phải JSON → `401`; API payOS giả lập bằng `HttpServer` của JDK: chữ ký request tạo link, parse response, lỗi payOS → `PAYMENT_GATEWAY_ERROR`. Bắt được lỗi tương thích Jackson (SDK khai 2.20, Spring Boot ghim 2.18) |
+| | `PaymentControllerTest` | 2 | verify chữ ký trước rồi mới gọi service; sai chữ ký → service **không** được gọi |
 | | `GoogleAuthServiceTest` | 6 | tạo user mới / link googleId theo email / cập nhật avatar, lỗi Google → `GOOGLE_AUTH_FAILED` |
 | | `ProfessionalServiceServiceTest` | 13 | parse/serialize `features` JSON, JSON hỏng không làm sập API, chọn ảnh primary |
 | **Vừa** | `UserServiceTest` | 12 | chỉ đổi password/roles khi request có gửi |
@@ -301,6 +303,7 @@ Không dọn → context rò rỉ sang test sau, gây fail ngẫu nhiên tuỳ t
 - Kiểm token thật thay vì so chuỗi: `SignedJWT.parse(token).getJWTClaimsSet().getSubject()`.
 - Giả file upload: `new MockMultipartFile("file", "anh.png", "image/png", bytes)`.
 - `MimeMessageHelper(message, true, …)` tạo multipart → phải duyệt đệ quy `Multipart` mới lấy được HTML để assert.
+- Test chữ ký/mã hoá: tính chữ ký kỳ vọng bằng một cài đặt **độc lập** trong test, rồi neo cài đặt đó vào một giá trị tính sẵn bằng `openssl`. Nếu chỉ gọi lại code thật để lấy giá trị kỳ vọng thì test luôn "tự đúng với chính nó" (xem `PayosGatewayTest`).
 
 > Với service có logic bảo mật (Auth, ResetPassword, Otp): test kỹ nhánh **sai mật khẩu / OTP hết hạn / token không hợp lệ** — đây là nơi bug gây hậu quả nặng nhất.
 
@@ -329,6 +332,8 @@ class ProductControllerTest {
 ```
 
 Bắt đầu với 2-3 controller quan trọng: `ProductController`, `OrderController`, `AuthenticationController`.
+
+> `PaymentControllerTest` hiện có **không** phải slice test: nó `new PaymentController(...)` rồi gọi thẳng method, không qua `MockMvc` hay Spring Security. Vì vậy nó không kiểm được mapping URL hay việc `/payments/payos/webhook` được `permitAll`.
 
 ---
 
@@ -512,7 +517,7 @@ Xem file/nhánh nào chưa được test, bổ sung. Đặt mục tiêu thực t
 - [x] **B1** — `SlugUtilTest`, `SortUtilsTest`
 - [x] **B2** — `ProductServiceTest`, `CategoryServiceTest`, `BrandServiceTest`
 - [x] **B3** — `OrderServiceTest`, `CartServiceTest`, `PostServiceTest`
-- [x] **B4** — Auth/Payment/ResetPassword/Google/Otp + 22 service còn lại (239 test, 0 failure)
+- [x] **B4** — Auth/Payment/ResetPassword/Google/Otp + 22 service còn lại, kèm `SepayWebhookVerifierTest`, `PaymentControllerTest` (toàn backend 252 test, 0 failure, 2 skip)
 - [ ] **B5** — (tùy chọn) Controller slice test
 - [ ] **B6** — (tùy chọn) Repository slice test
 - [ ] **B7** — (tùy chọn) Integration test với Testcontainers

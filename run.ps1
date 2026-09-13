@@ -113,7 +113,7 @@ function Import-DevEnv {
             $parts = $_ -split '=', 2
             $name  = $parts[0].Trim()
             # Cắt comment cuối dòng (đứng sau >= 2 khoảng trắng) nhưng giữ
-            # nguyên giá trị có khoảng trắng, vd SEPAY_BANK_ACCOUNT_NAME=NGUYEN VAN A
+            # nguyên giá trị có khoảng trắng, vd MAIL_PASSWORD=abcd efgh ijkl mnop
             $value = ($parts[1] -replace '\s{2,}#.*$', '').Trim()
             [Environment]::SetEnvironmentVariable($name, $value, 'Process')
         }

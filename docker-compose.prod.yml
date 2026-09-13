@@ -90,7 +90,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
-    # env_file (.env.prod) nạp toàn bộ JWT_SIGNER_KEY / MAIL_* / CLOUDINARY_* / SEPAY_* /
+    # env_file (.env.prod) nạp toàn bộ JWT_SIGNER_KEY / MAIL_* / CLOUDINARY_* / PAYOS_* /
     # GOOGLE_* mà application.yaml đọc qua ${...}. Thiếu env_file thì app
     # không khởi động được.
     env_file: .env.prod

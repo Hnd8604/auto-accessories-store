@@ -3,8 +3,10 @@ package app.store.exception;
 import app.store.dto.response.auth.ApiResponse;
 import jakarta.validation.ConstraintViolation;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.TransactionException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -22,25 +24,37 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(value = RuntimeException.class)
     ResponseEntity<ApiResponse> handlingRuntimeException(RuntimeException exception) {
-      ApiResponse apiResponse = new ApiResponse();
+        ApiResponse apiResponse = new ApiResponse();
 
-      apiResponse.setCode(ErrorCode.UNCATEGORIZED_EXCEPTION.getCode());
-      apiResponse.setMessage(exception.getMessage());
+        apiResponse.setCode(ErrorCode.UNCATEGORIZED_EXCEPTION.getCode());
+        apiResponse.setMessage(exception.getMessage());
 
-      return badRequest().body(apiResponse);
+        return badRequest().body(apiResponse);
 
+    }
+
+    // lỗi hạ tầng như redis, database, ...
+    @ExceptionHandler(value = { DataAccessException.class, TransactionException.class })
+    ResponseEntity<ApiResponse> handlingInfrastructureException(RuntimeException exception) {
+        ErrorCode errorCode = ErrorCode.UNCATEGORIZED_EXCEPTION;
+        log.error("Infrastructure failure, returning {}", errorCode.getStatusCode(), exception);
+
+        ApiResponse apiResponse = new ApiResponse();
+        apiResponse.setCode(errorCode.getCode());
+        apiResponse.setMessage(errorCode.getMessage());
+
+        return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
     }
 
     @ExceptionHandler(value = AppException.class)
     ResponseEntity<ApiResponse> handlingAppException(AppException exception) {
         ErrorCode errorCode = exception.getErrorCode();
-        ApiResponse apiResponse = new ApiResponse();
 
+        ApiResponse apiResponse = new ApiResponse();
         apiResponse.setCode(errorCode.getCode());
         apiResponse.setMessage(exception.getMessage());
 
-        return badRequest().body(apiResponse);
-
+        return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
     }
 
     @ExceptionHandler(value = AccessDeniedException.class)
@@ -66,7 +80,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(value = MethodArgumentNotValidException.class)
-    ResponseEntity<ApiResponse> handlingValidation(MethodArgumentNotValidException exception){
+    ResponseEntity<ApiResponse> handlingValidation(MethodArgumentNotValidException exception) {
         String enumKey = exception.getFieldError().getDefaultMessage();
 
         ErrorCode errorCode = ErrorCode.INVALID_KEY;
@@ -77,31 +91,28 @@ public class GlobalExceptionHandler {
             var constraintViolation = exception.getBindingResult() // create a object to hold the error details
                     .getAllErrors().getFirst().unwrap(ConstraintViolation.class);
 
-             attributes =  constraintViolation.getConstraintDescriptor().getAttributes();
+            attributes = constraintViolation.getConstraintDescriptor().getAttributes();
 
             log.info(attributes.toString());
 
-
-        } catch (IllegalArgumentException e){
+        } catch (IllegalArgumentException e) {
 
         }
 
         ApiResponse apiResponse = new ApiResponse();
 
         apiResponse.setCode(errorCode.getCode());
-        apiResponse.setMessage(Objects.nonNull(attributes) ?
-                mapAttribute(errorCode.getMessage(), attributes)
+        apiResponse.setMessage(Objects.nonNull(attributes) ? mapAttribute(errorCode.getMessage(), attributes)
                 : errorCode.getMessage());
 
-        return ResponseEntity.
-                status(errorCode.getStatusCode())
+        return ResponseEntity.status(errorCode.getStatusCode())
                 .body(apiResponse);
     }
 
-    private String mapAttribute(String message, Map<String, Object> attributes){
+    private String mapAttribute(String message, Map<String, Object> attributes) {
         String minValue = attributes.get(MIN_ATTRIBUTE).toString();
 
-        return message.replace("{"+MIN_ATTRIBUTE+"}", minValue);
+        return message.replace("{" + MIN_ATTRIBUTE + "}", minValue);
     }
 
 }

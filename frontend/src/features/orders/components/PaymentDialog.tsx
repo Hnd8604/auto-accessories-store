@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+// usePayOS của thư viện không phải React hook: mỗi lần gọi chỉ tạo một đối tượng checkout mới.
+// Đổi tên khi import để gọi được trong effect, và giữ đúng một đối tượng cho mỗi link.
+import { usePayOS as createPayOSCheckout } from "@payos/payos-checkout";
 import { PaymentsApi } from "@/features/orders/api";
 import type { PaymentResponse } from "@/features/orders/types";
 import { getErrorMessage } from "@/utils/errors";
@@ -11,18 +13,12 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
-    QrCode,
-    Copy,
     CheckCircle2,
     Loader2,
-    Clock,
     Banknote,
-    CreditCard,
     RefreshCw,
+    XCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -32,6 +28,14 @@ interface PaymentDialogProps {
     orderId: string | null;
     onPaymentSuccess?: () => void;
 }
+
+// Khung checkout payOS phía trong trang
+const PAYOS_ELEMENT_ID = "payos-embedded-checkout";
+const POLL_INTERVAL_MS = 5000;
+
+// idle: đang hiện trang payOS; confirming: payOS báo đã trả, chờ backend xác nhận;
+// closed: khách đã huỷ hoặc đóng trang payOS
+type CheckoutState = "idle" | "confirming" | "closed";
 
 const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -50,116 +54,154 @@ export const PaymentDialog = ({
     const [paymentData, setPaymentData] = useState<PaymentResponse | null>(null);
     const [isCreating, setIsCreating] = useState(false);
     const [isPaid, setIsPaid] = useState(false);
-    const [copied, setCopied] = useState<string | null>(null);
+    const [checkoutState, setCheckoutState] = useState<CheckoutState>("idle");
+    const [cancelled, setCancelled] = useState(false);
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const paidRef = useRef(false);
 
-    // Create payment QR when dialog opens
+    // Parent truyền callback mới mỗi lần render. Giữ qua ref để các callback bên dưới ổn định,
+    // nếu không effect nhúng checkout sẽ chạy lại và tải lại iframe payOS giữa chừng.
+    const onPaymentSuccessRef = useRef(onPaymentSuccess);
     useEffect(() => {
-        if (isOpen && orderId && !paymentData) {
-            createPayment();
-        }
-        return () => {
-            if (pollingRef.current) {
-                clearInterval(pollingRef.current);
-                pollingRef.current = null;
-            }
-        };
-    }, [isOpen, orderId]);
+        onPaymentSuccessRef.current = onPaymentSuccess;
+    }, [onPaymentSuccess]);
 
-    // Reset state when dialog closes
-    useEffect(() => {
-        if (!isOpen) {
-            setPaymentData(null);
-            setIsPaid(false);
-            setIsCreating(false);
-            if (pollingRef.current) {
-                clearInterval(pollingRef.current);
-                pollingRef.current = null;
-            }
+    const stopPolling = useCallback(() => {
+        if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
         }
-    }, [isOpen]);
+    }, []);
 
-    const createPayment = async () => {
+    const markPaid = useCallback(() => {
+        if (paidRef.current) return;
+        paidRef.current = true;
+        stopPolling();
+        setIsPaid(true);
+        setPaymentData((prev) => (prev ? { ...prev, paymentStatus: "PAID" } : prev));
+        toast({
+            title: "🎉 Thanh toán thành công!",
+            description: "Đơn hàng của bạn đã được thanh toán.",
+        });
+        onPaymentSuccessRef.current?.();
+    }, [stopPolling, toast]);
+
+    // Nguồn sự thật duy nhất là backend (webhook hoặc đối soát với payOS),
+    // không phải sự kiện phía trình duyệt.
+    const checkStatus = useCallback(async (id: string) => {
+        try {
+            const response = await PaymentsApi.checkPaymentStatus(id);
+            if (response?.result?.paymentStatus === "PAID") {
+                markPaid();
+            }
+        } catch (error) {
+            console.error("Error checking payment status:", error);
+        }
+    }, [markPaid]);
+
+    const startPolling = useCallback((id: string) => {
+        stopPolling();
+        pollingRef.current = setInterval(() => checkStatus(id), POLL_INTERVAL_MS);
+    }, [checkStatus, stopPolling]);
+
+    const createPayment = useCallback(async () => {
         if (!orderId) return;
         setIsCreating(true);
+        setCheckoutState("idle");
+        setCancelled(false);
         try {
             const response = await PaymentsApi.createPayment(orderId);
-            if (response?.result) {
-                setPaymentData(response.result);
-                // Start polling for payment status
+            const result = response?.result;
+            if (!result) return;
+
+            setPaymentData(result);
+            if (result.paymentStatus === "PAID") {
+                markPaid();
+            } else {
                 startPolling(orderId);
             }
         } catch (error: unknown) {
             toast({
                 variant: "destructive",
                 title: "Lỗi tạo thanh toán",
-                description: getErrorMessage(error, "Không thể tạo QR thanh toán"),
+                description: getErrorMessage(error, "Không thể tạo link thanh toán"),
             });
         } finally {
             setIsCreating(false);
         }
-    };
+    }, [orderId, markPaid, startPolling, toast]);
 
-    const startPolling = (id: string) => {
-        // Clear existing polling
-        if (pollingRef.current) {
-            clearInterval(pollingRef.current);
+    // Tạo link thanh toán khi mở dialog, dọn dẹp khi đóng
+    useEffect(() => {
+        if (isOpen && orderId) {
+            paidRef.current = false;
+            createPayment();
         }
+        if (!isOpen) {
+            setPaymentData(null);
+            setIsPaid(false);
+            setIsCreating(false);
+            setCheckoutState("idle");
+            setCancelled(false);
+        }
+        return stopPolling;
+        // Chỉ chạy lại khi mở/đóng dialog hoặc đổi đơn, không phải mỗi khi callback đổi
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, orderId]);
 
-        // Poll every 5 seconds
-        pollingRef.current = setInterval(async () => {
-            try {
-                const response = await PaymentsApi.checkPaymentStatus(id);
-                if (response?.result?.paymentStatus === "PAID") {
-                    setIsPaid(true);
-                    setPaymentData((prev) =>
-                        prev ? { ...prev, paymentStatus: "PAID" } : null
-                    );
-                    if (pollingRef.current) {
-                        clearInterval(pollingRef.current);
-                        pollingRef.current = null;
-                    }
-                    toast({
-                        title: "🎉 Thanh toán thành công!",
-                        description: "Đơn hàng của bạn đã được thanh toán.",
-                    });
-                    onPaymentSuccess?.();
-                }
-            } catch (error) {
-                console.error("Error checking payment status:", error);
-            }
-        }, 5000);
-    };
+    const checkoutUrl = isPaid || isCreating ? undefined : paymentData?.checkoutUrl;
+    const showCheckout = Boolean(checkoutUrl) && checkoutState === "idle";
 
-    const copyToClipboard = (text: string, label: string) => {
-        navigator.clipboard.writeText(text);
-        setCopied(label);
-        setTimeout(() => setCopied(null), 2000);
-        toast({
-            title: "Đã sao chép!",
-            description: `${label} đã được sao chép vào clipboard.`,
+    // Nhúng trang checkout payOS vào khung
+    useEffect(() => {
+        if (!checkoutUrl || !showCheckout || !orderId) return;
+
+        const checkout = createPayOSCheckout({
+            RETURN_URL: window.location.href,
+            ELEMENT_ID: PAYOS_ELEMENT_ID,
+            CHECKOUT_URL: checkoutUrl,
+            embedded: true,
+            onSuccess: () => {
+                setCheckoutState("confirming");
+                checkStatus(orderId);
+            },
+            onCancel: () => {
+                setCancelled(true);
+                setCheckoutState("closed");
+            },
+            onExit: () => {
+                setCheckoutState("closed");
+            },
         });
-    };
+        checkout.open();
+
+        return () => {
+            // Thư viện tự gỡ iframe khi khách trả/huỷ/thoát; chỉ gỡ khi còn iframe để tránh log lỗi
+            if (document.getElementById(PAYOS_ELEMENT_ID)?.querySelector("iframe")) {
+                checkout.exit();
+            }
+        };
+    }, [checkoutUrl, showCheckout, orderId, checkStatus]);
 
     if (!isOpen) return null;
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-lg max-h-[95vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-2xl">
                         <Banknote className="h-6 w-6 text-primary" />
                         Thanh Toán Chuyển Khoản
                     </DialogTitle>
                     <DialogDescription>
-                        Quét mã QR hoặc chuyển khoản theo thông tin bên dưới
+                        Quét mã QR bằng app ngân hàng để thanh toán qua payOS
                     </DialogDescription>
                 </DialogHeader>
 
                 {isCreating ? (
                     <div className="flex flex-col items-center justify-center py-12">
                         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                        <p className="text-muted-foreground">Đang tạo mã QR thanh toán...</p>
+                        <p className="text-muted-foreground">Đang tạo link thanh toán...</p>
                     </div>
                 ) : isPaid ? (
                     /* Payment Success State */
@@ -183,162 +225,64 @@ export const PaymentDialog = ({
                             Đóng
                         </Button>
                     </div>
-                ) : paymentData ? (
-                    /* QR Code and Payment Info */
-                    <div className="space-y-6">
+                ) : paymentData?.checkoutUrl ? (
+                    <div className="space-y-4">
                         {/* Amount Display */}
                         <div className="text-center p-4 bg-primary/5 rounded-xl border border-primary/20">
-                            <p className="text-sm text-muted-foreground mb-1">Số tiền cần thanh toán</p>
+                            <p className="text-sm text-muted-foreground mb-1">
+                                Đơn <span className="font-mono font-semibold">{paymentData.orderCode}</span>
+                            </p>
                             <p className="text-3xl font-bold text-primary">
                                 {formatPrice(paymentData.amount)}
                             </p>
                         </div>
 
-                        {/* QR Code */}
-                        <div className="flex flex-col items-center">
-                            <div className="bg-white p-4 rounded-2xl shadow-lg border-2 border-primary/20">
-                                <img
-                                    src={paymentData.qrCodeUrl}
-                                    alt="QR Code thanh toán"
-                                    className="w-64 h-64 object-contain"
-                                    onError={(e) => {
-                                        (e.target as HTMLImageElement).style.display = "none";
-                                    }}
-                                />
+                        {checkoutState === "idle" && (
+                            // Iframe payOS cao 100% khung chứa nên khung phải có chiều cao cố định
+                            <div
+                                id={PAYOS_ELEMENT_ID}
+                                className="h-[600px] max-h-[65vh] w-full overflow-hidden rounded-xl border"
+                            />
+                        )}
+
+                        {checkoutState === "confirming" && (
+                            <div className="flex flex-col items-center justify-center py-10 text-center">
+                                <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+                                <p className="font-medium">Đang xác nhận thanh toán...</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Thường chỉ mất vài giây, vui lòng không đóng cửa sổ này
+                                </p>
                             </div>
-                            <p className="text-sm text-muted-foreground mt-3 flex items-center gap-1">
-                                <QrCode className="h-4 w-4" />
-                                Mở app ngân hàng và quét mã QR
-                            </p>
-                        </div>
+                        )}
 
-                        <Separator />
-
-                        {/* Bank Transfer Info */}
-                        <div className="space-y-3">
-                            <h4 className="font-semibold text-sm flex items-center gap-2">
-                                <CreditCard className="h-4 w-4 text-primary" />
-                                Hoặc chuyển khoản thủ công
-                            </h4>
-
-                            {/* Bank Name */}
-                            <Card className="border-dashed">
-                                <CardContent className="p-3 flex items-center justify-between">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Ngân hàng</p>
-                                        <p className="font-medium">{paymentData.bankName}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Account Number */}
-                            <Card className="border-dashed">
-                                <CardContent className="p-3 flex items-center justify-between">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Số tài khoản</p>
-                                        <p className="font-mono font-bold text-lg">
-                                            {paymentData.bankAccountNumber}
-                                        </p>
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                            copyToClipboard(paymentData.bankAccountNumber, "Số tài khoản")
-                                        }
-                                    >
-                                        {copied === "Số tài khoản" ? (
-                                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                        ) : (
-                                            <Copy className="h-4 w-4" />
-                                        )}
+                        {checkoutState === "closed" && (
+                            <div className="flex flex-col items-center justify-center py-8 text-center">
+                                <XCircle className="h-10 w-10 text-muted-foreground mb-4" />
+                                <p className="font-medium mb-1">
+                                    {cancelled ? "Bạn đã huỷ thanh toán" : "Đã đóng trang thanh toán"}
+                                </p>
+                                <p className="text-sm text-muted-foreground mb-6">
+                                    Đơn hàng vẫn được giữ, bạn có thể thanh toán lại ngay
+                                </p>
+                                <div className="flex gap-3">
+                                    <Button variant="outline" onClick={onClose}>
+                                        Để sau
                                     </Button>
-                                </CardContent>
-                            </Card>
-
-                            {/* Account Name */}
-                            <Card className="border-dashed">
-                                <CardContent className="p-3 flex items-center justify-between">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Tên tài khoản</p>
-                                        <p className="font-medium">{paymentData.bankAccountName}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Amount */}
-                            <Card className="border-dashed">
-                                <CardContent className="p-3 flex items-center justify-between">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">Số tiền</p>
-                                        <p className="font-bold text-primary text-lg">
-                                            {formatPrice(paymentData.amount)}
-                                        </p>
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                            copyToClipboard(
-                                                paymentData.amount.toString(),
-                                                "Số tiền"
-                                            )
-                                        }
-                                    >
-                                        {copied === "Số tiền" ? (
-                                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                        ) : (
-                                            <Copy className="h-4 w-4" />
-                                        )}
+                                    <Button onClick={createPayment}>
+                                        Thanh toán lại
                                     </Button>
-                                </CardContent>
-                            </Card>
+                                </div>
+                            </div>
+                        )}
 
-                            {/* Payment Content */}
-                            <Card className="border-primary/30 bg-primary/5">
-                                <CardContent className="p-3 flex items-center justify-between">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">
-                                            Nội dung chuyển khoản
-                                        </p>
-                                        <p className="font-mono font-bold text-primary text-lg">
-                                            {paymentData.paymentContent}
-                                        </p>
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                            copyToClipboard(
-                                                paymentData.paymentContent,
-                                                "Nội dung CK"
-                                            )
-                                        }
-                                    >
-                                        {copied === "Nội dung CK" ? (
-                                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                        ) : (
-                                            <Copy className="h-4 w-4" />
-                                        )}
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        {/* Status Indicator */}
-                        <div className="flex items-center justify-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                            <RefreshCw className="h-4 w-4 animate-spin text-yellow-600" />
-                            <span className="text-sm text-yellow-700 dark:text-yellow-400">
-                                Đang chờ thanh toán... Tự động cập nhật khi nhận được tiền
-                            </span>
-                        </div>
-
-                        {/* Warning */}
-                        <p className="text-xs text-muted-foreground text-center">
-                            ⚠️ Vui lòng nhập đúng{" "}
-                            <span className="font-bold">nội dung chuyển khoản</span> để hệ
-                            thống tự động xác nhận đơn hàng
-                        </p>
+                        {checkoutState !== "closed" && (
+                            <div className="flex items-center justify-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                                <RefreshCw className="h-4 w-4 animate-spin text-yellow-600" />
+                                <span className="text-sm text-yellow-700 dark:text-yellow-400">
+                                    Tự động cập nhật khi nhận được tiền
+                                </span>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-12">

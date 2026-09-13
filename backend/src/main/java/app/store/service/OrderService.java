@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -29,11 +30,14 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
 public class OrderService {
+    private static final String MODIFY_ANY_ORDER_AUTHORITY = "ORDER_UPDATE_BY_ADMIN";
+
     OrderRepository orderRepository;
     OrderMapper orderMapper;
     UserRepository userRepository;
@@ -64,7 +68,8 @@ public class OrderService {
     @PreAuthorize("hasAuthority('ORDER_CREATE')")
     public OrderResponse createOrderFromCart(OrderCreationRequest orderRequest) {
         Order order = orderMapper.createOrder(orderRequest);
-        User user = userRepository.findById(orderRequest.getUserId())
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         // Generate unique orderCode
@@ -163,8 +168,7 @@ public class OrderService {
     }
     @PreAuthorize("hasAuthority('ORDER_UPDATE_BY_USER')")
     public OrderResponse updateOrderByUser(String orderId, OrderUpdateByUserRequest request) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
+        Order order = findModifiableOrder(orderId);
         order.setNameRecipient(request.getNameRecipient());
         order.setAddressRecipient(request.getAddressRecipient());
         order.setPhoneRecipient(request.getPhoneRecipient());
@@ -173,8 +177,7 @@ public class OrderService {
     }
     @PreAuthorize("hasAuthority('ORDER_CANCEL')")
     public OrderResponse cancelOrder(String orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
+        Order order = findModifiableOrder(orderId);
         OrderStatus oldStatus = order.getStatus();
         if (order.getStatus() == OrderStatus.PENDING || order.getStatus() == OrderStatus.PROCESSING) {
             order.setStatus(OrderStatus.CANCELED);
@@ -189,6 +192,7 @@ public class OrderService {
             product.setStockQuantity(product.getStockQuantity() + orderDetail.getQuantity());
         }
         Order savedOrder = orderRepository.save(order);
+        paymentService.cancelOpenPaymentLink(savedOrder);
         publishOrderStatusChangedEvent(savedOrder, oldStatus, savedOrder.getStatus());
 
         return orderMapper.toOrderResponse(savedOrder);
@@ -198,6 +202,23 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
         orderRepository.delete(order);
+    }
+
+    /**
+     * Người có quyền ORDER_UPDATE_BY_ADMIN (admin) sửa được mọi đơn; người khác chỉ sửa
+     * được đơn của chính mình. Đơn của người khác trả về ORDER_NOT_EXISTED như đơn không
+     * tồn tại, để không xác nhận được một orderId có tồn tại hay không.
+     */
+    private Order findModifiableOrder(String orderId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean canModifyAnyOrder = authentication.getAuthorities().stream()
+                .anyMatch(authority -> MODIFY_ANY_ORDER_AUTHORITY.equals(authority.getAuthority()));
+
+        Optional<Order> order = canModifyAnyOrder
+                ? orderRepository.findById(orderId)
+                : orderRepository.findByIdAndUserUsername(orderId, authentication.getName());
+
+        return order.orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
     }
 
     private void publishOrderStatusChangedEvent(Order order, OrderStatus oldStatus, OrderStatus newStatus) {

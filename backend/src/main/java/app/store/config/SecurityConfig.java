@@ -23,7 +23,8 @@ public class SecurityConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
             "/users",
             "/session-carts/**",
-            "/auth/login", "/auth/google", "/auth/introspect", "/auth/logout", "/auth/refresh", "/auth/password/reset/**",
+            "/auth/login", "/auth/google", "/auth/introspect", "/auth/logout", "/auth/refresh",
+            "/auth/password/reset/**",
             "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
             "/ws/**",
             // Healthcheck của Docker/CD gọi endpoint này. Không permitAll thì
@@ -39,25 +40,29 @@ public class SecurityConfig {
     private RolePermissionAuthoritiesConverter authoritiesConverter; // NOTE: inject custom Redis-backed converter
     @Autowired
     private CorsConfig corsConfig;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfig.corsConfigurationSource()))
                 .authorizeHttpRequests(req -> req
-                .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
-                .requestMatchers(HttpMethod.GET, "/products/**", "/categories/**", "/brands/**", "/posts/**", "/post-categories/**", "/product-images/**", "/banners/**", "/services/**", "/service-images/**", "/conversations/*/messages").permitAll()
-                        .requestMatchers(HttpMethod.POST,"/products/search**", "/auth/forgot-password", "/auth/reset-password", "/payments/sepay/webhook", "/conversations").permitAll()
+                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/products/**", "/categories/**", "/brands/**", "/posts/**",
+                                "/post-categories/**", "/product-images/**", "/banners/**", "/services/**",
+                                "/service-images/**", "/conversations/*/messages")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/products/search**", "/auth/forgot-password",
+                                "/auth/reset-password", "/conversations", "/payments/payos/webhook")
+                        .permitAll()
                         .anyRequest().authenticated())
 
-
                 .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt
-                        .decoder(customJwtDecoder)
-                        // NOTE: use bean-configured JwtAuthenticationConverter pulling roles + permissions
-                        .jwtAuthenticationConverter(jwtAuthenticationConverter())
-                )
-                .authenticationEntryPoint(new JwtAuthenticationEntryPoint())
-                )
+                        .jwt(jwt -> jwt
+                                .decoder(customJwtDecoder)
+                                // NOTE: use bean-configured JwtAuthenticationConverter pulling roles +
+                                // permissions
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                        .authenticationEntryPoint(new JwtAuthenticationEntryPoint()))
                 .csrf(AbstractHttpConfigurer::disable);
 
         return http.build();

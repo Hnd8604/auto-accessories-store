@@ -5,6 +5,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -16,10 +17,8 @@ public class PaymentResponse {
     String orderId;
     String orderCode;
     BigDecimal amount;
-    String qrCodeUrl;          // URL ảnh QR VietQR
-    String bankName;
-    String bankAccountNumber;
-    String bankAccountName;
-    String paymentContent;     // Nội dung chuyển khoản
     PaymentStatus paymentStatus;
+    String checkoutUrl;          // Trang thanh toán payOS, frontend nhúng vào dialog
+    String paymentLinkId;
+    LocalDateTime expiredAt;     // Hết hạn thì gọi lại /create để lấy link mới
 }

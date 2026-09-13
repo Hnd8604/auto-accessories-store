@@ -15,7 +15,7 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class OrderCreationRequest {
 
-    String userId;
+    // Không có userId: người đặt hàng luôn là user trong JWT, không lấy từ body.
     String nameRecipient;
     String phoneRecipient;
     String addressRecipient;

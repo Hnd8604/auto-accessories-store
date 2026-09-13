@@ -1,29 +1,46 @@
 package app.store.service;
 
-import app.store.dto.request.SepayWebhookRequest;
 import app.store.dto.response.PaymentResponse;
 import app.store.entity.Order;
 import app.store.entity.Payment;
+import app.store.entity.PayosPaymentLink;
+import app.store.enums.OrderStatus;
 import app.store.enums.PaymentMethod;
 import app.store.enums.PaymentStatus;
+import app.store.enums.WebhookOutcome;
 import app.store.exception.AppException;
 import app.store.exception.ErrorCode;
 import app.store.repository.OrderRepository;
 import app.store.repository.PaymentRepository;
+import app.store.repository.PayosPaymentLinkRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.v2.paymentRequests.PaymentLink;
+import vn.payos.model.v2.paymentRequests.PaymentLinkStatus;
+import vn.payos.model.v2.paymentRequests.Transaction;
+import vn.payos.model.webhooks.WebhookData;
 
 import java.math.BigDecimal;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.EnumSet;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -32,33 +49,42 @@ import java.util.UUID;
 @Slf4j
 public class PaymentService {
 
-    OrderRepository orderRepository;
-    PaymentRepository paymentRepository;
+    private static final String VIEW_ANY_ORDER_AUTHORITY = "ORDER_GET_BY_ID";
+    private static final String GATEWAY_NAME = "PAYOS";
+    private static final String SUCCESS_CODE = "00";
+    private static final String ORDER_CANCELED_REASON = "Don hang da bi huy";
 
-    @NonFinal     
-    @Value("${sepay.bank-account-number}")
-    String bankAccountNumber;
-    
-    @NonFinal
-    @Value("${sepay.bank-name}")
-    String bankName;
-    
-    @NonFinal
-    @Value("${sepay.bank-account-name}")
-    String bankAccountName;
-    
-    @NonFinal
-    @Value("${sepay.bank-code}")
-    String bankCode;
-    
-    @NonFinal
-    @Value("${sepay.api-key}")
-    String sepayApiKey;
+    /** Link sắp hết hạn trong khoảng này thì tạo link mới, tránh khách vừa mở trang đã hết hạn. */
+    private static final Duration LINK_REUSE_MARGIN = Duration.ofMinutes(2);
+
+    /** Trạng thái link trên payOS mà khách vẫn thanh toán tiếp được. */
+    private static final Set<PaymentLinkStatus> OPEN_LINK_STATUSES =
+            EnumSet.of(PaymentLinkStatus.PENDING, PaymentLinkStatus.PROCESSING);
 
     /**
-     * Tạo mã đơn hàng duy nhất: DH + yyyyMMdd + 8 ký tự UUID viết hoa
-     * VD: DH20240115A1B2C3D4
+     * payOS giới hạn description 9 ký tự với tài khoản ngân hàng không liên kết qua payOS.
+     * "DH" + tối đa 7 chữ số.
      */
+    private static final int DESCRIPTION_DIGITS = 7;
+
+    OrderRepository orderRepository;
+    PaymentRepository paymentRepository;
+    PayosPaymentLinkRepository payosPaymentLinkRepository;
+    PayosGateway payosGateway;
+
+    @NonFinal
+    @Value("${payos.return-url}")
+    String returnUrl;
+
+    @NonFinal
+    @Value("${payos.cancel-url}")
+    String cancelUrl;
+
+    @NonFinal
+    @Value("${payos.link-expiry-minutes}")
+    long linkExpiryMinutes;
+
+    // Tạo mã đơn hàng duy nhất: DH + yyyyMMdd + 8 ký tự UUID viết hoa
     public String generateOrderCode() {
         String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String randomPart = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
@@ -66,12 +92,11 @@ public class PaymentService {
     }
 
     /**
-     * Tạo thông tin thanh toán cho đơn hàng (QR code VietQR).
-     * FE gọi API này sau khi tạo đơn hàng với paymentMethod = BANK_TRANSFER.
+     * Trả về link thanh toán payOS cho đơn. Dùng lại link gần nhất nếu nó vẫn thanh toán được,
+     * ngược lại tạo link mới.
      */
     public PaymentResponse createPayment(String orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
+        Order order = findAccessibleOrder(orderId);
 
         if (order.getPaymentStatus() == PaymentStatus.PAID) {
             throw new RuntimeException("Đơn hàng đã được thanh toán");
@@ -81,202 +106,242 @@ public class PaymentService {
             throw new RuntimeException("Đơn hàng không sử dụng phương thức chuyển khoản");
         }
 
-        String paymentContent = order.getOrderCode();
+        if (order.getStatus() == OrderStatus.CANCELED) {
+            throw new RuntimeException("Đơn hàng đã bị huỷ");
+        }
 
-        // Tạo URL QR VietQR
-        // Format: https://qr.sepay.vn/img?bank={bankCode}&acc={accountNumber}&template=compact&amount={amount}&des={content}
-        String qrCodeUrl = buildQrCodeUrl(order.getTotalPrice(), paymentContent);
+        Optional<PayosPaymentLink> latest = payosPaymentLinkRepository.findFirstByOrderIdOrderByIdDesc(order.getId());
+        if (latest.isPresent()) {
+            PayosPaymentLink link = latest.get();
+            PaymentLink remote = payosGateway.getLink(link.getPaymentLinkId());
 
-        return PaymentResponse.builder()
-                .orderId(order.getId())
-                .orderCode(order.getOrderCode())
-                .amount(order.getTotalPrice())
-                .qrCodeUrl(qrCodeUrl)
-                .bankName(bankName)
-                .bankAccountNumber(bankAccountNumber)
-                .bankAccountName(bankAccountName)
-                .paymentContent(paymentContent)
-                .paymentStatus(order.getPaymentStatus())
-                .build();
+            // Khách đã trả nhưng webhook chưa tới: ghi nhận ngay, không mở link mới để trả lần hai
+            recordTransactions(order, link, remote);
+            if (order.getPaymentStatus() == PaymentStatus.PAID) {
+                return toResponse(order, link);
+            }
+
+            boolean open = OPEN_LINK_STATUSES.contains(remote.getStatus());
+            if (open && link.getExpiresAt().isAfter(LocalDateTime.now().plus(LINK_REUSE_MARGIN))) {
+                return toResponse(order, link);
+            }
+            if (open) {
+                cancelQuietly(link, "Tao link thanh toan moi");
+            }
+        }
+
+        return toResponse(order, openPaymentLink(order));
     }
 
     /**
-     * Kiểm tra trạng thái thanh toán của đơn hàng.
-     * FE có thể poll API này để biết đơn hàng đã thanh toán hay chưa.
-     * Poll là liên tục gửi request tới BE để kiểm tra xem có dữ liệu mới hoặc thay đổi mới
+     * Trạng thái thanh toán của đơn. Khi đơn còn UNPAID thì hỏi thẳng payOS để đối soát,
+     * nên vẫn cập nhật được dù webhook đến chậm, bị lỡ hoặc chưa cấu hình (dev local).
      */
     public PaymentResponse checkPaymentStatus(String orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
+        Order order = findAccessibleOrder(orderId);
+        Optional<PayosPaymentLink> latest = payosPaymentLinkRepository.findFirstByOrderIdOrderByIdDesc(order.getId());
 
-        PaymentResponse response = PaymentResponse.builder()
-                .orderId(order.getId())
-                .orderCode(order.getOrderCode())
-                .amount(order.getTotalPrice())
-                .paymentStatus(order.getPaymentStatus())
-                .bankName(bankName)
-                .bankAccountNumber(bankAccountNumber)
-                .bankAccountName(bankAccountName)
-                .paymentContent(order.getOrderCode())
-                .build();
-
-        // Nếu chưa thanh toán, trả thêm QR code
-        if (order.getPaymentStatus() == PaymentStatus.UNPAID) {
-            response.setQrCodeUrl(buildQrCodeUrl(order.getTotalPrice(), order.getOrderCode()));
+        if (order.getPaymentStatus() == PaymentStatus.UNPAID && latest.isPresent()) {
+            try {
+                PayosPaymentLink link = latest.get();
+                recordTransactions(order, link, payosGateway.getLink(link.getPaymentLinkId()));
+            } catch (AppException | DataAccessException e) {
+                // Đối soát chỉ là đường phụ: lỗi thì vẫn trả trạng thái đang có trong DB.
+                // DataAccessException xảy ra khi webhook ghi cùng giao dịch trước (unique reference_code).
+                log.warn("Could not reconcile order {} with payOS: {}", order.getOrderCode(), e.getMessage());
+            }
         }
 
-        return response;
+        return toResponse(order, latest.orElse(null));
     }
 
-    /**
-     * Xử lý webhook từ SePay khi có giao dịch ngân hàng.
-     * SePay gửi POST request tới store-backend với thông tin giao dịch.
-     * Ta parse nội dung chuyển khoản (content) để tìm orderCode và cập nhật trạng thái.
-     */
+    /** Xử lý webhook payOS. Chỉ gọi sau khi {@link PayosGateway#verifyWebhook} đã xác thực chữ ký. */
     @Transactional
-    public boolean handleSepayWebhook(SepayWebhookRequest request) {
-        log.info("=== SePay Webhook received ===");
-        log.info("Gateway: {}, Amount: {}, Content: {}, TransferType: {}",
-                request.getGateway(), request.getTransferAmount(),
-                request.getContent(), request.getTransferType());
+    public WebhookOutcome handlePayosWebhook(WebhookData data) {
+        log.info("=== payOS Webhook received === orderCode={}, amount={}, code={}, reference={}",
+                data.getOrderCode(), data.getAmount(), data.getCode(), data.getReference());
 
-        // Chỉ xử lý giao dịch tiền VÀO
-        if (!"in".equalsIgnoreCase(request.getTransferType())) {
-            log.info("Ignoring outgoing transaction");
-            return true;
+        if (!SUCCESS_CODE.equals(data.getCode())) {
+            log.info("Ignoring payOS webhook with code={}, desc={}", data.getCode(), data.getDesc());
+            return WebhookOutcome.NOT_SUCCESS;
         }
 
-        // Tìm orderCode từ content chuyển khoản
-        String content = request.getContent();
-        if (content == null || content.isBlank()) {
-            log.warn("Webhook content is empty, skipping...");
-            return true;
+        if (data.getOrderCode() == null || data.getAmount() == null || data.getReference() == null) {
+            log.error("payOS webhook payload is missing orderCode/amount/reference, rejecting as final");
+            return WebhookOutcome.INVALID_PAYLOAD;
         }
 
-        // Normalize content: uppercase, bỏ dấu cách
-        String normalizedContent = content.toUpperCase().replaceAll("\\s+", "");
-
-        // Tìm orderCode trong nội dung chuyển khoản (pattern: DH + 8 số + 8 ký tự)
-        String orderCode = extractOrderCode(normalizedContent);
-        if (orderCode == null) {
-            log.warn("Could not extract orderCode from content: {}", content);
-            return true;
+        PayosPaymentLink link = payosPaymentLinkRepository.findByPayosOrderCode(data.getOrderCode()).orElse(null);
+        if (link == null) {
+            // Vẫn trả 200: chữ ký hợp lệ nên đây là quyết định cuối cùng, gửi lại cũng không khớp được
+            log.warn("No payment link matches payOS orderCode {}: reference={}, amount={}",
+                    data.getOrderCode(), data.getReference(), data.getAmount());
+            return WebhookOutcome.ORDER_NOT_FOUND;
         }
 
-        log.info("Extracted orderCode: {}", orderCode);
+        return applyTransaction(link.getOrder(), new IncomingTransaction(
+                data.getAmount(), data.getReference(), data.getPaymentLinkId(), data.getDescription(),
+                data.getAccountNumber(), data.getTransactionDateTime()));
+    }
 
-        // Tìm đơn hàng theo orderCode
-        Order order = orderRepository.findByOrderCode(orderCode).orElse(null);
-        if (order == null) {
-            log.warn("Order not found for orderCode: {}", orderCode);
-            return true;
+    /** Huỷ link còn hiệu lực của đơn chuyển khoản chưa thanh toán. Lỗi chỉ ghi log. */
+    public void cancelOpenPaymentLink(Order order) {
+        if (order.getPaymentMethod() != PaymentMethod.BANK_TRANSFER
+                || order.getPaymentStatus() == PaymentStatus.PAID) {
+            return;
         }
 
-        // Kiểm tra đơn hàng đã thanh toán chưa
+        payosPaymentLinkRepository.findFirstByOrderIdOrderByIdDesc(order.getId())
+                .filter(link -> link.getExpiresAt().isAfter(LocalDateTime.now()))
+                .ifPresent(link -> cancelQuietly(link, ORDER_CANCELED_REASON));
+    }
+
+    private PayosPaymentLink openPaymentLink(Order order) {
+        long payosOrderCode = payosPaymentLinkRepository.nextPayosOrderCode();
+        Instant expiresAt = Instant.now().plus(Duration.ofMinutes(linkExpiryMinutes));
+
+        CreatePaymentLinkResponse created = payosGateway.createLink(CreatePaymentLinkRequest.builder()
+                .orderCode(payosOrderCode)
+                .amount(toVndAmount(order.getTotalPrice()))
+                .description(buildDescription(payosOrderCode))
+                .returnUrl(returnUrl)
+                .cancelUrl(cancelUrl)
+                .expiredAt(expiresAt.getEpochSecond())
+                .build());
+
+        log.info("Created payOS payment link for order {}: payosOrderCode={}, paymentLinkId={}",
+                order.getOrderCode(), payosOrderCode, created.getPaymentLinkId());
+
+        return payosPaymentLinkRepository.save(PayosPaymentLink.builder()
+                .order(order)
+                .payosOrderCode(payosOrderCode)
+                .paymentLinkId(created.getPaymentLinkId())
+                .checkoutUrl(created.getCheckoutUrl())
+                .expiresAt(LocalDateTime.ofInstant(expiresAt, ZoneId.systemDefault()))
+                .build());
+    }
+
+    private void recordTransactions(Order order, PayosPaymentLink link, PaymentLink remote) {
+        if (remote.getTransactions() == null) {
+            return;
+        }
+
+        for (Transaction tx : remote.getTransactions()) {
+            WebhookOutcome outcome = applyTransaction(order, new IncomingTransaction(
+                    tx.getAmount(), tx.getReference(), link.getPaymentLinkId(), tx.getDescription(),
+                    tx.getAccountNumber(), tx.getTransactionDateTime()));
+            if (outcome != WebhookOutcome.DUPLICATE_TRANSACTION) {
+                log.info("Reconciled payOS transaction {} for order {}: {}",
+                        tx.getReference(), order.getOrderCode(), outcome);
+            }
+        }
+    }
+
+    private WebhookOutcome applyTransaction(Order order, IncomingTransaction tx) {
+        // Chống xử lý trùng: cùng một giao dịch đến từ cả webhook lẫn đối soát qua API, và một
+        // webhook hợp lệ có thể bị gửi lại. Chữ ký payOS không kèm timestamp để chặn replay
+        // nên đây là lớp chặn chính.
+        if (paymentRepository.existsByReferenceCode(tx.reference())) {
+            return WebhookOutcome.DUPLICATE_TRANSACTION;
+        }
+
+        BigDecimal amount = BigDecimal.valueOf(tx.amount());
+
+        // Đơn đã PAID mà vẫn có tiền vào -> vẫn ghi lại để thấy được mà hoàn tiền
         if (order.getPaymentStatus() == PaymentStatus.PAID) {
-            log.info("Order {} already paid, skipping...", orderCode);
-            return true;
+            log.warn("Order {} is already PAID but received another transfer of {}: reference={}",
+                    order.getOrderCode(), amount, tx.reference());
+            savePaymentRecord(order, tx, PaymentStatus.PAID);
+            return WebhookOutcome.ORDER_ALREADY_PAID;
         }
 
-        // Kiểm tra số tiền
-        BigDecimal transferAmount = BigDecimal.valueOf(request.getTransferAmount());
-        if (transferAmount.compareTo(order.getTotalPrice()) < 0) {
+        if (amount.compareTo(order.getTotalPrice()) < 0) {
             log.warn("Transfer amount {} is less than order total {}, orderCode: {}",
-                    transferAmount, order.getTotalPrice(), orderCode);
-            // Vẫn lưu giao dịch nhưng không update trạng thái
-            savePaymentRecord(order, request, PaymentStatus.UNPAID);
-            return true;
+                    amount, order.getTotalPrice(), order.getOrderCode());
+            // Vẫn lưu giao dịch để đối soát nhưng không update trạng thái đơn
+            savePaymentRecord(order, tx, PaymentStatus.UNPAID);
+            return WebhookOutcome.UNDERPAID;
         }
 
-        // Cập nhật trạng thái thanh toán
         order.setPaymentStatus(PaymentStatus.PAID);
         orderRepository.save(order);
+        savePaymentRecord(order, tx, PaymentStatus.PAID);
 
-        // Lưu bản ghi thanh toán
-        savePaymentRecord(order, request, PaymentStatus.PAID);
-
-        log.info("✅ Order {} has been marked as PAID! Amount: {}", orderCode, transferAmount);
-        return true;
+        log.info("Order {} has been marked as PAID, amount={}", order.getOrderCode(), amount);
+        return WebhookOutcome.PAID;
     }
 
-    /**
-     * Trích xuất mã đơn hàng từ nội dung chuyển khoản.
-     * Pattern: DH + 8 chữ số (yyyyMMdd) + 8 ký tự alphanumeric
-     * VD: DH20240115A1B2C3D4
-     */
-    private String extractOrderCode(String normalizedContent) {
-        // Tìm pattern DH + 16 ký tự (8 số + 8 alpha)
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(DH\\d{8}[A-Z0-9]{8})");
-        java.util.regex.Matcher matcher = pattern.matcher(normalizedContent);
-        if (matcher.find()) {
-            return matcher.group(1);
+    private void cancelQuietly(PayosPaymentLink link, String reason) {
+        try {
+            payosGateway.cancelLink(link.getPaymentLinkId(), reason);
+        } catch (AppException e) {
+            log.warn("Could not cancel payOS payment link {}", link.getPaymentLinkId());
         }
-        return null;
     }
 
-    /**
-     * Lưu bản ghi giao dịch thanh toán
-     */
-    private void savePaymentRecord(Order order, SepayWebhookRequest request, PaymentStatus status) {
+    private Order findAccessibleOrder(String orderId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean canViewAnyOrder = authentication.getAuthorities().stream()
+                .anyMatch(authority -> VIEW_ANY_ORDER_AUTHORITY.equals(authority.getAuthority()));
+
+        Optional<Order> order = canViewAnyOrder
+                ? orderRepository.findById(orderId)
+                : orderRepository.findByIdAndUserUsername(orderId, authentication.getName());
+
+        return order.orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
+    }
+
+    private void savePaymentRecord(Order order, IncomingTransaction tx, PaymentStatus status) {
         Payment payment = Payment.builder()
                 .order(order)
-                .amount(BigDecimal.valueOf(request.getTransferAmount()))
-                .gateway(request.getGateway())
-                .transactionCode(request.getCode())
-                .referenceCode(request.getReferenceCode())
-                .transferContent(request.getContent())
-                .accountNumber(request.getAccountNumber())
-                .transactionDate(request.getTransactionDate())
+                .amount(BigDecimal.valueOf(tx.amount()))
+                .gateway(GATEWAY_NAME)
+                .transactionCode(tx.paymentLinkId())
+                .referenceCode(tx.reference())
+                .transferContent(tx.description())
+                .accountNumber(tx.accountNumber())
+                .transactionDate(tx.transactionDateTime())
                 .status(status)
                 .build();
         paymentRepository.save(payment);
     }
 
-    /**
-     * Tạo URL QR Code VietQR thông qua SePay.
-     * URL format: https://qr.sepay.vn/img?bank={bankCode}&acc={accountNumber}&template=compact&amount={amount}&des={content}
-     */
-    private String buildQrCodeUrl(BigDecimal amount, String content) {
-        return String.format(
-                "https://qr.sepay.vn/img?bank=%s&acc=%s&template=compact&amount=%s&des=%s",
-                URLEncoder.encode(bankCode, StandardCharsets.UTF_8),
-                URLEncoder.encode(bankAccountNumber, StandardCharsets.UTF_8),
-                amount.toBigInteger().toString(),
-                URLEncoder.encode(content, StandardCharsets.UTF_8)
-        );
+    private PaymentResponse toResponse(Order order, PayosPaymentLink link) {
+        PaymentResponse response = PaymentResponse.builder()
+                .orderId(order.getId())
+                .orderCode(order.getOrderCode())
+                .amount(order.getTotalPrice())
+                .paymentStatus(order.getPaymentStatus())
+                .build();
+
+        // Đã thanh toán thì không trả link nữa
+        if (link != null && order.getPaymentStatus() != PaymentStatus.PAID) {
+            response.setCheckoutUrl(link.getCheckoutUrl());
+            response.setPaymentLinkId(link.getPaymentLinkId());
+            response.setExpiredAt(link.getExpiresAt());
+        }
+
+        return response;
     }
 
-    // ==================== Webhook Verification ====================
-
-    /**
-     * Xác thực webhook request bằng API key.
-     * So sánh constant-time để chống timing attack.
-     */
-    public void verifyApiKey(String apiKey) {
-        if (apiKey == null || apiKey.isBlank()) {
-            log.error("❌ Missing API key in webhook request");
-            throw new AppException(ErrorCode.WEBHOOK_INVALID_SIGNATURE);
+    private static long toVndAmount(BigDecimal totalPrice) {
+        try {
+            return totalPrice.longValueExact();
+        } catch (ArithmeticException e) {
+            throw new IllegalArgumentException("Tổng tiền đơn hàng phải là số nguyên VND: " + totalPrice);
         }
-
-        // SePay có thể gửi header dạng "Bearer <key>" hoặc "Apikey <key>", cắt bỏ prefix nếu có
-        String cleanApiKey = apiKey.replace("Bearer ", "").replace("Apikey ", "").trim();
-
-        if (!constantTimeEquals(cleanApiKey, sepayApiKey)) {
-            log.error("❌ Invalid API key in webhook request. Expected: {}, Got: {}", sepayApiKey, cleanApiKey);
-            throw new AppException(ErrorCode.WEBHOOK_INVALID_SIGNATURE);
-        }
-
-        log.info("✅ Webhook API key verified successfully");
     }
 
-    private boolean constantTimeEquals(String a, String b) {
-        if (a == null || b == null) return false;
-        if (a.length() != b.length()) return false;
-
-        int result = 0;
-        for (int i = 0; i < a.length(); i++) {
-            result |= a.charAt(i) ^ b.charAt(i);
+    private static String buildDescription(long payosOrderCode) {
+        String digits = String.valueOf(payosOrderCode);
+        if (digits.length() > DESCRIPTION_DIGITS) {
+            digits = digits.substring(digits.length() - DESCRIPTION_DIGITS);
         }
-        return result == 0;
+        return "DH" + digits;
+    }
+
+    /** Một giao dịch tiền vào, từ webhook hoặc từ API tra cứu link của payOS. */
+    private record IncomingTransaction(Long amount, String reference, String paymentLinkId,
+            String description, String accountNumber, String transactionDateTime) {
     }
 }

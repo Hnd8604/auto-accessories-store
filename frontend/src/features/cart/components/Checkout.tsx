@@ -144,7 +144,6 @@ export const Checkout = ({ isOpen, onClose, onComplete }: CheckoutProps) => {
     setIsSubmitting(true);
     try {
       const orderPayload: OrderCreationRequest = {
-        userId: user.id,
         nameRecipient: data.nameRecipient,
         phoneRecipient: data.phoneRecipient,
         addressRecipient: data.addressRecipient,
@@ -425,7 +424,7 @@ export const Checkout = ({ isOpen, onClose, onComplete }: CheckoutProps) => {
                         <div className="flex-1">
                           <p className="font-medium">Chuyển khoản ngân hàng</p>
                           <p className="text-sm text-muted-foreground">
-                            Quét mã QR VietQR để thanh toán nhanh chóng
+                            Quét mã QR qua payOS, xác nhận tự động
                           </p>
                         </div>
                         <Badge variant="secondary" className="text-xs">Nhanh</Badge>

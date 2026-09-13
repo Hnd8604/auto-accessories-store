@@ -5,7 +5,7 @@
 #   .env.dev   ← docker-compose.yml       (máy local)
 #   .env.prod  ← docker-compose.prod.yml  (VPS)
 #
-# Chúng chứa mật khẩu DB, JWT key, Cloudinary, SePay, Google OAuth.
+# Chúng chứa mật khẩu DB, JWT key, Cloudinary, payOS, Google OAuth.
 # Chỉ hai file *.example được commit; bản thật thì không, bao giờ cũng vậy.
 # ==============================================================
 .env

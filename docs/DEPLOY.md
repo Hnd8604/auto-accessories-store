@@ -105,7 +105,7 @@ Bắt buộc phải sửa:
 | `ACME_EMAIL` | Email nhận cảnh báo chứng chỉ sắp hết hạn |
 | `POSTGRES_PASSWORD`, `REDIS_PASSWORD` | Đặt mật khẩu mạnh |
 | `JWT_SIGNER_KEY` | Sinh bằng `openssl rand -base64 48` |
-| `MAIL_*`, `CLOUDINARY_*`, `SEPAY_*`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Giá trị thật của bạn |
+| `MAIL_*`, `CLOUDINARY_*`, `PAYOS_*`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Giá trị thật của bạn |
 | `ADMIN_PASSWORD` | **Bắt buộc ở lần deploy đầu tiên**, thiếu thì backend không khởi động |
 
 `GOOGLE_REDIRECT_URI` **không còn khai trong `.env.prod`**: backend tự suy ra

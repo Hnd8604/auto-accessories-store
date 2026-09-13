@@ -57,7 +57,8 @@ public enum ErrorCode {
     OTP_RESEND_TOO_SOON(2007, "Vui lòng đợi trước khi gửi lại OTP", HttpStatus.TOO_MANY_REQUESTS),
 
     // Payment / Webhook
-    WEBHOOK_INVALID_SIGNATURE(3001, "Webhook API key verification failed", HttpStatus.UNAUTHORIZED),
+    WEBHOOK_INVALID_SIGNATURE(3001, "Webhook signature verification failed", HttpStatus.UNAUTHORIZED),
+    PAYMENT_GATEWAY_ERROR(3003, "Không kết nối được cổng thanh toán, vui lòng thử lại", HttpStatus.BAD_GATEWAY),
 
     // Change Password
     WRONG_CURRENT_PASSWORD(4001, "Mật khẩu hiện tại không đúng", HttpStatus.BAD_REQUEST),

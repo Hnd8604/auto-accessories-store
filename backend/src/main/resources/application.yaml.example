@@ -99,13 +99,17 @@ management:
       exposure:
         include: health,info
 
-# SePay Payment Gateway Configuration
-sepay:
-  api-key: ${SEPAY_API_KEY}
-  bank-code: ${SEPAY_BANK_CODE:MBBank}
-  bank-account-number: ${SEPAY_BANK_ACCOUNT_NUMBER}
-  bank-account-name: ${SEPAY_BANK_ACCOUNT_NAME}
-  bank-name: ${SEPAY_BANK_NAME:MB Bank}
+# payOS Payment Gateway Configuration
+# Lấy từ my.payos.vn → Kênh thanh toán → Thông tin tích hợp.
+payos:
+  client-id: ${PAYOS_CLIENT_ID}
+  api-key: ${PAYOS_API_KEY}
+  # Dùng để ký request và xác thực chữ ký webhook.
+  checksum-key: ${PAYOS_CHECKSUM_KEY}
+  # payOS bắt buộc gửi kèm khi tạo link; frontend dùng checkout nhúng nên ít khi chuyển hướng tới.
+  return-url: ${PAYOS_RETURN_URL:http://localhost:3000/}
+  cancel-url: ${PAYOS_CANCEL_URL:http://localhost:3000/}
+  link-expiry-minutes: ${PAYOS_LINK_EXPIRY_MINUTES:15}
 
 # Google OAuth2 Configuration
 # Lấy từ Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs

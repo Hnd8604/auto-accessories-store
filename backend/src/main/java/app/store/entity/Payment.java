@@ -24,14 +24,15 @@ public class Payment extends BaseEntityLong {
     @Column(nullable = false)
     BigDecimal amount;
 
-    String gateway;             // Tên ngân hàng (MBBank, VCB, ...)
-    String transactionCode;     // Mã giao dịch từ SePay
-    String referenceCode;       // Mã tham chiếu
-    String transferContent;     // Nội dung chuyển khoản
-    String accountNumber;       // Số tài khoản
-    String transactionDate;     // Ngày giao dịch
+    String gateway; // Cổng thanh toán (PAYOS)
+    String transactionCode; // paymentLinkId của payOS
+    String referenceCode; // Mã tham chiếu giao dịch ngân hàng, duy nhất
+    String transferContent; // Nội dung chuyển khoản
+    String accountNumber; // Số tài khoản nhận tiền
+    String transactionDate; // Ngày giao dịch
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    PaymentStatus status;       // UNPAID, PAID, REFUNDED
+    PaymentStatus status; // UNPAID, PAID, REFUNDED
+
 }

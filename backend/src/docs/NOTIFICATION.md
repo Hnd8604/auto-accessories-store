@@ -310,7 +310,7 @@ SELECT * FROM notifications WHERE user_id = 'your-user-id' ORDER BY created_at D
 
 - **SSE chỉ hoạt động trên 1 instance:** emitter lưu trong RAM. Khi scale nhiều instance, consumer xử lý ở instance A nhưng user kết nối SSE ở instance B sẽ không nhận được push. Giải pháp: dùng Redis Pub/Sub (project đã có Redis) hoặc topic Kafka "fan-out" để mọi instance đẩy SSE.
 - **Chưa có Dead Letter Topic (DLT):** consumer lỗi sẽ retry theo mặc định; nên cấu hình DLT + retry/back-off để không kẹt message lỗi.
-- **`PAYMENT_RECEIVED` đã khai báo nhưng chưa dùng:** có thể nối webhook SePay (xem [PAYMENT.md](PAYMENT.md)) phát thông báo "Đã nhận thanh toán" qua cùng cơ chế này.
+- **`PAYMENT_RECEIVED` đã khai báo nhưng chưa dùng:** có thể nối webhook payOS (xem [PAYMENT.md](PAYMENT.md)) phát thông báo "Đã nhận thanh toán" qua cùng cơ chế này.
 - **Email đồng bộ trong consumer:** nếu SMTP chậm, consumer xử lý chậm theo. Có thể tách email thành consumer/topic riêng.
 - **Thiếu thông báo cho admin:** hiện chỉ thông báo cho user đặt hàng; có thể thêm topic/consumer thông báo cho admin khi có đơn mới.
 
