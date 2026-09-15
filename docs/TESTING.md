@@ -210,13 +210,12 @@ Nếu test hàm dùng `SecurityContextHolder` (vd `getMyOrder`): set context tro
 
 ### ✅ Giai đoạn B4 — Các service còn lại — ĐÃ HOÀN THÀNH
 
-Toàn bộ 22 service còn lại đã có test. Toàn backend hiện có **252 test, 0 failure** (2 test skip: `StoreApplicationTests` bị `@Disabled`, `SchemaMigrationTest` chỉ chạy khi có `TEST_DB_URL`).
+Toàn bộ 21 service còn lại đã có test. Toàn backend hiện có **252 test, 0 failure** (2 test skip: `StoreApplicationTests` bị `@Disabled`, `SchemaMigrationTest` chỉ chạy khi có `TEST_DB_URL`).
 
 | Nhóm | Test class | Số test | Điểm nhấn đã phủ |
 |---|---|---:|---|
 | **Cao** | `AuthenticationServiceTest` | 18 | register (trùng user/email/thiếu role), sai mật khẩu → `UNAUTHENTICATED`, refresh bằng accessToken → lỗi, token đã logout → lỗi, đổi mật khẩu 4 nhánh |
 | | `ResetPasswordServiceTest` | 12 | OTP hết hạn, sai OTP → tăng `otpAttempt`, quá 5 lần → **xoá phiên**, sai bước, cooldown gửi lại |
-| | `OtpServiceTest` | 6 | Redis lưu **hash** chứ không lưu OTP thô, OTP dùng 1 lần |
 | | `PaymentServiceTest` | 29 | link payOS: tạo mới / dùng lại khi còn `PENDING` / huỷ và thay khi sắp hết hạn / mở link mới khi đã huỷ, `description` ≤ 9 ký tự, tiền lẻ → từ chối, payOS đã báo trả nhưng chưa có webhook → ghi nhận ngay; đối soát khi poll; webhook: `code` ≠ `00`, thiếu tiền → không PAID, đơn đã PAID → vẫn lưu `Payment`, trùng `reference` → bỏ qua, thiếu `amount` → từ chối; huỷ link khi huỷ đơn |
 | | `PayosGatewayTest` | 9 | chạy **SDK payOS thật**: chữ ký webhook (neo vector `openssl`), body bị sửa / sai key / thiếu chữ ký / không phải JSON → `401`; API payOS giả lập bằng `HttpServer` của JDK: chữ ký request tạo link, parse response, lỗi payOS → `PAYMENT_GATEWAY_ERROR`. Bắt được lỗi tương thích Jackson (SDK khai 2.20, Spring Boot ghim 2.18) |
 | | `PaymentControllerTest` | 2 | verify chữ ký trước rồi mới gọi service; sai chữ ký → service **không** được gọi |

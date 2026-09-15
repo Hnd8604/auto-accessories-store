@@ -24,7 +24,7 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import app.store.dto.ResetPasswordSession;
+import app.store.entity.redis.ResetPasswordSession;
 import app.store.dto.request.ConfirmResetPasswordRequest;
 import app.store.dto.request.InitResetPasswordRequest;
 import app.store.dto.request.ResendOtpRequest;

@@ -1,6 +1,6 @@
 package app.store.service;
 
-import app.store.dto.ResetPasswordSession;
+import app.store.entity.redis.ResetPasswordSession;
 import app.store.dto.request.ConfirmResetPasswordRequest;
 import app.store.dto.request.InitResetPasswordRequest;
 import app.store.dto.request.ResendOtpRequest;

@@ -1,4 +1,4 @@
-package app.store.dto;
+package app.store.entity.redis;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
