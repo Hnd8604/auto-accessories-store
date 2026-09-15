@@ -1,5 +1,6 @@
 package app.store.controller;
 
+import jakarta.validation.Valid;
 import app.store.dto.request.ServiceImageRequest;
 import app.store.dto.request.ServiceImageUpdateRequest;
 import app.store.dto.response.ServiceImageResponse;
@@ -54,7 +55,7 @@ public class ServiceImageController {
     @Operation(summary = "Update service image metadata")
     public ApiResponse<ServiceImageResponse> updateServiceImage(
             @PathVariable Long imageId,
-            @RequestBody ServiceImageUpdateRequest request) {
+            @Valid @RequestBody ServiceImageUpdateRequest request) {
         return ApiResponse.<ServiceImageResponse>builder()
                 .result(serviceImageService.updateServiceImage(imageId, request))
                 .build();

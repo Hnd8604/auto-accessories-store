@@ -1,5 +1,6 @@
 package app.store.controller;
 
+import jakarta.validation.Valid;
 import app.store.constant.ResponseMessage;
 import app.store.dto.request.CategoryBrandsRequest;
 import app.store.dto.request.CategoryRequest;
@@ -30,7 +31,7 @@ public class CategoryController {
         summary = "Create a new category",
         description = "Creates a new product category. Only accessible by admin users."
     )
-    ApiResponse<CategoryResponse> createCategory(@RequestBody CategoryRequest request) {
+    ApiResponse<CategoryResponse> createCategory(@Valid @RequestBody CategoryRequest request) {
 
         return ApiResponse.<CategoryResponse>builder()
                 .result(CategoryService.createCategory(request))
@@ -79,7 +80,7 @@ public class CategoryController {
         summary = "Update category",
         description = "Updates an existing product category by ID. Only accessible by admin users."
     )
-    ApiResponse<CategoryResponse> updateCategory(@PathVariable Long categoryId, @RequestBody CategoryRequest request) {
+    ApiResponse<CategoryResponse> updateCategory(@PathVariable Long categoryId, @Valid @RequestBody CategoryRequest request) {
         return ApiResponse.<CategoryResponse>builder()
                 .result(CategoryService.updateCategory(categoryId, request))
                 .message(ResponseMessage.UPDATE_CATEGORY_SUCCESS)
@@ -105,7 +106,7 @@ public class CategoryController {
     )
     ApiResponse<List<BrandResponse>> updateCategoryBrands(
             @PathVariable Long categoryId,
-            @RequestBody CategoryBrandsRequest request
+            @Valid @RequestBody CategoryBrandsRequest request
     ) {
         return ApiResponse.<List<BrandResponse>>builder()
                 .result(CategoryService.updateCategoryBrands(categoryId, request.brandIds()))

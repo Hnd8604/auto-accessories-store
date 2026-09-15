@@ -50,7 +50,7 @@ public class AuthenticationController {
         summary = "Authenticate user",
         description = "Authenticates user with email and password. Returns JWT access token and refresh token."
     )
-    ApiResponse<AuthenticationResponse> authenticate(@RequestBody AuthenticationRequest request, HttpSession session) {
+    ApiResponse<AuthenticationResponse> authenticate(@Valid @RequestBody AuthenticationRequest request, HttpSession session) {
         var result = AuthenticationService.authenticate(request, session);
 
         return ApiResponse.<AuthenticationResponse>builder()
@@ -91,7 +91,7 @@ public class AuthenticationController {
         summary = "Refresh token",
         description = "Refreshes the access token using a valid refresh token. Returns new access token."
     )
-    ApiResponse<RefreshResponse> refresh(@RequestBody RefreshRequest request) throws ParseException, JOSEException {
+    ApiResponse<RefreshResponse> refresh(@Valid @RequestBody RefreshRequest request) throws ParseException, JOSEException {
         var result = AuthenticationService.refreshToken(request);
         return ApiResponse.<RefreshResponse>builder()
                 .result(result)
@@ -105,7 +105,7 @@ public class AuthenticationController {
         summary = "Introspect token",
         description = "Validates a JWT token and returns its status. Used to check if a token is valid and not expired."
     )
-    ApiResponse<IntrospectResponse> introspect(@RequestBody IntrospectRequest request)
+    ApiResponse<IntrospectResponse> introspect(@Valid @RequestBody IntrospectRequest request)
             throws ParseException, JOSEException {
 
         var result = AuthenticationService.introspect(request);
@@ -122,7 +122,7 @@ public class AuthenticationController {
         summary = "Logout user",
         description = "Logs out user by invalidating the JWT token. Adds token to blacklist to prevent reuse."
     )
-    ApiResponse<Void> logout(@RequestBody LogoutRequest request)
+    ApiResponse<Void> logout(@Valid @RequestBody LogoutRequest request)
             throws ParseException, JOSEException {
 
         AuthenticationService.logout(request);
@@ -152,7 +152,7 @@ public class AuthenticationController {
             summary = "Step 1: Initiate password reset",
             description = "Initiates the password reset flow. Verifies email exists, generates OTP, and sends it to the user's email. Returns a unique sessionId for the entire flow."
     )
-    ApiResponse<InitResetPasswordResponse> initResetPassword(@RequestBody InitResetPasswordRequest request) {
+    ApiResponse<InitResetPasswordResponse> initResetPassword(@Valid @RequestBody InitResetPasswordRequest request) {
         var result = resetPasswordService.initResetPassword(request);
         return ApiResponse.<InitResetPasswordResponse>builder()
                 .result(result)

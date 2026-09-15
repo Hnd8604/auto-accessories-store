@@ -1,5 +1,6 @@
 package app.store.controller;
 
+import jakarta.validation.Valid;
 import app.store.dto.request.ProductImageRequest;
 import app.store.dto.request.ProductImageUpdateRequest;
 import app.store.dto.response.ProductImageResponse;
@@ -90,7 +91,7 @@ public class ProductImageController {
         summary = "Update product image",
         description = "Updates product image information. Only accessible by admin users."
     )
-    public ApiResponse<ProductImageResponse> updateProductImage(@PathVariable Long imageId, @RequestBody ProductImageUpdateRequest request) {
+    public ApiResponse<ProductImageResponse> updateProductImage(@PathVariable Long imageId, @Valid @RequestBody ProductImageUpdateRequest request) {
         return ApiResponse.<ProductImageResponse>builder()
                 .result(ProductImageService.updateProductImage(imageId, request))
                 .build();

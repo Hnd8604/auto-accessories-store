@@ -6,12 +6,12 @@ import lombok.Builder;
 
 @Builder
 public record ChangePasswordRequest(
-        @NotBlank(message = "Mật khẩu hiện tại không được để trống")
+        @NotBlank(message = "Current password is required")
         String currentPassword,
-        @NotBlank(message = "Mật khẩu mới không được để trống")
-        @Size(min = 8, message = "Mật khẩu mới phải có ít nhất 8 ký tự")
+        @NotBlank(message = "New password is required")
+        @Size(min = 8, message = "New password must be at least {min} characters")
         String newPassword,
-        @NotBlank(message = "Xác nhận mật khẩu không được để trống")
+        @NotBlank(message = "Password confirmation is required")
         String confirmPassword
 ) {
 }

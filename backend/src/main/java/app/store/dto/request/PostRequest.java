@@ -10,14 +10,14 @@ import lombok.Builder;
 
 @Builder
 public record PostRequest(
-        @NotBlank(message = "Tiêu đề không được để trống")
-        @Size(max = 500, message = "Tiêu đề không được vượt quá 500 ký tự")
+        @NotBlank(message = "Title is required")
+        @Size(max = 500, message = "Title must not exceed {max} characters")
         String title,
-        @Size(max = 1000, message = "Mô tả ngắn không được vượt quá 1000 ký tự")
+        @Size(max = 1000, message = "Short description must not exceed {max} characters")
         String shortDescription,
-        @NotBlank(message = "Nội dung không được để trống")
+        @NotBlank(message = "Content is required")
         String content,
-        @NotNull(message = "Trạng thái xuất bản không được để trống")
+        @NotNull(message = "Published status is required")
         Boolean published,
         Long categoryId
 ) {

@@ -1,5 +1,6 @@
 package app.store.controller;
 
+import jakarta.validation.Valid;
 import app.store.constant.ResponseMessage;
 import app.store.dto.request.BrandRequest;
 import app.store.dto.response.BrandResponse;
@@ -53,7 +54,7 @@ public class BrandController {
 
     @PostMapping
     @Operation(summary = "Create a new brand", description = "Creates a new product brand. Only accessible by admin users.")
-    ApiResponse<BrandResponse> createBrand(@RequestBody BrandRequest BrandRequest) {
+    ApiResponse<BrandResponse> createBrand(@Valid @RequestBody BrandRequest BrandRequest) {
         return ApiResponse.<BrandResponse>builder()
                 .result(BrandService.createBrand(BrandRequest))
                 .message(ResponseMessage.CREATE_BRAND_SUCCESS)
@@ -62,7 +63,7 @@ public class BrandController {
 
     @PutMapping("/{brandId}")
     @Operation(summary = "Update brand", description = "Updates an existing brand by ID. Only accessible by admin users.")
-    ApiResponse<BrandResponse> updateBrand(@PathVariable Long brandId, @RequestBody BrandRequest BrandRequest) {
+    ApiResponse<BrandResponse> updateBrand(@PathVariable Long brandId, @Valid @RequestBody BrandRequest BrandRequest) {
         return ApiResponse.<BrandResponse>builder()
                 .result(BrandService.updateBrand(brandId, BrandRequest))
                 .message(ResponseMessage.UPDATE_BRAND_SUCCESS)

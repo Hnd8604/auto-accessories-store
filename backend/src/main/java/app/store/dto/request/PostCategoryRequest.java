@@ -9,10 +9,10 @@ import lombok.Builder;
 
 @Builder
 public record PostCategoryRequest(
-        @NotBlank(message = "Tên danh mục không được để trống")
-        @Size(max = 255, message = "Tên danh mục không được vượt quá 255 ký tự")
+        @NotBlank(message = "Category name is required")
+        @Size(max = 255, message = "Category name must not exceed {max} characters")
         String name,
-        @Size(max = 1000, message = "Mô tả không được vượt quá 1000 ký tự")
+        @Size(max = 1000, message = "Description must not exceed {max} characters")
         String description
 ) {
 }

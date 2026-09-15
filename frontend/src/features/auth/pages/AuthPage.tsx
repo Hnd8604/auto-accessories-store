@@ -52,7 +52,7 @@ const registerSchema = z
     phone: z.string().min(1, { message: "Số điện thoại không được để trống." }),
     password: z
       .string()
-      .min(6, { message: "Mật khẩu phải có ít nhất 6 ký tự." }),
+      .min(8, { message: "Mật khẩu phải có ít nhất 8 ký tự." }),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -156,8 +156,8 @@ const AuthPage = () => {
       username: rest.username,
       password: rest.password,
       email: rest.email,
-      firstName: rest.firstName,
-      lastName: rest.lastName,
+      // API chỉ có fullName: ghép "Họ Tên"
+      fullName: `${rest.firstName} ${rest.lastName}`.trim(),
       phoneNumber: rest.phone, // Note: API expects 'phoneNumber', form has 'phone'
     };
     registerMutation.mutate(payload);

@@ -5,7 +5,7 @@ import lombok.Builder;
 
 @Builder
 public record ResendOtpRequest(
-        @NotBlank(message = "Session ID không được để trống")
+        @NotBlank(message = "Session ID is required")
         String sessionId
 ) {
 }

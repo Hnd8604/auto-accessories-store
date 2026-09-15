@@ -12,16 +12,12 @@ public enum ErrorCode {
     UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error", HttpStatus.INTERNAL_SERVER_ERROR),
     INVALID_ARGUMENT(9998, "Invalid argument: {message}", HttpStatus.BAD_REQUEST),
 
-    INVALID_KEY(1001, "Uncategorized error", HttpStatus.BAD_REQUEST),
+    VALIDATION_ERROR(1001, "Invalid request data", HttpStatus.BAD_REQUEST),
     USER_EXISTED(1002, "User existed", HttpStatus.BAD_REQUEST),
     EMAIL_EXISTED(1002, "Email existed", HttpStatus.BAD_REQUEST),
-    USERNAME_INVALID(1003, "Username must be between 3 and 20 characters long", HttpStatus.BAD_REQUEST),
-    PASSWORD_INVALID(1004, "Password must be at least 8 characters", HttpStatus.BAD_REQUEST),
     USER_NOT_EXISTED(1005, "User not existed", HttpStatus.NOT_FOUND),
     UNAUTHENTICATED(1006, "Unauthenticated", HttpStatus.UNAUTHORIZED),
     UNAUTHORIZED(1007, "You do not have permission", HttpStatus.FORBIDDEN),
-
-    INVALID_DATE_OF_BIRTH(1008, "Your age must be at least {min}", HttpStatus.BAD_REQUEST),
 
     // user
 
@@ -48,25 +44,25 @@ public enum ErrorCode {
     PERMISSION_NOT_EXISTED(1005, "Permission not existed", HttpStatus.NOT_FOUND),
     
     // Password Reset
-    EMAIL_NOT_EXISTED(2001, "Email không tồn tại trong hệ thống", HttpStatus.NOT_FOUND),
-    RESET_SESSION_NOT_FOUND(2002, "Phiên đặt lại mật khẩu không tồn tại hoặc đã hết hạn", HttpStatus.BAD_REQUEST),
-    RESET_INVALID_STEP(2003, "Bước xác thực không hợp lệ", HttpStatus.BAD_REQUEST),
-    OTP_EXPIRED(2004, "Mã OTP đã hết hạn", HttpStatus.BAD_REQUEST),
-    OTP_INVALID(2005, "Mã OTP không đúng", HttpStatus.BAD_REQUEST),
-    OTP_MAX_ATTEMPTS_EXCEEDED(2006, "Đã vượt quá số lần thử OTP cho phép", HttpStatus.TOO_MANY_REQUESTS),
-    OTP_RESEND_TOO_SOON(2007, "Vui lòng đợi trước khi gửi lại OTP", HttpStatus.TOO_MANY_REQUESTS),
+    EMAIL_NOT_EXISTED(2001, "Email does not exist", HttpStatus.NOT_FOUND),
+    RESET_SESSION_NOT_FOUND(2002, "Password reset session not found or expired", HttpStatus.BAD_REQUEST),
+    RESET_INVALID_STEP(2003, "Invalid verification step", HttpStatus.BAD_REQUEST),
+    OTP_EXPIRED(2004, "OTP has expired", HttpStatus.BAD_REQUEST),
+    OTP_INVALID(2005, "OTP is incorrect", HttpStatus.BAD_REQUEST),
+    OTP_MAX_ATTEMPTS_EXCEEDED(2006, "Maximum OTP attempts exceeded", HttpStatus.TOO_MANY_REQUESTS),
+    OTP_RESEND_TOO_SOON(2007, "Please wait before requesting a new OTP", HttpStatus.TOO_MANY_REQUESTS),
 
     // Payment / Webhook
     WEBHOOK_INVALID_SIGNATURE(3001, "Webhook signature verification failed", HttpStatus.UNAUTHORIZED),
-    PAYMENT_GATEWAY_ERROR(3003, "Không kết nối được cổng thanh toán, vui lòng thử lại", HttpStatus.BAD_GATEWAY),
+    PAYMENT_GATEWAY_ERROR(3003, "Cannot connect to payment gateway, please try again", HttpStatus.BAD_GATEWAY),
 
     // Change Password
-    WRONG_CURRENT_PASSWORD(4001, "Mật khẩu hiện tại không đúng", HttpStatus.BAD_REQUEST),
-    NEW_PASSWORD_SAME_AS_CURRENT(4002, "Mật khẩu mới không được trùng mật khẩu hiện tại", HttpStatus.BAD_REQUEST),
-    PASSWORD_CONFIRMATION_MISMATCH(4003, "Xác nhận mật khẩu không khớp", HttpStatus.BAD_REQUEST),
+    WRONG_CURRENT_PASSWORD(4001, "Current password is incorrect", HttpStatus.BAD_REQUEST),
+    NEW_PASSWORD_SAME_AS_CURRENT(4002, "New password must be different from current password", HttpStatus.BAD_REQUEST),
+    PASSWORD_CONFIRMATION_MISMATCH(4003, "Password confirmation does not match", HttpStatus.BAD_REQUEST),
 
     // Google OAuth2
-    GOOGLE_AUTH_FAILED(5001, "Đăng nhập bằng Google thất bại", HttpStatus.UNAUTHORIZED),
+    GOOGLE_AUTH_FAILED(5001, "Google sign-in failed", HttpStatus.UNAUTHORIZED),
 
     // Notification
     NOTIFICATION_NOT_FOUND(6001, "Notification not found", HttpStatus.NOT_FOUND),

@@ -6,10 +6,10 @@ import lombok.Builder;
 
 @Builder
 public record VerifyOtpRequest(
-        @NotBlank(message = "Session ID không được để trống")
+        @NotBlank(message = "Session ID is required")
         String sessionId,
-        @NotBlank(message = "OTP không được để trống")
-        @Pattern(regexp = "^[0-9]{6}$", message = "OTP phải là 6 chữ số")
+        @NotBlank(message = "OTP is required")
+        @Pattern(regexp = "^[0-9]{6}$", message = "OTP must be 6 digits")
         String otp
 ) {
 }

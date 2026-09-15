@@ -1,5 +1,6 @@
 package app.store.controller;
 
+import jakarta.validation.Valid;
 import app.store.constant.ResponseMessage;
 import app.store.dto.request.ProductRequest;
 import app.store.dto.request.ProductSearchRequest;
@@ -34,7 +35,7 @@ public class ProductController {
         description = "Searches products with advanced filters including name, category, brand, price range, and stock status. Supports pagination and sorting."
     )
     public ApiResponse<Page<ProductResponse>> searchProducts(
-            @RequestBody ProductSearchRequest req,
+            @Valid @RequestBody ProductSearchRequest req,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "name,ASC") String sort
@@ -51,7 +52,7 @@ public class ProductController {
         summary = "Create a new product",
         description = "Creates a new product with details including name, description, price, stock, category, and brand. Only accessible by admin users."
     )
-    ApiResponse<ProductResponse> createProduct(@RequestBody ProductRequest request) {
+    ApiResponse<ProductResponse> createProduct(@Valid @RequestBody ProductRequest request) {
         return ApiResponse.<ProductResponse>builder()
                 .result(ProductService.createProduct(request))
                 .message(ResponseMessage.CREATE_PRODUCT_SUCCESS)
@@ -63,7 +64,7 @@ public class ProductController {
         summary = "Update product",
         description = "Updates an existing product by ID. Only accessible by admin users."
     )
-    ApiResponse<ProductResponse> updateProduct(@PathVariable Long productId, @RequestBody ProductRequest request) {
+    ApiResponse<ProductResponse> updateProduct(@PathVariable Long productId, @Valid @RequestBody ProductRequest request) {
         return ApiResponse.<ProductResponse>builder()
                 .result(ProductService.updateProduct(productId, request))
                 .message(ResponseMessage.UPDATE_PRODUCT_SUCCESS)

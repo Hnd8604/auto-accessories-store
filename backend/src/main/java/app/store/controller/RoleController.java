@@ -1,6 +1,7 @@
 package app.store.controller;
 
 
+import jakarta.validation.Valid;
 import app.store.constant.ResponseMessage;
 import app.store.dto.request.RoleRequest;
 import app.store.dto.response.auth.ApiResponse;
@@ -29,7 +30,7 @@ public class RoleController {
         summary = "Create a new role",
         description = "Creates a new role. Only accessible by admin users."
     )
-    public ApiResponse<RoleResponse> createRole(@RequestBody RoleRequest request) {
+    public ApiResponse<RoleResponse> createRole(@Valid @RequestBody RoleRequest request) {
         return ApiResponse.<RoleResponse>builder()
                 .message(ResponseMessage.CREATE_ROLE_SUCCESS)
                 .result(RoleService.createRole(request))
@@ -64,7 +65,7 @@ public class RoleController {
         summary = "Update role",
         description = "Updates an existing role by ID. Only accessible by admin users."
     )
-    public ApiResponse<RoleResponse> updateRole(@PathVariable String roleId, @RequestBody RoleRequest request) {
+    public ApiResponse<RoleResponse> updateRole(@PathVariable String roleId, @Valid @RequestBody RoleRequest request) {
         return ApiResponse.<RoleResponse>builder()
                 .message(ResponseMessage.UPDATE_ROLE_SUCCESS)
                 .result(RoleService.updateRole(roleId, request))

@@ -77,7 +77,7 @@ import {
 // Validation schemas
 const userCreateSchema = z.object({
   username: z.string().min(3, "Tên đăng nhập phải có ít nhất 3 ký tự"),
-  password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
+  password: z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự"),
   email: z
     .string()
     .refine((val) => val === "" || z.string().email().safeParse(val).success, {

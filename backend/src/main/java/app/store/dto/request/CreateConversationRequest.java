@@ -5,7 +5,7 @@ import lombok.Builder;
 
 @Builder
 public record CreateConversationRequest(
-        @NotBlank(message = "Tên không được để trống")
+        @NotBlank(message = "Name is required")
         String guestName
 ) {
 }

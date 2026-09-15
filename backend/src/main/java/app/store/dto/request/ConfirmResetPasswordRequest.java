@@ -6,10 +6,10 @@ import lombok.Builder;
 
 @Builder
 public record ConfirmResetPasswordRequest(
-        @NotBlank(message = "Session ID không được để trống")
+        @NotBlank(message = "Session ID is required")
         String sessionId,
-        @NotBlank(message = "Mật khẩu mới không được để trống")
-        @Size(min = 8, message = "Mật khẩu phải có ít nhất 8 ký tự")
+        @NotBlank(message = "New password is required")
+        @Size(min = 8, message = "Password must be at least {min} characters")
         String newPassword
 ) {
 }
