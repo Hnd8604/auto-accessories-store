@@ -21,7 +21,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import app.store.dto.request.ServiceRequest;
 import app.store.dto.response.ServiceResponse;
 import app.store.entity.ProfessionalService;
-import app.store.entity.ServiceImage;
 import app.store.exception.AppException;
 import app.store.exception.ErrorCode;
 import app.store.mapper.ServiceMapper;
@@ -40,13 +39,6 @@ public class ProfessionalServiceServiceTest {
     @InjectMocks
     ProfessionalServiceService professionalServiceService;
 
-    private ServiceImage image(String url, Boolean primary) {
-        ServiceImage img = new ServiceImage();
-        img.setImageUrl(url);
-        img.setIsPrimary(primary);
-        return img;
-    }
-
     private ProfessionalService buildService(Long id, String name) {
         ProfessionalService service = new ProfessionalService();
         service.setId(id);
@@ -57,33 +49,21 @@ public class ProfessionalServiceServiceTest {
 
     // ==================== getAllServices ====================
 
+    // Chọn ảnh primary nằm trong ServiceMapper -> test ở ServiceMapperTest
     @Test
-    void getAllServices_shouldPickPrimaryImage() {
-        ProfessionalService service = buildService(1L, "Dán phim cách nhiệt");
-        service.setImages(List.of(image("a.png", false), image("b.png", true)));
-        ServiceResponse response = new ServiceResponse();
+    void getAllServices_shouldMapEachService() {
+        ProfessionalService first = buildService(1L, "Dán phim cách nhiệt");
+        ProfessionalService second = buildService(2L, "Rửa xe");
+        ServiceResponse firstResponse = new ServiceResponse();
+        ServiceResponse secondResponse = new ServiceResponse();
 
-        when(serviceRepository.findAllWithImages()).thenReturn(List.of(service));
-        when(serviceMapper.toServiceResponse(service)).thenReturn(response);
+        when(serviceRepository.findAllWithImages()).thenReturn(List.of(first, second));
+        when(serviceMapper.toServiceResponse(first)).thenReturn(firstResponse);
+        when(serviceMapper.toServiceResponse(second)).thenReturn(secondResponse);
 
         var result = professionalServiceService.getAllServices();
 
-        assertThat(result).hasSize(1);
-        assertThat(response.getPrimaryImageUrl()).isEqualTo("b.png");
-    }
-
-    @Test
-    void getAllServices_shouldFallbackToFirstImage_whenNoPrimary() {
-        ProfessionalService service = buildService(1L, "Dán phim cách nhiệt");
-        service.setImages(List.of(image("a.png", false), image("b.png", false)));
-        ServiceResponse response = new ServiceResponse();
-
-        when(serviceRepository.findAllWithImages()).thenReturn(List.of(service));
-        when(serviceMapper.toServiceResponse(service)).thenReturn(response);
-
-        professionalServiceService.getAllServices();
-
-        assertThat(response.getPrimaryImageUrl()).isEqualTo("a.png");
+        assertThat(result).containsExactly(firstResponse, secondResponse);
     }
 
     // ==================== getServiceById / BySlug ====================
