@@ -70,7 +70,7 @@ public class GoogleAuthService {
      */
     public AuthenticationResponse authenticateWithGoogle(GoogleAuthRequest request) {
         // Step 1: Đổi authorization code → Google access token
-        String googleAccessToken = exchangeCodeForToken(request.getCode());
+        String googleAccessToken = exchangeCodeForToken(request.code());
 
         // Step 2: Lấy user info từ Google
         GoogleUserInfo googleUserInfo = fetchGoogleUserInfo(googleAccessToken);

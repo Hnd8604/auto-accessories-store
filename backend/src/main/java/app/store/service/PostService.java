@@ -54,9 +54,9 @@ public class PostService {
 
         // Tìm danh mục nếu có
         PostCategory postCategory = null;
-        if (request.getCategoryId() != null) {
-            postCategory = postCategoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục với ID: " + request.getCategoryId()));
+        if (request.categoryId() != null) {
+            postCategory = postCategoryRepository.findById(request.categoryId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục với ID: " + request.categoryId()));
         }
 
         Post post = postMapper.toPost(request);
@@ -65,7 +65,7 @@ public class PostService {
         post.setThumbnailUrl(thumbnailUrl);
 
         // Tạo slug từ tiêu đề
-        String baseSlug = slugUtil.toSlug(request.getTitle());
+        String baseSlug = slugUtil.toSlug(request.title());
         String uniqueSlug = slugUtil.createUniqueSlug(baseSlug, postRepository::existsBySlug);
         post.setSlug(uniqueSlug);
         post.setAuthor(author);
@@ -81,15 +81,15 @@ public class PostService {
 
         // Cập nhật danh mục nếu có
         PostCategory category = null;
-        if (request.getCategoryId() != null) {
-            category = postCategoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục với ID: " + request.getCategoryId()));
+        if (request.categoryId() != null) {
+            category = postCategoryRepository.findById(request.categoryId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục với ID: " + request.categoryId()));
         }
 
 
         // Cập nhật slug nếu tiêu đề thay đổi
-        if (!post.getTitle().equals(request.getTitle())) {
-            String baseSlug = slugUtil.toSlug(request.getTitle());
+        if (!post.getTitle().equals(request.title())) {
+            String baseSlug = slugUtil.toSlug(request.title());
             String uniqueSlug = slugUtil.createUniqueSlug(baseSlug, slug ->
                     !slug.equals(post.getSlug()) && postRepository.existsBySlug(slug));
             post.setSlug(uniqueSlug);
@@ -100,10 +100,10 @@ public class PostService {
             post.setThumbnailUrl(thumbnailUrl);
         }
 
-        post.setTitle(request.getTitle());
-        post.setShortDescription(request.getShortDescription());
-        post.setContent(request.getContent());
-        post.setPublished(request.getPublished());
+        post.setTitle(request.title());
+        post.setShortDescription(request.shortDescription());
+        post.setContent(request.content());
+        post.setPublished(request.published());
         post.setCategory(category);
 
 

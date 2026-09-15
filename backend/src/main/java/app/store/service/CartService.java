@@ -49,9 +49,9 @@ public class CartService {
     }
 //@PreAuthorize("hasAuthority('CART_ADD_ITEM')")
 public CartItemResponse addItemToCart(CartItemRequest request) {
-    Cart cart = cartRepository.findById(request.getCartId())
+    Cart cart = cartRepository.findById(request.cartId())
             .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_EXISTED));
-    Product product = productRepository.findById(request.getProductId())
+    Product product = productRepository.findById(request.productId())
             .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_EXISTED));
 
     // Check if the product is already in the cart
@@ -62,20 +62,20 @@ public CartItemResponse addItemToCart(CartItemRequest request) {
 
     if (cartItem != null) {
         // If item exists, update the quantity
-        int newQuantity = cartItem.getQuantity() + request.getQuantity();
+        int newQuantity = cartItem.getQuantity() + request.quantity();
         if (newQuantity <= 0 || newQuantity > product.getStockQuantity()) {
             throw new IllegalArgumentException("Quantity is not valid");
         }
         cartItem.setQuantity(newQuantity);
     } else {
         // If item does not exist, create a new one
-        if (request.getQuantity() <= 0 || request.getQuantity() > product.getStockQuantity()) {
+        if (request.quantity() <= 0 || request.quantity() > product.getStockQuantity()) {
             throw new IllegalArgumentException("Quantity is not valid");
         }
         cartItem = new CartItem(); // neu bang null thi tao moi
         cartItem.setCart(cart);
         cartItem.setProduct(product);
-        cartItem.setQuantity(request.getQuantity());
+        cartItem.setQuantity(request.quantity());
     }
     cartItemRepository.save(cartItem);
     return cartItemMapper.toCartItemResponse(cartItem);
@@ -94,7 +94,7 @@ public CartItemResponse addItemToCart(CartItemRequest request) {
     public CartItemResponse updateItemInCart(Long itemId, CartItemUpdateRequest request) {
         CartItem cartItem = cartItemRepository.findById(itemId)
                 .orElseThrow(() -> new AppException(ErrorCode.CART_ITEM_NOT_EXISTED));
-        cartItem.setQuantity(request.getQuantity());
+        cartItem.setQuantity(request.quantity());
         cartItemRepository.save(cartItem);
         return cartItemMapper.toCartItemResponse(cartItem);
     }

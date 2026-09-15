@@ -48,9 +48,10 @@ public class ProductServiceTest {
     @Test
     void createProduct_shouldSetSlugAndCategory_happyPath() {
         // Arrange
-        ProductRequest request = new ProductRequest();
-        request.setName("Đèn LED");
-        request.setCategoryId(1L);
+        ProductRequest request = ProductRequest.builder()
+                .name("Đèn LED")
+                .categoryId(1L)
+                .build();
         // brandId để NULL -> nhánh brand bị bỏ qua
 
         Category category = new Category();
@@ -63,7 +64,7 @@ public class ProductServiceTest {
         when(slugUtil.toSlug("Đèn LED")).thenReturn("den-led");
         when(slugUtil.createUniqueSlug(eq("den-led"), any())).thenReturn("den-led");
         when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(productMapper.toProductResponse(any(Product.class))).thenReturn(new ProductResponse());
+        when(productMapper.toProductResponse(any(Product.class))).thenReturn(ProductResponse.builder().build());
 
         // Act
         productService.createProduct(request);
@@ -78,8 +79,9 @@ public class ProductServiceTest {
     @Test
     void createProduct_shouldThrow_whenCategoryNotFound() {
         // Arrange
-        ProductRequest request = new ProductRequest();
-        request.setCategoryId(99L);
+        ProductRequest request = ProductRequest.builder()
+                .categoryId(99L)
+                .build();
         when(productMapper.toProduct(request)).thenReturn(new Product());
         when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -94,9 +96,10 @@ public class ProductServiceTest {
 
     @Test
     void createProduct_shouldThrow_whenBrandNotInCategory() {
-        ProductRequest request = new ProductRequest();
-        request.setCategoryId(1L);
-        request.setBrandId(5L);
+        ProductRequest request = ProductRequest.builder()
+                .categoryId(1L)
+                .brandId(5L)
+                .build();
 
         Category category = new Category();
         category.setId(1L);
@@ -130,7 +133,7 @@ public class ProductServiceTest {
     void getProductById_shouldReturnResponse_whenFound() {
         Product product = new Product();
         product.setId(1L);
-        ProductResponse response = new ProductResponse();
+        ProductResponse response = ProductResponse.builder().build();
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(productMapper.toProductResponse(product)).thenReturn(response);

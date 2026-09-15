@@ -74,7 +74,7 @@ public class AuthenticationService {
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new AppException(ErrorCode.EMAIL_EXISTED);
         }
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setPassword(passwordEncoder.encode(request.password()));
         Set<Role> roles = new HashSet<>();
         var roleDefault = roleRepository.findById("USER")
                 .orElseThrow(()-> new AppException(ErrorCode.ROLE_NOT_EXISTED));
@@ -89,7 +89,7 @@ public class AuthenticationService {
         return userMapper.toUserResponse(userRepository.save(user));
     }
     public IntrospectResponse introspect(IntrospectRequest request) throws JOSEException, ParseException {
-        var token = request.getToken();
+        var token = request.token();
         boolean isValid = true;
         try {
             verifyToken(token);
@@ -103,11 +103,11 @@ public class AuthenticationService {
                 .build();
     }
     public AuthenticationResponse authenticate(AuthenticationRequest request, HttpSession session) {
-        var user = userRepository.findByEmail(request.getEmail())
+        var user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
 //        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
-        boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
+        boolean authenticated = passwordEncoder.matches(request.password(), user.getPassword());
 
         if (!authenticated){
             throw new AppException(ErrorCode.UNAUTHENTICATED);
@@ -155,29 +155,29 @@ public class AuthenticationService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         // Kiểm tra mật khẩu hiện tại
-        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
             throw new AppException(ErrorCode.WRONG_CURRENT_PASSWORD);
         }
 
         // Kiểm tra mật khẩu mới != mật khẩu cũ
-        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+        if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
             throw new AppException(ErrorCode.NEW_PASSWORD_SAME_AS_CURRENT);
         }
 
         // Kiểm tra xác nhận mật khẩu
-        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+        if (!request.newPassword().equals(request.confirmPassword())) {
             throw new AppException(ErrorCode.PASSWORD_CONFIRMATION_MISMATCH);
         }
 
         // Lưu mật khẩu mới
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
 
         log.info("Password changed successfully for user: {}", username);
     }
     public void logout(LogoutRequest request) throws ParseException, JOSEException {
-        invalidateToken(request.getAccessToken(), "accessToken");
-        invalidateToken(request.getRefreshToken(), "refreshToken");
+        invalidateToken(request.accessToken(), "accessToken");
+        invalidateToken(request.refreshToken(), "refreshToken");
     }
 
 
@@ -216,7 +216,7 @@ public class AuthenticationService {
         return signedJWT;
     }
     public RefreshResponse refreshToken(RefreshRequest request) throws ParseException, JOSEException {
-        var signJWT = verifyToken(request.getRefreshToken());
+        var signJWT = verifyToken(request.refreshToken());
 
         var jti = signJWT.getJWTClaimsSet().getJWTID();
         var expiryTime = signJWT.getJWTClaimsSet().getExpirationTime();

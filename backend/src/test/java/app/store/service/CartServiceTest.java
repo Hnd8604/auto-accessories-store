@@ -74,7 +74,7 @@ public class CartServiceTest {
 
         when(cartRepository.findById(10L)).thenReturn(Optional.of(cart));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(cartItemMapper.toCartItemResponse(any(CartItem.class))).thenReturn(new CartItemResponse());
+        when(cartItemMapper.toCartItemResponse(any(CartItem.class))).thenReturn(CartItemResponse.builder().build());
 
         cartService.addItemToCart(request);
 
@@ -97,7 +97,7 @@ public class CartServiceTest {
 
         when(cartRepository.findById(10L)).thenReturn(Optional.of(cart));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(cartItemMapper.toCartItemResponse(any(CartItem.class))).thenReturn(new CartItemResponse());
+        when(cartItemMapper.toCartItemResponse(any(CartItem.class))).thenReturn(CartItemResponse.builder().build());
 
         cartService.addItemToCart(request);
 
@@ -216,11 +216,12 @@ public class CartServiceTest {
     void updateItemInCart_shouldUpdateQuantity_happyPath() {
         CartItem item = new CartItem();
         item.setQuantity(1);
-        CartItemUpdateRequest request = new CartItemUpdateRequest();
-        request.setQuantity(7);
+        CartItemUpdateRequest request = CartItemUpdateRequest.builder()
+                .quantity(7)
+                .build();
 
         when(cartItemRepository.findById(1L)).thenReturn(Optional.of(item));
-        when(cartItemMapper.toCartItemResponse(item)).thenReturn(new CartItemResponse());
+        when(cartItemMapper.toCartItemResponse(item)).thenReturn(CartItemResponse.builder().build());
 
         cartService.updateItemInCart(1L, request);
 
@@ -230,8 +231,9 @@ public class CartServiceTest {
 
     @Test
     void updateItemInCart_shouldThrow_whenItemNotFound() {
-        CartItemUpdateRequest request = new CartItemUpdateRequest();
-        request.setQuantity(1);
+        CartItemUpdateRequest request = CartItemUpdateRequest.builder()
+                .quantity(1)
+                .build();
         when(cartItemRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> cartService.updateItemInCart(99L, request))
@@ -257,7 +259,7 @@ public class CartServiceTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken("john", null));
         Cart cart = new Cart();
-        CartResponse response = new CartResponse();
+        CartResponse response = CartResponse.builder().build();
 
         when(cartRepository.findByUser_Username("john")).thenReturn(Optional.of(cart));
         when(cartMapper.toCartResponse(cart)).thenReturn(response);

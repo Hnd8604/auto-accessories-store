@@ -25,9 +25,9 @@ public class ChatMessageService {
     @Transactional
     public ChatMessageResponse send(SendChatMessageRequest request) {
         ChatMessage message = ChatMessage.builder()
-                .conversationId(request.getConversationId())
-                .senderType(request.getSenderType())
-                .content(request.getContent())
+                .conversationId(request.conversationId())
+                .senderType(request.senderType())
+                .content(request.content())
                 .build();
         message = chatMessageRepository.save(message);
 
@@ -35,17 +35,17 @@ public class ChatMessageService {
 
         // Broadcast to conversation topic
         messagingTemplate.convertAndSend(
-                "/topic/conversation/" + request.getConversationId(),
+                "/topic/conversation/" + request.conversationId(),
                 response
         );
 
         // If message from customer, increment unread for admin
-        if ("CUSTOMER".equals(request.getSenderType())) {
-            conversationService.incrementUnread(request.getConversationId(), request.getContent());
+        if ("CUSTOMER".equals(request.senderType())) {
+            conversationService.incrementUnread(request.conversationId(), request.content());
             // Notify admin panel of new message
             messagingTemplate.convertAndSend("/topic/admin/new-message", response);
         } else {
-            conversationService.updateLastMessage(request.getConversationId(), request.getContent());
+            conversationService.updateLastMessage(request.conversationId(), request.content());
         }
 
         return response;

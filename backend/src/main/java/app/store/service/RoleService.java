@@ -35,12 +35,12 @@ public class RoleService {
     public RoleResponse createRole(RoleRequest request) {
         var role = roleMapper.toRole(request); // we have to use var keyword because we had ignored permission when mapping
 
-        var permissions = permissionRepository.findByNameIn(request.getPermissions());
+        var permissions = permissionRepository.findByNameIn(request.permissions());
         role.setPermissions(new HashSet<>(permissions));
 
         role = roleRepository.save(role);
         // Đồng bộ sang Redis
-        rolePermissionRepository.syncRolePermissionsFromDb(request.getName());
+        rolePermissionRepository.syncRolePermissionsFromDb(request.name());
         return roleMapper.toRoleResponse(role);
     }
 
@@ -52,7 +52,7 @@ public class RoleService {
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_EXISTED));
 
         roleMapper.updateRole(role, request);
-        var permissions = permissionRepository.findByNameIn(request.getPermissions());
+        var permissions = permissionRepository.findByNameIn(request.permissions());
         role.setPermissions(new HashSet<>(permissions));
         // Đồng bộ sang Redis
         rolePermissionRepository.syncRolePermissionsFromDb(roleId);

@@ -38,7 +38,7 @@ public class CategoryService {
     public CategoryResponse createCategory(CategoryRequest request) {
         Category category = categoryMapper.toCategory(request);
         // Tạo slug từ tên danh mục
-        String baseSlug = slugUtil.toSlug(request.getName());
+        String baseSlug = slugUtil.toSlug(request.name());
         String uniqueSlug = slugUtil.createUniqueSlug(baseSlug, categoryRepository::existsBySlug);
 
         category.setSlug(uniqueSlug);
@@ -100,8 +100,8 @@ public class CategoryService {
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_EXISTED));
 
         // Cập nhật slug nếu tên thay đổi
-        if (!category.getName().equals(request.getName())) {
-            String baseSlug = slugUtil.toSlug(request.getName());
+        if (!category.getName().equals(request.name())) {
+            String baseSlug = slugUtil.toSlug(request.name());
             String uniqueSlug = slugUtil.createUniqueSlug(baseSlug,
                     slug -> !slug.equals(category.getSlug()) && categoryRepository.existsBySlug(slug));
             category.setSlug(uniqueSlug);

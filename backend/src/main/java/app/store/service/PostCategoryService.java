@@ -34,13 +34,13 @@ public class PostCategoryService {
     public PostCategoryResponse createCategory(PostCategoryRequest request) {
 
         // Kiểm tra tên danh mục đã tồn tại chưa
-        if (postCategoryRepository.existsByName(request.getName())) {
+        if (postCategoryRepository.existsByName(request.name())) {
             throw new RuntimeException("Tên danh mục đã tồn tại");
         }
         PostCategory postCategory = postCategoryMapper.toPostCategory(request);
 
         // Tạo slug từ tên danh mục
-        String baseSlug = slugUtil.toSlug(request.getName());
+        String baseSlug = slugUtil.toSlug(request.name());
         String uniqueSlug = slugUtil.createUniqueSlug(baseSlug, postCategoryRepository::existsBySlug);
 
         postCategory.setSlug(uniqueSlug);
@@ -54,21 +54,21 @@ public class PostCategoryService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục với ID: " + id));
         
         // Kiểm tra tên danh mục mới có trùng với danh mục khác không
-        if (!category.getName().equals(request.getName()) && 
-            postCategoryRepository.existsByName(request.getName())) {
+        if (!category.getName().equals(request.name()) && 
+            postCategoryRepository.existsByName(request.name())) {
             throw new RuntimeException("Tên danh mục đã tồn tại");
         }
         
         // Cập nhật slug nếu tên thay đổi
-        if (!category.getName().equals(request.getName())) {
-            String baseSlug = slugUtil.toSlug(request.getName());
+        if (!category.getName().equals(request.name())) {
+            String baseSlug = slugUtil.toSlug(request.name());
             String uniqueSlug = slugUtil.createUniqueSlug(baseSlug, slug -> 
                 !slug.equals(category.getSlug()) && postCategoryRepository.existsBySlug(slug));
             category.setSlug(uniqueSlug);
         }
         
-        category.setName(request.getName());
-        category.setDescription(request.getDescription());
+        category.setName(request.name());
+        category.setDescription(request.description());
 
 
         return postCategoryMapper.toPostCategoryResponse(postCategoryRepository.save(category));

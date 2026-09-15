@@ -1,18 +1,12 @@
 package app.store.dto.request;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import lombok.Builder;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-
-public class OrderUpdateByUserRequest {
-    String nameRecipient;
-    String phoneRecipient;
-    String addressRecipient;
-    String note;
+public record OrderUpdateByUserRequest(
+        String nameRecipient,
+        String phoneRecipient,
+        String addressRecipient,
+        String note
+) {
 }

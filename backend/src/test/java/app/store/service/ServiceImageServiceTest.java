@@ -71,7 +71,7 @@ public class ServiceImageServiceTest {
         when(cloudinaryService.uploadImage(file, "store/services")).thenReturn("http://cloud/new.png");
         when(serviceImageMapper.toServiceImage(request)).thenReturn(mapped);
         when(serviceImageRepository.save(mapped)).thenReturn(mapped);
-        when(serviceImageMapper.toServiceImageResponse(mapped)).thenReturn(new ServiceImageResponse());
+        when(serviceImageMapper.toServiceImageResponse(mapped)).thenReturn(ServiceImageResponse.builder().build());
 
         serviceImageService.createServiceImage(file, request);
 
@@ -98,7 +98,7 @@ public class ServiceImageServiceTest {
         ServiceImage image = buildImage(1L, buildService(1L));
 
         when(serviceImageRepository.findByServiceId(1L)).thenReturn(List.of(image));
-        when(serviceImageMapper.toServiceImageResponse(image)).thenReturn(new ServiceImageResponse());
+        when(serviceImageMapper.toServiceImageResponse(image)).thenReturn(ServiceImageResponse.builder().build());
 
         assertThat(serviceImageService.getImagesByServiceId(1L)).hasSize(1);
     }

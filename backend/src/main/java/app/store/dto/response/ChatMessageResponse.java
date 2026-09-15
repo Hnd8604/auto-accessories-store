@@ -1,20 +1,14 @@
 package app.store.dto.response;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-
 import java.time.LocalDateTime;
+import lombok.Builder;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class ChatMessageResponse {
-    String id;
-    String conversationId;
-    String senderType;
-    String content;
-    LocalDateTime createdAt;
+public record ChatMessageResponse(
+        String id,
+        String conversationId,
+        String senderType,
+        String content,
+        LocalDateTime createdAt
+) {
 }

@@ -1,18 +1,12 @@
 package app.store.dto.request;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-
 import java.util.Set;
+import lombok.Builder;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class RoleRequest {
-    String name;
-    String description;
-    Set<String> permissions; // Set of permission names so we only use strings instead of full objects
+public record RoleRequest(
+        String name,
+        String description,
+        Set<String> permissions // Set of permission names so we only use strings instead of full objects
+) {
 }

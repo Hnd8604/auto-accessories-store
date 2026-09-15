@@ -45,8 +45,8 @@ public class ChatMessageServiceTest {
 
         ChatMessageResponse response = chatMessageService.send(request("CUSTOMER"));
 
-        assertThat(response.getContent()).isEqualTo("Xin chào");
-        assertThat(response.getSenderType()).isEqualTo("CUSTOMER");
+        assertThat(response.content()).isEqualTo("Xin chào");
+        assertThat(response.senderType()).isEqualTo("CUSTOMER");
 
         verify(messagingTemplate).convertAndSend(eq("/topic/conversation/c1"), any(Object.class));
         verify(messagingTemplate).convertAndSend(eq("/topic/admin/new-message"), any(Object.class));
@@ -77,6 +77,6 @@ public class ChatMessageServiceTest {
         var page = chatMessageService.getMessages("c1", 0, 50);
 
         assertThat(page.getContent()).hasSize(1);
-        assertThat(page.getContent().get(0).getContent()).isEqualTo("Chào bạn");
+        assertThat(page.getContent().get(0).content()).isEqualTo("Chào bạn");
     }
 }

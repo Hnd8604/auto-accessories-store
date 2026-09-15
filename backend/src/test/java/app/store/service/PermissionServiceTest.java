@@ -42,7 +42,7 @@ public class PermissionServiceTest {
         PermissionRequest request = PermissionRequest.builder()
                 .name("USER_CREATE").description("Tạo user").build();
         Permission mapped = Permission.builder().name("USER_CREATE").build();
-        PermissionResponse expected = new PermissionResponse();
+        PermissionResponse expected = PermissionResponse.builder().build();
 
         when(permissionMapper.toPermission(request)).thenReturn(mapped);
         when(permissionRepository.save(mapped)).thenReturn(mapped);
@@ -57,7 +57,7 @@ public class PermissionServiceTest {
         Permission p2 = Permission.builder().name("B").build();
 
         when(permissionRepository.findAll()).thenReturn(List.of(p1, p2));
-        when(permissionMapper.toPermissionResponse(any())).thenReturn(new PermissionResponse());
+        when(permissionMapper.toPermissionResponse(any())).thenReturn(PermissionResponse.builder().build());
 
         assertThat(permissionService.getAllPermissions()).hasSize(2);
     }
@@ -69,7 +69,7 @@ public class PermissionServiceTest {
 
         when(permissionRepository.findById("USER_CREATE")).thenReturn(Optional.of(permission));
         when(permissionRepository.save(permission)).thenReturn(permission);
-        when(permissionMapper.toPermissionResponse(permission)).thenReturn(new PermissionResponse());
+        when(permissionMapper.toPermissionResponse(permission)).thenReturn(PermissionResponse.builder().build());
 
         permissionService.updatePermission("USER_CREATE", request);
 

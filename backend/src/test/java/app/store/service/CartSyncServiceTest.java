@@ -59,8 +59,8 @@ public class CartSyncServiceTest {
         ArgumentCaptor<CartItemRequest> captor = ArgumentCaptor.forClass(CartItemRequest.class);
         verify(cartService, times(2)).addItemToCart(captor.capture());
         assertThat(captor.getAllValues())
-                .allMatch(r -> r.getCartId().equals(10L))
-                .extracting(CartItemRequest::getProductId)
+                .allMatch(r -> r.cartId().equals(10L))
+                .extracting(CartItemRequest::productId)
                 .containsExactlyInAnyOrder(1L, 2L);
 
         verify(session).removeAttribute("CART"); // tránh sync lặp lại ở lần đăng nhập sau

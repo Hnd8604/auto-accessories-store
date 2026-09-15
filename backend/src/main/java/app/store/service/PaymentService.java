@@ -307,21 +307,20 @@ public class PaymentService {
     }
 
     private PaymentResponse toResponse(Order order, PayosPaymentLink link) {
-        PaymentResponse response = PaymentResponse.builder()
+        PaymentResponse.PaymentResponseBuilder response = PaymentResponse.builder()
                 .orderId(order.getId())
                 .orderCode(order.getOrderCode())
                 .amount(order.getTotalPrice())
-                .paymentStatus(order.getPaymentStatus())
-                .build();
+                .paymentStatus(order.getPaymentStatus());
 
         // Đã thanh toán thì không trả link nữa
         if (link != null && order.getPaymentStatus() != PaymentStatus.PAID) {
-            response.setCheckoutUrl(link.getCheckoutUrl());
-            response.setPaymentLinkId(link.getPaymentLinkId());
-            response.setExpiredAt(link.getExpiresAt());
+            response.checkoutUrl(link.getCheckoutUrl())
+                    .paymentLinkId(link.getPaymentLinkId())
+                    .expiredAt(link.getExpiresAt());
         }
 
-        return response;
+        return response.build();
     }
 
     private static long toVndAmount(BigDecimal totalPrice) {

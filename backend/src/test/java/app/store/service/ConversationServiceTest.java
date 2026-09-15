@@ -54,7 +54,7 @@ public class ConversationServiceTest {
         assertThat(captor.getValue().getChannel()).isEqualTo("WEB");
         assertThat(captor.getValue().getStatus()).isEqualTo("OPEN");
         assertThat(captor.getValue().getUnreadCount()).isZero();
-        assertThat(response.getGuestName()).isEqualTo("Khách A");
+        assertThat(response.guestName()).isEqualTo("Khách A");
     }
 
     @Test
@@ -67,7 +67,7 @@ public class ConversationServiceTest {
         var page = conversationService.getAll(0, 20);
 
         assertThat(page.getContent()).hasSize(1);
-        assertThat(page.getContent().get(0).getId()).isEqualTo("c1");
+        assertThat(page.getContent().get(0).id()).isEqualTo("c1");
     }
 
     @Test

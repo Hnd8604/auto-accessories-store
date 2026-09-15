@@ -1,15 +1,9 @@
 package app.store.dto.response.auth;
 
+import lombok.Builder;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class IntrospectResponse {
-    boolean valid;
+public record IntrospectResponse(
+        boolean valid
+) {
 }

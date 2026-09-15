@@ -38,7 +38,7 @@ public class ServiceMapperTest {
 
         ServiceResponse response = serviceMapper.toServiceResponse(service);
 
-        assertThat(response.getPrimaryImageUrl()).isEqualTo("b.png");
+        assertThat(response.primaryImageUrl()).isEqualTo("b.png");
     }
 
     @Test
@@ -48,7 +48,7 @@ public class ServiceMapperTest {
 
         ServiceResponse response = serviceMapper.toServiceResponse(service);
 
-        assertThat(response.getPrimaryImageUrl()).isEqualTo("a.png");
+        assertThat(response.primaryImageUrl()).isEqualTo("a.png");
     }
 
     @Test
@@ -57,6 +57,6 @@ public class ServiceMapperTest {
 
         ServiceResponse response = serviceMapper.toServiceResponse(service);
 
-        assertThat(response.getPrimaryImageUrl()).isNull();
+        assertThat(response.primaryImageUrl()).isNull();
     }
 }

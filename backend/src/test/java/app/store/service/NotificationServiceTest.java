@@ -68,7 +68,7 @@ public class NotificationServiceTest {
     @Test
     void createNotification_shouldSaveUnread_andPushViaSse() {
         User user = buildUser();
-        NotificationResponse response = new NotificationResponse();
+        NotificationResponse response = NotificationResponse.builder().build();
 
         when(userRepository.findById("u1")).thenReturn(Optional.of(user));
         when(notificationRepository.save(any(Notification.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -116,7 +116,7 @@ public class NotificationServiceTest {
         when(notificationRepository.findByUserIdOrderByCreatedAtDesc("u1", pageable))
                 .thenReturn(new PageImpl<>(List.of(notification)));
         when(notificationMapper.toNotificationResponse(notification))
-                .thenReturn(new NotificationResponse());
+                .thenReturn(NotificationResponse.builder().build());
 
         assertThat(notificationService.getMyNotifications(pageable).getContent()).hasSize(1);
     }

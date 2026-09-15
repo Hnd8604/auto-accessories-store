@@ -40,15 +40,16 @@ public class BrandServiceTest {
     @Test
     void createBrand_shouldSetSlug_happyPath() {
         // Arrange
-        BrandRequest request = new BrandRequest();
-        request.setName("Honda");
+        BrandRequest request = BrandRequest.builder()
+                .name("Honda")
+                .build();
         Brand mappedBrand = new Brand();
 
         when(brandMapper.toBrand(request)).thenReturn(mappedBrand);
         when(slugUtil.toSlug("Honda")).thenReturn("honda");
         when(slugUtil.createUniqueSlug(eq("honda"), any())).thenReturn("honda");
         when(brandRepository.save(any(Brand.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(brandMapper.toBrandResponse(any(Brand.class))).thenReturn(new BrandResponse());
+        when(brandMapper.toBrandResponse(any(Brand.class))).thenReturn(BrandResponse.builder().build());
 
         // Act
         brandService.createBrand(request);
@@ -78,7 +79,7 @@ public class BrandServiceTest {
         // Arrange
         Brand brand = new Brand();
         brand.setId(1L);
-        BrandResponse response = new BrandResponse();
+        BrandResponse response = BrandResponse.builder().build();
 
         when(brandRepository.findById(1L)).thenReturn(Optional.of(brand));
         when(brandMapper.toBrandResponse(brand)).thenReturn(response);
@@ -95,14 +96,15 @@ public class BrandServiceTest {
         brand.setName("Honda");
         brand.setSlug("honda");
 
-        BrandRequest request = new BrandRequest();
-        request.setName("Honda Việt Nam");
+        BrandRequest request = BrandRequest.builder()
+                .name("Honda Việt Nam")
+                .build();
 
         when(brandRepository.findById(1L)).thenReturn(Optional.of(brand));
         when(slugUtil.toSlug("Honda Việt Nam")).thenReturn("honda-viet-nam");
         when(slugUtil.createUniqueSlug(eq("honda-viet-nam"), any())).thenReturn("honda-viet-nam");
         when(brandRepository.save(any(Brand.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(brandMapper.toBrandResponse(any(Brand.class))).thenReturn(new BrandResponse());
+        when(brandMapper.toBrandResponse(any(Brand.class))).thenReturn(BrandResponse.builder().build());
 
         // Act
         brandService.updateBrand(1L, request);

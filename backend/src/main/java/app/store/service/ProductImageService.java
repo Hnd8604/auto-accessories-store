@@ -37,7 +37,7 @@ public class ProductImageService {
 
         // Tạo ProductImage entity
         ProductImage productImage = productImageMapper.toProductImage(request);
-        Product product = productRepository.findById(request.getProductId())
+        Product product = productRepository.findById(request.productId())
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_IMAGE_NOT_EXISTED));
         // Upload ảnh lên Cloudinary
         String imageUrl = CloudinaryService.uploadImage(file, "store/products");

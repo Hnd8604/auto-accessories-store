@@ -23,7 +23,7 @@ public class ConversationService {
     @Transactional
     public ConversationResponse create(CreateConversationRequest request) {
         Conversation conversation = Conversation.builder()
-                .guestName(request.getGuestName())
+                .guestName(request.guestName())
                 .channel("WEB")
                 .status("OPEN")
                 .unreadCount(0)

@@ -1,15 +1,10 @@
 package app.store.dto.request;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import lombok.Builder;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class BrandRequest {
-    String name;
-    String description;
+public record BrandRequest(
+        String name,
+        String description
+) {
 }

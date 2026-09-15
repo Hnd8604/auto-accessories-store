@@ -1,14 +1,9 @@
 package app.store.dto.request;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import lombok.Builder;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class CartRequest {
-    String userId;
+public record CartRequest(
+        String userId
+) {
 }

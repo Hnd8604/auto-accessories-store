@@ -41,7 +41,7 @@ public class ResetPasswordService {
     private static final long SESSION_TTL_MINUTES = 5;
 
     public InitResetPasswordResponse initResetPassword(InitResetPasswordRequest request) {
-        String email = request.getEmail().trim().toLowerCase();
+        String email = request.email().trim().toLowerCase();
         
         // Verify email exists
         User user = userRepository.findByEmail(email)
@@ -82,8 +82,8 @@ public class ResetPasswordService {
     }
 
     public VerifyOtpResponse verifyOtp(VerifyOtpRequest request) {
-        String sessionId = request.getSessionId();
-        String inputOtp = request.getOtp();
+        String sessionId = request.sessionId();
+        String inputOtp = request.otp();
         
         ResetPasswordSession session = getSession(sessionId);
         
@@ -135,8 +135,8 @@ public class ResetPasswordService {
     }
 
     public void confirmResetPassword(ConfirmResetPasswordRequest request) {
-        String sessionId = request.getSessionId();
-        String newPassword = request.getNewPassword();
+        String sessionId = request.sessionId();
+        String newPassword = request.newPassword();
         
         ResetPasswordSession session = getSession(sessionId);
         
@@ -163,7 +163,7 @@ public class ResetPasswordService {
     }
 
     public ResendOtpResponse resendOtp(ResendOtpRequest request) {
-        String sessionId = request.getSessionId();
+        String sessionId = request.sessionId();
         
         ResetPasswordSession session = getSession(sessionId);
         

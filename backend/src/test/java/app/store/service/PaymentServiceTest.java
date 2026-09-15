@@ -193,10 +193,10 @@ public class PaymentServiceTest {
         assertThat(saved.getValue().getPayosOrderCode()).isEqualTo(PAYOS_ORDER_CODE);
         assertThat(saved.getValue().getPaymentLinkId()).isEqualTo(PAYMENT_LINK_ID);
 
-        assertThat(response.getCheckoutUrl()).isEqualTo(CHECKOUT_URL);
-        assertThat(response.getPaymentLinkId()).isEqualTo(PAYMENT_LINK_ID);
-        assertThat(response.getExpiredAt()).isNotNull();
-        assertThat(response.getPaymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+        assertThat(response.checkoutUrl()).isEqualTo(CHECKOUT_URL);
+        assertThat(response.paymentLinkId()).isEqualTo(PAYMENT_LINK_ID);
+        assertThat(response.expiredAt()).isNotNull();
+        assertThat(response.paymentStatus()).isEqualTo(PaymentStatus.UNPAID);
     }
 
     @Test
@@ -222,7 +222,7 @@ public class PaymentServiceTest {
 
         var response = paymentService.createPayment("o1");
 
-        assertThat(response.getCheckoutUrl()).isEqualTo(CHECKOUT_URL);
+        assertThat(response.checkoutUrl()).isEqualTo(CHECKOUT_URL);
         verify(payosGateway, never()).createLink(any());
         verify(payosGateway, never()).cancelLink(anyString(), anyString());
     }
@@ -238,7 +238,7 @@ public class PaymentServiceTest {
 
         var response = paymentService.createPayment("o1");
 
-        assertThat(response.getCheckoutUrl()).isEqualTo("https://pay.payos.vn/web/link-43");
+        assertThat(response.checkoutUrl()).isEqualTo("https://pay.payos.vn/web/link-43");
         verify(payosGateway, never()).cancelLink(anyString(), anyString());
     }
 
@@ -255,7 +255,7 @@ public class PaymentServiceTest {
 
         // Link cũ phải bị huỷ để khách không trả được vào cả hai link
         verify(payosGateway).cancelLink(eq(PAYMENT_LINK_ID), anyString());
-        assertThat(response.getPaymentLinkId()).isEqualTo("link-43");
+        assertThat(response.paymentLinkId()).isEqualTo("link-43");
     }
 
     @Test
@@ -269,8 +269,8 @@ public class PaymentServiceTest {
 
         var response = paymentService.createPayment("o1");
 
-        assertThat(response.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
-        assertThat(response.getCheckoutUrl()).isNull();
+        assertThat(response.paymentStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(response.checkoutUrl()).isNull();
         assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
         verify(paymentRepository).save(any(Payment.class));
         verify(payosGateway, never()).createLink(any());
@@ -354,8 +354,8 @@ public class PaymentServiceTest {
 
         var response = paymentService.checkPaymentStatus("o1");
 
-        assertThat(response.getPaymentStatus()).isEqualTo(PaymentStatus.UNPAID);
-        assertThat(response.getCheckoutUrl()).isEqualTo(CHECKOUT_URL);
+        assertThat(response.paymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+        assertThat(response.checkoutUrl()).isEqualTo(CHECKOUT_URL);
         verify(paymentRepository, never()).save(any());
     }
 
@@ -370,8 +370,8 @@ public class PaymentServiceTest {
 
         var response = paymentService.checkPaymentStatus("o1");
 
-        assertThat(response.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
-        assertThat(response.getCheckoutUrl()).isNull();
+        assertThat(response.paymentStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(response.checkoutUrl()).isNull();
         verify(orderRepository).save(order);
 
         ArgumentCaptor<Payment> captor = ArgumentCaptor.forClass(Payment.class);
@@ -391,7 +391,7 @@ public class PaymentServiceTest {
 
         var response = paymentService.checkPaymentStatus("o1");
 
-        assertThat(response.getPaymentStatus()).isEqualTo(PaymentStatus.UNPAID);
+        assertThat(response.paymentStatus()).isEqualTo(PaymentStatus.UNPAID);
     }
 
     @Test
@@ -403,8 +403,8 @@ public class PaymentServiceTest {
 
         var response = paymentService.checkPaymentStatus("o1");
 
-        assertThat(response.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
-        assertThat(response.getCheckoutUrl()).isNull();
+        assertThat(response.paymentStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(response.checkoutUrl()).isNull();
         verify(payosGateway, never()).getLink(anyString());
     }
 
@@ -429,7 +429,7 @@ public class PaymentServiceTest {
 
         var response = paymentService.checkPaymentStatus("o1");
 
-        assertThat(response.getOrderId()).isEqualTo("o1");
+        assertThat(response.orderId()).isEqualTo("o1");
         verify(orderRepository, never()).findByIdAndUserUsername(any(), any());
     }
 

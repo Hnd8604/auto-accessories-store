@@ -80,7 +80,7 @@ public class UserServiceTest {
         when(passwordEncoder.encode("secret123")).thenReturn("hashed");
         when(roleRepository.findById("USER")).thenReturn(Optional.of(roleUser));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userMapper.toUserResponse(any(User.class))).thenReturn(new UserResponse());
+        when(userMapper.toUserResponse(any(User.class))).thenReturn(UserResponse.builder().build());
 
         userService.createUser(request);
 
@@ -128,7 +128,7 @@ public class UserServiceTest {
         User user = buildUser();
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken("john", null, List.of()));
-        UserResponse expected = new UserResponse();
+        UserResponse expected = UserResponse.builder().build();
 
         when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
         when(userMapper.toUserResponse(user)).thenReturn(expected);
@@ -162,7 +162,7 @@ public class UserServiceTest {
         when(passwordEncoder.encode("new-password")).thenReturn("new-hash");
         when(roleRepository.findAllById(List.of("ADMIN"))).thenReturn(List.of(admin));
         when(userRepository.save(user)).thenReturn(user);
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
 
         userService.updateUser("u1", request);
 
@@ -180,7 +180,7 @@ public class UserServiceTest {
 
         when(userRepository.findById("u1")).thenReturn(Optional.of(user));
         when(userRepository.save(user)).thenReturn(user);
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
 
         userService.updateUser("u1", request);
 
@@ -239,7 +239,7 @@ public class UserServiceTest {
         var pageable = PageRequest.of(0, 10);
 
         when(userRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(user)));
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
 
         var page = userService.getAllUsers(pageable);
 

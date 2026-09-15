@@ -119,7 +119,7 @@ public class OrderServiceTest {
         when(cartRepository.findByUserId("u1")).thenReturn(Optional.of(cart));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(orderMapper.toOrderResponse(any(Order.class))).thenReturn(new OrderResponse());
+        when(orderMapper.toOrderResponse(any(Order.class))).thenReturn(OrderResponse.builder().build());
 
         // Act
         orderService.createOrderFromCart(request);
@@ -220,7 +220,7 @@ public class OrderServiceTest {
         when(cartRepository.findByUserId("u1")).thenReturn(Optional.of(cart));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(orderMapper.toOrderResponse(any())).thenReturn(new OrderResponse());
+        when(orderMapper.toOrderResponse(any())).thenReturn(OrderResponse.builder().build());
         doThrow(new RuntimeException("Event publish failed")).when(orderEventProducer).publishOrderCreated(any());
 
         // Event publish lỗi nhưng đơn hàng vẫn phải tạo thành công (try/catch nuốt lỗi)
@@ -259,7 +259,7 @@ public class OrderServiceTest {
 
         when(orderRepository.findByIdAndUserUsername("o1", OWNER)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(orderMapper.toOrderResponse(any())).thenReturn(new OrderResponse());
+        when(orderMapper.toOrderResponse(any())).thenReturn(OrderResponse.builder().build());
 
         orderService.cancelOrder("o1");
 
@@ -295,7 +295,7 @@ public class OrderServiceTest {
 
         when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(orderMapper.toOrderResponse(any())).thenReturn(new OrderResponse());
+        when(orderMapper.toOrderResponse(any())).thenReturn(OrderResponse.builder().build());
 
         orderService.cancelOrder("o1");
 
@@ -308,7 +308,7 @@ public class OrderServiceTest {
         authenticateAs("mallory", "ORDER_UPDATE_BY_USER");
         when(orderRepository.findByIdAndUserUsername("o1", "mallory")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> orderService.updateOrderByUser("o1", new OrderUpdateByUserRequest()))
+        assertThatThrownBy(() -> orderService.updateOrderByUser("o1", OrderUpdateByUserRequest.builder().build()))
                 .isInstanceOf(AppException.class)
                 .extracting(e -> ((AppException) e).getErrorCode())
                 .isEqualTo(ErrorCode.ORDER_NOT_EXISTED);
@@ -322,10 +322,11 @@ public class OrderServiceTest {
         Order order = new Order();
         when(orderRepository.findByIdAndUserUsername("o1", OWNER)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(orderMapper.toOrderResponse(any())).thenReturn(new OrderResponse());
+        when(orderMapper.toOrderResponse(any())).thenReturn(OrderResponse.builder().build());
 
-        OrderUpdateByUserRequest request = new OrderUpdateByUserRequest();
-        request.setAddressRecipient("12 Nguyen Trai");
+        OrderUpdateByUserRequest request = OrderUpdateByUserRequest.builder()
+                .addressRecipient("12 Nguyen Trai")
+                .build();
 
         orderService.updateOrderByUser("o1", request);
 

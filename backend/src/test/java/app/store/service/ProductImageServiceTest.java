@@ -76,7 +76,7 @@ public class ProductImageServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(cloudinaryService.uploadImage(file, "store/products")).thenReturn("http://cloud/new.png");
         when(productImageRepository.save(mapped)).thenReturn(mapped);
-        when(productImageMapper.toProductImageResponse(mapped)).thenReturn(new ProductImageResponse());
+        when(productImageMapper.toProductImageResponse(mapped)).thenReturn(ProductImageResponse.builder().build());
 
         productImageService.createProductImage(file, request);
 
@@ -117,7 +117,7 @@ public class ProductImageServiceTest {
         ProductImage image = buildImage(1L, buildProduct(1L));
 
         when(productImageRepository.getProductImageByProductId(1L)).thenReturn(List.of(image));
-        when(productImageMapper.toProductImageResponse(image)).thenReturn(new ProductImageResponse());
+        when(productImageMapper.toProductImageResponse(image)).thenReturn(ProductImageResponse.builder().build());
 
         assertThat(productImageService.getProductImagesByProductId(1L)).hasSize(1);
     }
@@ -131,7 +131,7 @@ public class ProductImageServiceTest {
 
         when(productImageRepository.findById(1L)).thenReturn(Optional.of(image));
         when(productImageRepository.save(image)).thenReturn(image);
-        when(productImageMapper.toProductImageResponse(image)).thenReturn(new ProductImageResponse());
+        when(productImageMapper.toProductImageResponse(image)).thenReturn(ProductImageResponse.builder().build());
 
         productImageService.updateProductImage(1L, request);
 

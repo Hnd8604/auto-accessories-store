@@ -86,8 +86,8 @@ public class ResetPasswordServiceTest {
         var response = resetPasswordService.initResetPassword(
                 InitResetPasswordRequest.builder().email("  John@Mail.com ").build()); // có khoảng trắng + hoa
 
-        assertThat(response.getSessionId()).isNotBlank();
-        assertThat(response.getMaskedEmail()).isEqualTo("j***@mail.com");
+        assertThat(response.sessionId()).isNotBlank();
+        assertThat(response.maskedEmail()).isEqualTo("j***@mail.com");
 
         // OTP gửi qua mail phải khớp với hash lưu trong Redis
         ArgumentCaptor<String> otpCaptor = ArgumentCaptor.forClass(String.class);
@@ -128,7 +128,7 @@ public class ResetPasswordServiceTest {
         var response = resetPasswordService.verifyOtp(
                 VerifyOtpRequest.builder().sessionId(SESSION_ID).otp("123456").build());
 
-        assertThat(response.isVerified()).isTrue();
+        assertThat(response.verified()).isTrue();
         assertThat(session.getStep()).isEqualTo(ResetPasswordSession.STEP_OTP_VERIFIED);
         verify(valueOperations).set(eq(REDIS_KEY), eq(session), anyLong(), any());
     }
@@ -278,7 +278,7 @@ public class ResetPasswordServiceTest {
         var response = resetPasswordService.resendOtp(
                 ResendOtpRequest.builder().sessionId(SESSION_ID).build());
 
-        assertThat(response.getMaskedEmail()).isEqualTo("j***@mail.com");
+        assertThat(response.maskedEmail()).isEqualTo("j***@mail.com");
         assertThat(session.getOtpAttempt()).isZero();
         assertThat(session.getOtpHash()).isNotEqualTo(oldHash);
 

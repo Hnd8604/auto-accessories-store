@@ -108,7 +108,7 @@ public class CategoryController {
             @RequestBody CategoryBrandsRequest request
     ) {
         return ApiResponse.<List<BrandResponse>>builder()
-                .result(CategoryService.updateCategoryBrands(categoryId, request.getBrandIds()))
+                .result(CategoryService.updateCategoryBrands(categoryId, request.brandIds()))
                 .message(ResponseMessage.UPDATE_CATEGORY_BRANDS_SUCCESS)
                 .build();
     }

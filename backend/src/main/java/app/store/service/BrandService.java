@@ -32,7 +32,7 @@ public class BrandService {
 
         Brand brand = brandMapper.toBrand(brandRequest);
         // Tạo slug từ tên danh mục
-        String baseSlug = slugUtil.toSlug(brandRequest.getName());
+        String baseSlug = slugUtil.toSlug(brandRequest.name());
         String uniqueSlug = slugUtil.createUniqueSlug(baseSlug, brandRepository::existsBySlug);
 
         brand.setSlug(uniqueSlug);
@@ -62,8 +62,8 @@ public class BrandService {
                 .orElseThrow(() -> new AppException(ErrorCode.BRAND_NOT_EXISTED));
 
         // Cập nhật slug nếu tên thay đổi
-        if (!brand.getName().equals(brandRequest.getName())) {
-            String baseSlug = slugUtil.toSlug(brandRequest.getName());
+        if (!brand.getName().equals(brandRequest.name())) {
+            String baseSlug = slugUtil.toSlug(brandRequest.name());
             String uniqueSlug = slugUtil.createUniqueSlug(baseSlug, slug ->
                     !slug.equals(brand.getSlug()) && brandRepository.existsBySlug(slug));
             brand.setSlug(uniqueSlug);

@@ -47,7 +47,7 @@ public class UserService {
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new AppException(ErrorCode.EMAIL_EXISTED);
         }
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setPassword(passwordEncoder.encode(request.password()));
         Set<Role> roles = new HashSet<>();
         var roleDefault = roleRepository.findById("USER")
                 .orElseThrow(()-> new AppException(ErrorCode.ROLE_NOT_EXISTED));
@@ -83,13 +83,13 @@ public class UserService {
         userMapper.updateUser(user, request);
 
         // Only update password if provided
-        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
-            user.setPassword(passwordEncoder.encode(request.getPassword()));
+        if (request.password() != null && !request.password().isEmpty()) {
+            user.setPassword(passwordEncoder.encode(request.password()));
         }
 
         // Only update roles if provided
-        if (request.getRoles() != null && !request.getRoles().isEmpty()) {
-            var roles = roleRepository.findAllById(request.getRoles());
+        if (request.roles() != null && !request.roles().isEmpty()) {
+            var roles = roleRepository.findAllById(request.roles());
             user.setRoles(new HashSet<>(roles));
         }
         return userMapper.toUserResponse(userRepository.save(user));

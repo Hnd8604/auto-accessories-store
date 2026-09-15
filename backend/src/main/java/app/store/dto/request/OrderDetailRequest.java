@@ -1,15 +1,10 @@
 package app.store.dto.request;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import lombok.Builder;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class OrderDetailRequest {
-    Long productId;
-    Integer quantity;
+public record OrderDetailRequest(
+        Long productId,
+        Integer quantity
+) {
 }

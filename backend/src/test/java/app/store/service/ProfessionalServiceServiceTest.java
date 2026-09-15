@@ -54,8 +54,8 @@ public class ProfessionalServiceServiceTest {
     void getAllServices_shouldMapEachService() {
         ProfessionalService first = buildService(1L, "Dán phim cách nhiệt");
         ProfessionalService second = buildService(2L, "Rửa xe");
-        ServiceResponse firstResponse = new ServiceResponse();
-        ServiceResponse secondResponse = new ServiceResponse();
+        ServiceResponse firstResponse = ServiceResponse.builder().build();
+        ServiceResponse secondResponse = ServiceResponse.builder().build();
 
         when(serviceRepository.findAllWithImages()).thenReturn(List.of(first, second));
         when(serviceMapper.toServiceResponse(first)).thenReturn(firstResponse);
@@ -104,7 +104,7 @@ public class ProfessionalServiceServiceTest {
         when(slugUtil.createUniqueSlug(eq("dan-phim-cach-nhiet"), any()))
                 .thenReturn("dan-phim-cach-nhiet-1");
         when(serviceRepository.save(mapped)).thenReturn(mapped);
-        when(serviceMapper.toServiceResponse(mapped)).thenReturn(new ServiceResponse());
+        when(serviceMapper.toServiceResponse(mapped)).thenReturn(ServiceResponse.builder().build());
 
         professionalServiceService.createService(request);
 
@@ -123,7 +123,7 @@ public class ProfessionalServiceServiceTest {
         when(slugUtil.toSlug("Tên mới")).thenReturn("ten-moi");
         when(slugUtil.createUniqueSlug(eq("ten-moi"), any())).thenReturn("ten-moi");
         when(serviceRepository.save(service)).thenReturn(service);
-        when(serviceMapper.toServiceResponse(service)).thenReturn(new ServiceResponse());
+        when(serviceMapper.toServiceResponse(service)).thenReturn(ServiceResponse.builder().build());
 
         professionalServiceService.updateService(1L, request);
 
@@ -139,7 +139,7 @@ public class ProfessionalServiceServiceTest {
 
         when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(serviceRepository.save(service)).thenReturn(service);
-        when(serviceMapper.toServiceResponse(service)).thenReturn(new ServiceResponse());
+        when(serviceMapper.toServiceResponse(service)).thenReturn(ServiceResponse.builder().build());
 
         professionalServiceService.updateService(1L, request);
 
@@ -156,7 +156,7 @@ public class ProfessionalServiceServiceTest {
         when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(slugUtil.toSlug("Tên mới")).thenReturn("ten-moi");
         when(serviceRepository.save(service)).thenReturn(service);
-        when(serviceMapper.toServiceResponse(service)).thenReturn(new ServiceResponse());
+        when(serviceMapper.toServiceResponse(service)).thenReturn(ServiceResponse.builder().build());
         // Bắt lấy hàm kiểm tra trùng slug mà service truyền vào để gọi thử
         when(slugUtil.createUniqueSlug(eq("ten-moi"), any())).thenAnswer(inv -> {
             Function<String, Boolean> existsChecker = inv.getArgument(1);

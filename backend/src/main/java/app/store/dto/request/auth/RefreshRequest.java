@@ -1,14 +1,9 @@
 package app.store.dto.request.auth;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import lombok.Builder;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class RefreshRequest {
-    String refreshToken;
+public record RefreshRequest(
+        String refreshToken
+) {
 }

@@ -39,10 +39,10 @@ public class PostCategoryServiceTest {
     PostCategoryService postCategoryService;
 
     private PostCategoryRequest request(String name, String description) {
-        PostCategoryRequest request = new PostCategoryRequest(); // DTO này không có @Builder
-        request.setName(name);
-        request.setDescription(description);
-        return request;
+        return PostCategoryRequest.builder()
+                .name(name)
+                .description(description)
+                .build();
     }
 
     private PostCategory buildCategory(Long id, String name, String slug) {
@@ -65,7 +65,7 @@ public class PostCategoryServiceTest {
         when(slugUtil.toSlug("Tin tức xe hơi")).thenReturn("tin-tuc-xe-hoi");
         when(slugUtil.createUniqueSlug(eq("tin-tuc-xe-hoi"), any())).thenReturn("tin-tuc-xe-hoi-1");
         when(postCategoryRepository.save(mapped)).thenReturn(mapped);
-        when(postCategoryMapper.toPostCategoryResponse(mapped)).thenReturn(new PostCategoryResponse());
+        when(postCategoryMapper.toPostCategoryResponse(mapped)).thenReturn(PostCategoryResponse.builder().build());
 
         postCategoryService.createCategory(request);
 
@@ -97,7 +97,7 @@ public class PostCategoryServiceTest {
         when(slugUtil.toSlug("Tên mới")).thenReturn("ten-moi");
         when(slugUtil.createUniqueSlug(eq("ten-moi"), any())).thenReturn("ten-moi");
         when(postCategoryRepository.save(category)).thenReturn(category);
-        when(postCategoryMapper.toPostCategoryResponse(category)).thenReturn(new PostCategoryResponse());
+        when(postCategoryMapper.toPostCategoryResponse(category)).thenReturn(PostCategoryResponse.builder().build());
 
         postCategoryService.updateCategory(1L, request);
 
@@ -113,7 +113,7 @@ public class PostCategoryServiceTest {
 
         when(postCategoryRepository.findById(1L)).thenReturn(Optional.of(category));
         when(postCategoryRepository.save(category)).thenReturn(category);
-        when(postCategoryMapper.toPostCategoryResponse(category)).thenReturn(new PostCategoryResponse());
+        when(postCategoryMapper.toPostCategoryResponse(category)).thenReturn(PostCategoryResponse.builder().build());
 
         postCategoryService.updateCategory(1L, request);
 
@@ -188,7 +188,7 @@ public class PostCategoryServiceTest {
 
         when(postCategoryRepository.findAll(Sort.by(Sort.Direction.ASC, "name")))
                 .thenReturn(List.of(category));
-        when(postCategoryMapper.toPostCategoryResponse(category)).thenReturn(new PostCategoryResponse());
+        when(postCategoryMapper.toPostCategoryResponse(category)).thenReturn(PostCategoryResponse.builder().build());
 
         assertThat(postCategoryService.getAllCategories()).hasSize(1);
     }
@@ -207,7 +207,7 @@ public class PostCategoryServiceTest {
         PostCategory category = buildCategory(1L, "Tin tức", "tin-tuc");
 
         when(postCategoryRepository.findByKeyword("tin")).thenReturn(List.of(category));
-        when(postCategoryMapper.toPostCategoryResponse(category)).thenReturn(new PostCategoryResponse());
+        when(postCategoryMapper.toPostCategoryResponse(category)).thenReturn(PostCategoryResponse.builder().build());
 
         assertThat(postCategoryService.searchCategories("  tin  ")).hasSize(1);
     }

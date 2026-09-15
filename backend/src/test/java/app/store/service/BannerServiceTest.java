@@ -48,7 +48,7 @@ public class BannerServiceTest {
         when(bannerMapper.toBanner(request)).thenReturn(mapped);
         when(cloudinaryService.uploadImage(file, "store/banners")).thenReturn("http://cloud/banner.png");
         when(bannerRepository.save(mapped)).thenReturn(mapped);
-        when(bannerMapper.toBannerResponse(mapped)).thenReturn(new BannerResponse());
+        when(bannerMapper.toBannerResponse(mapped)).thenReturn(BannerResponse.builder().build());
 
         bannerService.createBanner(file, request);
 
@@ -65,7 +65,7 @@ public class BannerServiceTest {
         when(bannerMapper.toBanner(request)).thenReturn(mapped);
         when(cloudinaryService.uploadImage(file, "store/banners")).thenReturn("http://cloud/banner.png");
         when(bannerRepository.save(mapped)).thenReturn(mapped);
-        when(bannerMapper.toBannerResponse(mapped)).thenReturn(new BannerResponse());
+        when(bannerMapper.toBannerResponse(mapped)).thenReturn(BannerResponse.builder().build());
 
         bannerService.createBanner(file, request);
 
@@ -81,7 +81,7 @@ public class BannerServiceTest {
         when(bannerRepository.findById(1L)).thenReturn(Optional.of(banner));
         when(cloudinaryService.uploadImage(file, "store/banners")).thenReturn("http://cloud/new.png");
         when(bannerRepository.save(banner)).thenReturn(banner);
-        when(bannerMapper.toBannerResponse(banner)).thenReturn(new BannerResponse());
+        when(bannerMapper.toBannerResponse(banner)).thenReturn(BannerResponse.builder().build());
 
         bannerService.updateBanner(1L, file, request);
 
@@ -97,7 +97,7 @@ public class BannerServiceTest {
 
         when(bannerRepository.findById(1L)).thenReturn(Optional.of(banner));
         when(bannerRepository.save(banner)).thenReturn(banner);
-        when(bannerMapper.toBannerResponse(banner)).thenReturn(new BannerResponse());
+        when(bannerMapper.toBannerResponse(banner)).thenReturn(BannerResponse.builder().build());
 
         bannerService.updateBanner(1L, null, request);
 
@@ -113,7 +113,7 @@ public class BannerServiceTest {
 
         when(bannerRepository.findById(1L)).thenReturn(Optional.of(banner));
         when(bannerRepository.save(banner)).thenReturn(banner);
-        when(bannerMapper.toBannerResponse(banner)).thenReturn(new BannerResponse());
+        when(bannerMapper.toBannerResponse(banner)).thenReturn(BannerResponse.builder().build());
 
         bannerService.updateBanner(1L, emptyFile, BannerRequest.builder().build());
 
@@ -162,7 +162,7 @@ public class BannerServiceTest {
         Banner banner = new Banner();
 
         when(bannerRepository.findAllByOrderByDisplayOrderAsc()).thenReturn(List.of(banner));
-        when(bannerMapper.toBannerResponse(banner)).thenReturn(new BannerResponse());
+        when(bannerMapper.toBannerResponse(banner)).thenReturn(BannerResponse.builder().build());
 
         assertThat(bannerService.getAllBanners()).hasSize(1);
     }
@@ -172,7 +172,7 @@ public class BannerServiceTest {
         Banner banner = new Banner();
 
         when(bannerRepository.findByIsActiveTrueOrderByDisplayOrderAsc()).thenReturn(List.of(banner));
-        when(bannerMapper.toBannerResponse(banner)).thenReturn(new BannerResponse());
+        when(bannerMapper.toBannerResponse(banner)).thenReturn(BannerResponse.builder().build());
 
         assertThat(bannerService.getActiveBanners()).hasSize(1);
     }

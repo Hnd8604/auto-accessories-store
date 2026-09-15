@@ -1,21 +1,15 @@
 package app.store.dto.response;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-
 import java.util.List;
+import lombok.Builder;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class CartResponse {
-    // BigDecimal totalPrice;
-    // Integer totalItems;
-    // BigDecimal price; add after has voucher
-    Long id;
-    String userId;
-    List<CartItemResponse> items;
+public record CartResponse(
+        // BigDecimal totalPrice;
+        // Integer totalItems;
+        // BigDecimal price; add after has voucher
+        Long id,
+        String userId,
+        List<CartItemResponse> items
+) {
 }

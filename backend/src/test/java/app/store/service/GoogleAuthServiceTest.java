@@ -95,7 +95,7 @@ public class GoogleAuthServiceTest {
 
             var response = googleAuthService.authenticateWithGoogle(request());
 
-            assertThat(response.getAccessToken()).isEqualTo("jwt");
+            assertThat(response.accessToken()).isEqualTo("jwt");
 
             ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
             verify(userRepository).save(captor.capture());

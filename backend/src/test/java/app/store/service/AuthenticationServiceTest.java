@@ -108,7 +108,7 @@ public class AuthenticationServiceTest {
         when(userRepository.existsByEmail("john@mail.com")).thenReturn(false);
         when(roleRepository.findById("USER")).thenReturn(Optional.of(roleUser));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userMapper.toUserResponse(any(User.class))).thenReturn(new UserResponse());
+        when(userMapper.toUserResponse(any(User.class))).thenReturn(UserResponse.builder().build());
 
         authenticationService.register(request);
 
@@ -176,17 +176,17 @@ public class AuthenticationServiceTest {
                 .email("john@mail.com").password("secret123").build();
 
         when(userRepository.findByEmail("john@mail.com")).thenReturn(Optional.of(user));
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
 
         var response = authenticationService.authenticate(request, session);
 
-        assertThat(response.isAuthenticated()).isTrue();
+        assertThat(response.authenticated()).isTrue();
         // Token thật -> parse ra để kiểm claim
-        var claims = SignedJWT.parse(response.getAccessToken()).getJWTClaimsSet();
+        var claims = SignedJWT.parse(response.accessToken()).getJWTClaimsSet();
         assertThat(claims.getSubject()).isEqualTo("john");
         assertThat(claims.getClaim("type")).isEqualTo("accessToken");
         assertThat(claims.getStringClaim("scope")).contains("ROLE_USER");
-        assertThat(SignedJWT.parse(response.getRefreshToken()).getJWTClaimsSet().getClaim("type"))
+        assertThat(SignedJWT.parse(response.refreshToken()).getJWTClaimsSet().getClaim("type"))
                 .isEqualTo("refreshToken");
         verify(cartSyncService).syncSessionCart(user, session);
     }
@@ -225,8 +225,8 @@ public class AuthenticationServiceTest {
     @Test
     void refreshToken_shouldIssueNewAccessToken() throws Exception {
         User user = buildUser("secret123");
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
-        String refreshToken = authenticationService.generateAuthResponse(user).getRefreshToken();
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
+        String refreshToken = authenticationService.generateAuthResponse(user).refreshToken();
 
         when(invalidatedRepository.existsById(any())).thenReturn(false);
         when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
@@ -234,16 +234,16 @@ public class AuthenticationServiceTest {
         var response = authenticationService.refreshToken(
                 RefreshRequest.builder().refreshToken(refreshToken).build());
 
-        assertThat(response.isAuthenticated()).isTrue();
-        assertThat(SignedJWT.parse(response.getAccessToken()).getJWTClaimsSet().getClaim("type"))
+        assertThat(response.authenticated()).isTrue();
+        assertThat(SignedJWT.parse(response.accessToken()).getJWTClaimsSet().getClaim("type"))
                 .isEqualTo("accessToken");
     }
 
     @Test
     void refreshToken_shouldThrow_whenAccessTokenUsedInstead() {
         User user = buildUser("secret123");
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
-        String accessToken = authenticationService.generateAuthResponse(user).getAccessToken();
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
+        String accessToken = authenticationService.generateAuthResponse(user).accessToken();
 
         when(invalidatedRepository.existsById(any())).thenReturn(false);
 
@@ -257,8 +257,8 @@ public class AuthenticationServiceTest {
     @Test
     void refreshToken_shouldThrow_whenTokenAlreadyInvalidated() {
         User user = buildUser("secret123");
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
-        String refreshToken = authenticationService.generateAuthResponse(user).getRefreshToken();
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
+        String refreshToken = authenticationService.generateAuthResponse(user).refreshToken();
 
         when(invalidatedRepository.existsById(any())).thenReturn(true); // đã logout
 
@@ -274,42 +274,42 @@ public class AuthenticationServiceTest {
     @Test
     void introspect_shouldReturnValidTrue_forFreshToken() throws Exception {
         User user = buildUser("secret123");
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
-        String accessToken = authenticationService.generateAuthResponse(user).getAccessToken();
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
+        String accessToken = authenticationService.generateAuthResponse(user).accessToken();
 
         when(invalidatedRepository.existsById(any())).thenReturn(false);
 
         var response = authenticationService.introspect(
                 IntrospectRequest.builder().token(accessToken).build());
 
-        assertThat(response.isValid()).isTrue();
+        assertThat(response.valid()).isTrue();
     }
 
     @Test
     void introspect_shouldReturnValidFalse_whenTokenInvalidated() throws Exception {
         User user = buildUser("secret123");
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
-        String accessToken = authenticationService.generateAuthResponse(user).getAccessToken();
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
+        String accessToken = authenticationService.generateAuthResponse(user).accessToken();
 
         when(invalidatedRepository.existsById(any())).thenReturn(true);
 
         var response = authenticationService.introspect(
                 IntrospectRequest.builder().token(accessToken).build());
 
-        assertThat(response.isValid()).isFalse();
+        assertThat(response.valid()).isFalse();
     }
 
     @Test
     void logout_shouldSaveBothTokensToBlacklist() throws Exception {
         User user = buildUser("secret123");
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
         var tokens = authenticationService.generateAuthResponse(user);
 
         when(invalidatedRepository.existsById(any())).thenReturn(false);
 
         authenticationService.logout(LogoutRequest.builder()
-                .accessToken(tokens.getAccessToken())
-                .refreshToken(tokens.getRefreshToken())
+                .accessToken(tokens.accessToken())
+                .refreshToken(tokens.refreshToken())
                 .build());
 
         verify(invalidatedRepository, times(2)).save(any());

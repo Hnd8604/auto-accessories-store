@@ -14,8 +14,8 @@ public class ProductSpecification {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             // sản phẩm thì có tên hoặc description là được tìm thấy
-            if (req.getKeyword() != null) {
-                String pattern = "%" + req.getKeyword().toLowerCase() + "%";
+            if (req.keyword() != null) {
+                String pattern = "%" + req.keyword().toLowerCase() + "%";
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("name")), pattern),
                         cb.like(cb.lower(root.get("description")), pattern)
@@ -23,25 +23,25 @@ public class ProductSpecification {
             }
 
             // danh mục phải đúng tên
-            if (req.getCategory() != null) {
-                predicates.add(cb.equal(root.get("category").get("name"), req.getCategory()));
+            if (req.category() != null) {
+                predicates.add(cb.equal(root.get("category").get("name"), req.category()));
             }
 
             // Thương hiệu phải đúng tên
-            if (req.getBrand() != null) {
-                predicates.add(cb.equal(root.get("brand").get("name"), req.getBrand()));
+            if (req.brand() != null) {
+                predicates.add(cb.equal(root.get("brand").get("name"), req.brand()));
             }
 
-            if (req.getMinPrice() != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("unitPrice"), req.getMinPrice()));
+            if (req.minPrice() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("unitPrice"), req.minPrice()));
             }
 
-            if (req.getMaxPrice() != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get("unitPrice"), req.getMaxPrice()));
+            if (req.maxPrice() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("unitPrice"), req.maxPrice()));
             }
 
-            if (req.getInStock() != null) {
-                if (req.getInStock()) {
+            if (req.inStock() != null) {
+                if (req.inStock()) {
                     predicates.add(cb.greaterThan(root.get("stockQuantity"), 0));
                 } else {
                     predicates.add(cb.equal(root.get("stockQuantity"), 0));

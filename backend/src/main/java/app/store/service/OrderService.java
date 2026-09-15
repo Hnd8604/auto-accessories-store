@@ -76,8 +76,8 @@ public class OrderService {
         order.setOrderCode(paymentService.generateOrderCode());
 
         // Set paymentMethod (default COD nếu không chỉ định)
-        if (orderRequest.getPaymentMethod() != null) {
-            order.setPaymentMethod(orderRequest.getPaymentMethod());
+        if (orderRequest.paymentMethod() != null) {
+            order.setPaymentMethod(orderRequest.paymentMethod());
         } else {
             order.setPaymentMethod(app.store.enums.PaymentMethod.COD);
         }
@@ -88,22 +88,22 @@ public class OrderService {
         List<OrderDetail> orderDetails = new ArrayList<>();
 
         BigDecimal totalPrice = new BigDecimal(0);
-        for( OrderDetailRequest orderDetailRequest : orderRequest.getOrderDetails()) { // tao tung order detail tu request
-            Product product = productRepository.findById(orderDetailRequest.getProductId())
+        for( OrderDetailRequest orderDetailRequest : orderRequest.orderDetails()) { // tao tung order detail tu request
+            Product product = productRepository.findById(orderDetailRequest.productId())
                     .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_EXISTED));
 
-            if(orderDetailRequest.getQuantity() <= 0 || orderDetailRequest.getQuantity() > product.getStockQuantity()) {
+            if(orderDetailRequest.quantity() <= 0 || orderDetailRequest.quantity() > product.getStockQuantity()) {
                 throw new IllegalArgumentException("Quantity is not valid for product: " + product.getName());
             }
             OrderDetail orderDetail = new OrderDetail();
             orderDetail.setProduct(product);
-            orderDetail.setQuantity(orderDetailRequest.getQuantity());
+            orderDetail.setQuantity(orderDetailRequest.quantity());
             orderDetail.setOrder(order);
             orderDetails.add(orderDetail);
 
 
             // cong tien
-            totalPrice = totalPrice.add(product.getUnitPrice().multiply(BigDecimal.valueOf(orderDetailRequest.getQuantity())));
+            totalPrice = totalPrice.add(product.getUnitPrice().multiply(BigDecimal.valueOf(orderDetailRequest.quantity())));
 
             // giam so luong trong gio hang
             // tu cart->cartItem-> product -> giam so luong product trong cartItem, neu = 0 thi xoa luon cartItem di
@@ -112,7 +112,7 @@ public class OrderService {
                     .findFirst()
                     .orElse(null);
             if(cartItem != null) {
-                cartItem.setQuantity(cartItem.getQuantity() - orderDetailRequest.getQuantity());
+                cartItem.setQuantity(cartItem.getQuantity() - orderDetailRequest.quantity());
 
                 if (cartItem.getQuantity() == 0) {
                     cart.getCartItems().remove(cartItem);
@@ -124,7 +124,7 @@ public class OrderService {
             }
 
         // giam so luong product
-            product.setStockQuantity(product.getStockQuantity() - orderDetailRequest.getQuantity());
+            product.setStockQuantity(product.getStockQuantity() - orderDetailRequest.quantity());
         }
         order.setOrderDetails(orderDetails);
         order.setTotalPrice(totalPrice);
@@ -156,8 +156,8 @@ public class OrderService {
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
 
         OrderStatus oldStatus = order.getStatus();
-        order.setStatus(request.getOrderStatus());
-        order.setPaymentStatus(request.getPaymentStatus());
+        order.setStatus(request.orderStatus());
+        order.setPaymentStatus(request.paymentStatus());
         Order savedOrder = orderRepository.save(order);
 
         if (oldStatus != savedOrder.getStatus()) {
@@ -169,10 +169,10 @@ public class OrderService {
     @PreAuthorize("hasAuthority('ORDER_UPDATE_BY_USER')")
     public OrderResponse updateOrderByUser(String orderId, OrderUpdateByUserRequest request) {
         Order order = findModifiableOrder(orderId);
-        order.setNameRecipient(request.getNameRecipient());
-        order.setAddressRecipient(request.getAddressRecipient());
-        order.setPhoneRecipient(request.getPhoneRecipient());
-        order.setNote(request.getNote());
+        order.setNameRecipient(request.nameRecipient());
+        order.setAddressRecipient(request.addressRecipient());
+        order.setPhoneRecipient(request.phoneRecipient());
+        order.setNote(request.note());
         return orderMapper.toOrderResponse(orderRepository.save(order));
     }
     @PreAuthorize("hasAuthority('ORDER_CANCEL')")

@@ -38,17 +38,17 @@ public class ProductService {
     @PreAuthorize("hasAuthority('PRODUCT_CREATE')")
     public ProductResponse createProduct(ProductRequest request) {
         Product product = productMapper.toProduct(request);
-        Category category = categoryRepository.findById(request.getCategoryId())
+        Category category = categoryRepository.findById(request.categoryId())
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_EXISTED));
         Brand brand = null;
-        if (request.getBrandId() != null) {
-            brand = brandRepository.findById(request.getBrandId())
+        if (request.brandId() != null) {
+            brand = brandRepository.findById(request.brandId())
                     .orElseThrow(() -> new AppException(ErrorCode.BRAND_NOT_EXISTED));
             if (!brandRepository.existsByIdAndCategoriesId(brand.getId(), category.getId())) {
                 throw new AppException(ErrorCode.BRAND_NOT_IN_CATEGORY);
             }
         }
-        String baseSlug = slugUtil.toSlug(request.getName());
+        String baseSlug = slugUtil.toSlug(request.name());
         String uniqueSlug = slugUtil.createUniqueSlug(baseSlug, productRepository::existsBySlug);
 
         product.setSlug(uniqueSlug);
@@ -64,11 +64,11 @@ public class ProductService {
                 orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_EXISTED));
 
                 productMapper.updateProduct(product, request);
-        Category category = categoryRepository.findById(request.getCategoryId())
+        Category category = categoryRepository.findById(request.categoryId())
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_EXISTED));
         Brand brand = null;
-        if (request.getBrandId() != null) {
-            brand = brandRepository.findById(request.getBrandId())
+        if (request.brandId() != null) {
+            brand = brandRepository.findById(request.brandId())
                     .orElseThrow(() -> new AppException(ErrorCode.BRAND_NOT_EXISTED));
             if (!brandRepository.existsByIdAndCategoriesId(brand.getId(), category.getId())) {
                 throw new AppException(ErrorCode.BRAND_NOT_IN_CATEGORY);
@@ -76,8 +76,8 @@ public class ProductService {
         }
 
         // Cập nhật slug nếu tiêu đề thay đổi
-        if (!product.getName().equals(request.getName())) {
-            String baseSlug = slugUtil.toSlug(request.getName());
+        if (!product.getName().equals(request.name())) {
+            String baseSlug = slugUtil.toSlug(request.name());
             String uniqueSlug = slugUtil.createUniqueSlug(baseSlug, slug ->
                     !slug.equals(product.getSlug()) && productRepository.existsBySlug(slug));
             product.setSlug(uniqueSlug);
@@ -126,14 +126,15 @@ public class ProductService {
         return productRepository.findAllWithImages(pageable)
                 .map(product -> {
                     ProductResponse response = productMapper.toProductResponse(product);
-                    // Set primaryImageUrl from productImages (since MapStruct @AfterMapping doesn't work with interface default methods)
-                    if (product.getProductImages() != null) {
-                        product.getProductImages().stream()
-                                .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
-                                .findFirst()
-                                .ifPresent(img -> response.setPrimaryImageUrl(img.getImageUrl()));
+                    if (product.getProductImages() == null) {
+                        return response;
                     }
-                    return response;
+                    // Chỉ endpoint này fetch sẵn ảnh nên gắn primaryImageUrl tại đây, không đưa vào mapper
+                    return product.getProductImages().stream()
+                            .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
+                            .findFirst()
+                            .map(img -> response.toBuilder().primaryImageUrl(img.getImageUrl()).build())
+                            .orElse(response);
                 });
     }
     public Page<ProductResponse> search(ProductSearchRequest req, Pageable pageable) {

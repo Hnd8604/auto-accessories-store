@@ -6,24 +6,20 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import lombok.Builder;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class OrderCreatedEvent {
-    String orderId;
-    String orderCode;
-    String userId;
-    String userEmail;
-    String recipientName;
-    BigDecimal totalPrice;
-    String paymentMethod;
-    LocalDateTime createdAt;
+public record OrderCreatedEvent(
+        String orderId,
+        String orderCode,
+        String userId,
+        String userEmail,
+        String recipientName,
+        BigDecimal totalPrice,
+        String paymentMethod,
+        LocalDateTime createdAt
+) {
 }

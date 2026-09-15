@@ -51,7 +51,7 @@ public class ProfessionalServiceService {
     public ServiceResponse createService(ServiceRequest request) {
         ProfessionalService service = serviceMapper.toService(request);
 
-        String baseSlug = slugUtil.toSlug(request.getName());
+        String baseSlug = slugUtil.toSlug(request.name());
         service.setSlug(slugUtil.createUniqueSlug(baseSlug, serviceRepository::existsBySlug));
 
         return serviceMapper.toServiceResponse(serviceRepository.save(service));
@@ -63,8 +63,8 @@ public class ProfessionalServiceService {
         ProfessionalService service = serviceRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.SERVICE_NOT_EXISTED));
 
-        if (!service.getName().equals(request.getName())) {
-            String baseSlug = slugUtil.toSlug(request.getName());
+        if (!service.getName().equals(request.name())) {
+            String baseSlug = slugUtil.toSlug(request.name());
             String uniqueSlug = slugUtil.createUniqueSlug(baseSlug, slug ->
                     !slug.equals(service.getSlug()) && serviceRepository.existsBySlug(slug));
             service.setSlug(uniqueSlug);

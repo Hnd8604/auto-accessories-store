@@ -1,18 +1,13 @@
 package app.store.dto.request;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import lombok.Builder;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class EmailRequest {
-    private String to;
-    private String subject;
-    private String text;
-    private String htmlText;
-    private boolean isHtml;
+public record EmailRequest(
+        String to,
+        String subject,
+        String text,
+        String htmlText,
+        boolean isHtml
+) {
 }

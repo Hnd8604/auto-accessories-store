@@ -34,7 +34,7 @@ public class ServiceImageService {
 
     @PreAuthorize("hasAuthority('SERVICE_IMAGE_CREATE')")
     public ServiceImageResponse createServiceImage(MultipartFile file, ServiceImageRequest request) {
-        ProfessionalService service = serviceRepository.findById(request.getServiceId())
+        ProfessionalService service = serviceRepository.findById(request.serviceId())
                 .orElseThrow(() -> new AppException(ErrorCode.SERVICE_NOT_EXISTED));
 
         String imageUrl = cloudinaryService.uploadImage(file, "store/services");

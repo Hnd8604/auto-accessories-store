@@ -1,16 +1,10 @@
 package app.store.dto.request.auth;
 
+import lombok.Builder;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class AuthenticationRequest {
-    String email;
-    String password;
+public record AuthenticationRequest(
+        String email,
+        String password
+) {
 }

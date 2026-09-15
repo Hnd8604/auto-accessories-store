@@ -3,19 +3,18 @@ package app.store.dto.response;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import lombok.Builder;
 
-@Getter
-@Setter
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class PostCategoryResponse {
-    Long id;
-    String name;
-    String slug;
-    String description;
-    LocalDateTime createdAt;
-    LocalDateTime updatedAt;
-    Long postCount;
+@Builder
+public record PostCategoryResponse(
+        Long id,
+        String name,
+        String slug,
+        String description,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt,
+        Long postCount
+) {
 }
