@@ -20,3 +20,6 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Ghi chú lỗi cá nhân, không commit
+docs/KNOWN_ISSUES.md
