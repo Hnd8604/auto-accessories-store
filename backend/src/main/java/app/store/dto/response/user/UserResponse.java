@@ -1,12 +1,9 @@
 package app.store.dto.response.user;
 
-
 import app.store.dto.response.RoleResponse;
-import app.store.entity.Role;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
-import java.util.List;
 import java.util.Set;
 
 @Data

@@ -3,8 +3,6 @@ package app.store.dto.response;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
-import java.util.List;
-
 @Getter
 @Setter
 @NoArgsConstructor

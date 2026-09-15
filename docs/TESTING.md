@@ -221,7 +221,7 @@ Toàn bộ 22 service còn lại đã có test. Toàn backend hiện có **252 t
 | | `PayosGatewayTest` | 9 | chạy **SDK payOS thật**: chữ ký webhook (neo vector `openssl`), body bị sửa / sai key / thiếu chữ ký / không phải JSON → `401`; API payOS giả lập bằng `HttpServer` của JDK: chữ ký request tạo link, parse response, lỗi payOS → `PAYMENT_GATEWAY_ERROR`. Bắt được lỗi tương thích Jackson (SDK khai 2.20, Spring Boot ghim 2.18) |
 | | `PaymentControllerTest` | 2 | verify chữ ký trước rồi mới gọi service; sai chữ ký → service **không** được gọi |
 | | `GoogleAuthServiceTest` | 6 | tạo user mới / link googleId theo email / cập nhật avatar, lỗi Google → `GOOGLE_AUTH_FAILED` |
-| | `ProfessionalServiceServiceTest` | 13 | parse/serialize `features` JSON, JSON hỏng không làm sập API, chọn ảnh primary |
+| | `ProfessionalServiceServiceTest` | 11 | sinh slug không trùng, chọn ảnh primary |
 | **Vừa** | `UserServiceTest` | 12 | chỉ đổi password/roles khi request có gửi |
 | | `RoleServiceTest` | 8 | lưu DB **trước** rồi mới sync Redis (`inOrder`) |
 | | `PermissionServiceTest` | 5 | CRUD + not-found |

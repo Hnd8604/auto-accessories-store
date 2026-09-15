@@ -8,37 +8,29 @@ import app.store.exception.ErrorCode;
 import app.store.mapper.ServiceMapper;
 import app.store.repository.ServiceRepository;
 import app.store.utils.SlugUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-@Slf4j
 public class ProfessionalServiceService {
 
     ServiceRepository serviceRepository;
     ServiceMapper serviceMapper;
     SlugUtil slugUtil;
-    ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public List<ServiceResponse> getAllServices() {
         return serviceRepository.findAllWithImages().stream()
                 .map(service -> {
                     ServiceResponse response = serviceMapper.toServiceResponse(service);
-                    response.setFeatures(parseFeatures(service.getFeatures()));
                     if (service.getImages() != null) {
                         service.getImages().stream()
                                 .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
@@ -70,7 +62,6 @@ public class ProfessionalServiceService {
     @PreAuthorize("hasAuthority('SERVICE_CREATE')")
     public ServiceResponse createService(ServiceRequest request) {
         ProfessionalService service = serviceMapper.toService(request);
-        service.setFeatures(serializeFeatures(request.getFeatures()));
 
         String baseSlug = slugUtil.toSlug(request.getName());
         service.setSlug(slugUtil.createUniqueSlug(baseSlug, serviceRepository::existsBySlug));
@@ -92,7 +83,6 @@ public class ProfessionalServiceService {
         }
 
         serviceMapper.updateService(service, request);
-        service.setFeatures(serializeFeatures(request.getFeatures()));
 
         return toResponse(serviceRepository.save(service));
     }
@@ -107,7 +97,6 @@ public class ProfessionalServiceService {
 
     private ServiceResponse toResponse(ProfessionalService service) {
         ServiceResponse response = serviceMapper.toServiceResponse(service);
-        response.setFeatures(parseFeatures(service.getFeatures()));
         if (service.getImages() != null) {
             service.getImages().stream()
                     .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
@@ -118,25 +107,5 @@ public class ProfessionalServiceService {
             }
         }
         return response;
-    }
-
-    private String serializeFeatures(List<String> features) {
-        if (features == null || features.isEmpty()) return "[]";
-        try {
-            return objectMapper.writeValueAsString(features);
-        } catch (JsonProcessingException e) {
-            log.warn("Failed to serialize features", e);
-            return "[]";
-        }
-    }
-
-    private List<String> parseFeatures(String json) {
-        if (json == null || json.isBlank()) return Collections.emptyList();
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (JsonProcessingException e) {
-            log.warn("Failed to parse features JSON: {}", json, e);
-            return Collections.emptyList();
-        }
     }
 }

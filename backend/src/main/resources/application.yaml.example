@@ -120,9 +120,7 @@ google:
 
 app:
   admin:
-    # Tài khoản quản trị khởi tạo, CHỈ dùng khi database chưa có admin nào.
-    # Bỏ trống ADMIN_PASSWORD ở profile dev thì dùng mặc định "admin";
-    # ở profile khác (prod) app sẽ không khởi động cho tới khi set biến này.
+
     username: ${ADMIN_USERNAME:admin}
     password: ${ADMIN_PASSWORD:}
     email: ${ADMIN_EMAIL:admin@gmail.com}

@@ -19,65 +19,64 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    // NOTE: made static final
-    private static final String[] PUBLIC_ENDPOINTS = {
-            "/users",
-            "/session-carts/**",
-            "/auth/login", "/auth/google", "/auth/introspect", "/auth/logout", "/auth/refresh",
-            "/auth/password/reset/**",
-            "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
-            "/ws/**",
-            // Healthcheck của Docker/CD gọi endpoint này. Không permitAll thì
-            // nó trả 401 -> container luôn unhealthy dù app chạy bình thường.
-            // Chỉ mở health, các endpoint actuator khác vẫn cần đăng nhập.
-            "/actuator/health", "/actuator/health/**"
-    };
+        private static final String[] PUBLIC_ENDPOINTS = {
+                        "/users",
+                        "/session-carts/**",
+                        "/auth/login", "/auth/google", "/auth/introspect", "/auth/logout", "/auth/refresh",
+                        "/auth/password/reset/**",
+                        "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
+                        "/ws/**",
+                        "/actuator/health", "/actuator/health/**"
+        };
 
-    @Autowired
-    private CustomJwtDecoder customJwtDecoder;
+        @Autowired
+        private CustomJwtDecoder customJwtDecoder;
 
-    @Autowired
-    private RolePermissionAuthoritiesConverter authoritiesConverter; // NOTE: inject custom Redis-backed converter
-    @Autowired
-    private CorsConfig corsConfig;
+        @Autowired
+        private RolePermissionAuthoritiesConverter authoritiesConverter; // NOTE: inject custom Redis-backed converter
+        @Autowired
+        private CorsConfig corsConfig;
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .cors(cors -> cors.configurationSource(corsConfig.corsConfigurationSource()))
-                .authorizeHttpRequests(req -> req
-                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/products/**", "/categories/**", "/brands/**", "/posts/**",
-                                "/post-categories/**", "/product-images/**", "/banners/**", "/services/**",
-                                "/service-images/**", "/conversations/*/messages")
-                        .permitAll()
-                        .requestMatchers(HttpMethod.POST, "/products/search**", "/auth/forgot-password",
-                                "/auth/reset-password", "/conversations", "/payments/payos/webhook")
-                        .permitAll()
-                        .anyRequest().authenticated())
+        @Bean
+        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+                http
+                                .cors(cors -> cors.configurationSource(corsConfig.corsConfigurationSource()))
+                                .authorizeHttpRequests(req -> req
+                                                .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                                                .requestMatchers(HttpMethod.GET, "/products/**", "/categories/**",
+                                                                "/brands/**", "/posts/**",
+                                                                "/post-categories/**", "/product-images/**",
+                                                                "/banners/**", "/services/**",
+                                                                "/service-images/**", "/conversations/*/messages")
+                                                .permitAll()
+                                                .requestMatchers(HttpMethod.POST, "/products/search**",
+                                                                "/auth/forgot-password",
+                                                                "/auth/reset-password", "/conversations",
+                                                                "/payments/payos/webhook")
+                                                .permitAll()
+                                                .anyRequest().authenticated())
 
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt
-                                .decoder(customJwtDecoder)
-                                // NOTE: use bean-configured JwtAuthenticationConverter pulling roles +
-                                // permissions
-                                .jwtAuthenticationConverter(jwtAuthenticationConverter()))
-                        .authenticationEntryPoint(new JwtAuthenticationEntryPoint()))
-                .csrf(AbstractHttpConfigurer::disable);
+                                .oauth2ResourceServer(oauth2 -> oauth2
+                                                .jwt(jwt -> jwt
+                                                                .decoder(customJwtDecoder)
+                                                                .jwtAuthenticationConverter(
+                                                                                jwtAuthenticationConverter()))
+                                                .authenticationEntryPoint(new JwtAuthenticationEntryPoint()))
+                                .csrf(AbstractHttpConfigurer::disable);
 
-        return http.build();
-    }
+                return http.build();
+        }
 
-    @Bean
-    JwtAuthenticationConverter jwtAuthenticationConverter() {
-        // NOTE: custom converter already adds ROLE_ prefix and permissions from Redis
-        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-        converter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
-        return converter;
-    }
+        @Bean
+        JwtAuthenticationConverter jwtAuthenticationConverter() {
+                // NOTE: custom converter already adds ROLE_ prefix and permissions from Redis
+                JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+                converter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
+                return converter;
+        }
 
-    @Bean
-    PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(10);
-    }
+        @Bean
+        PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder(10);
+        }
 }

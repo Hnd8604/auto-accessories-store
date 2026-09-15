@@ -13,18 +13,6 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
-    /**
-     * Danh sách origin được phép, khai báo trong application-{profile}.yaml
-     * dưới khoá {@code app.cors.allowed-origins} (phân tách bằng dấu phẩy).
-     *
-     * <p>Trước đây giá trị này hardcode "http://localhost:3000" ngay trong
-     * source, nghĩa là muốn đổi domain phải sửa code rồi build lại image —
-     * và bản prod vẫn mang theo origin localhost. Đây là config, không phải
-     * code, nên nó thuộc về file profile.
-     *
-     * <p>Default chỉ là lưới an toàn cho unit test và trường hợp chạy không
-     * profile nào; dev/prod đều khai báo tường minh giá trị của mình.
-     */
     @Value("${app.cors.allowed-origins:http://localhost:3000}")
     private List<String> allowedOrigins;
 
@@ -38,8 +26,7 @@ public class CorsConfig {
 
         // Allowed methods
         configuration.setAllowedMethods(Arrays.asList(
-                "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
-        ));
+                "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
 
         // Allowed headers
         configuration.setAllowedHeaders(Arrays.asList("*"));

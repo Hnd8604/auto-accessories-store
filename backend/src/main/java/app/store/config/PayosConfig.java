@@ -9,8 +9,6 @@ import vn.payos.core.ClientOptions;
 
 @Configuration
 public class PayosConfig {
-
-    /** Mặc định của SDK là 60s cho mỗi lần thử, quá lâu cho một request của người dùng. */
     private static final int TIMEOUT_MS = 15_000;
 
     @Bean

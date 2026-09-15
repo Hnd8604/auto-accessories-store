@@ -16,10 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import app.store.dto.request.ServiceRequest;
 import app.store.dto.response.ServiceResponse;
@@ -40,8 +37,6 @@ public class ProfessionalServiceServiceTest {
     ServiceMapper serviceMapper;
     @Mock
     SlugUtil slugUtil;
-    @Spy
-    ObjectMapper objectMapper = new ObjectMapper(); // @Spy = object THẬT, không phải mock rỗng
     @InjectMocks
     ProfessionalServiceService professionalServiceService;
 
@@ -57,14 +52,13 @@ public class ProfessionalServiceServiceTest {
         service.setId(id);
         service.setName(name);
         service.setSlug("dan-phim-cach-nhiet");
-        service.setFeatures("[\"Bảo hành 5 năm\",\"Chống UV\"]");
         return service;
     }
 
     // ==================== getAllServices ====================
 
     @Test
-    void getAllServices_shouldParseFeatures_andPickPrimaryImage() {
+    void getAllServices_shouldPickPrimaryImage() {
         ProfessionalService service = buildService(1L, "Dán phim cách nhiệt");
         service.setImages(List.of(image("a.png", false), image("b.png", true)));
         ServiceResponse response = new ServiceResponse();
@@ -75,7 +69,6 @@ public class ProfessionalServiceServiceTest {
         var result = professionalServiceService.getAllServices();
 
         assertThat(result).hasSize(1);
-        assertThat(response.getFeatures()).containsExactly("Bảo hành 5 năm", "Chống UV");
         assertThat(response.getPrimaryImageUrl()).isEqualTo("b.png");
     }
 
@@ -91,21 +84,6 @@ public class ProfessionalServiceServiceTest {
         professionalServiceService.getAllServices();
 
         assertThat(response.getPrimaryImageUrl()).isEqualTo("a.png");
-    }
-
-    @Test
-    void getAllServices_shouldReturnEmptyFeatures_whenJsonInvalid() {
-        ProfessionalService service = buildService(1L, "Dán phim cách nhiệt");
-        service.setFeatures("{json hỏng}");
-        ServiceResponse response = new ServiceResponse();
-
-        when(serviceRepository.findAllWithImages()).thenReturn(List.of(service));
-        when(serviceMapper.toServiceResponse(service)).thenReturn(response);
-
-        professionalServiceService.getAllServices();
-
-        // JSON hỏng không được làm sập API, chỉ trả list rỗng
-        assertThat(response.getFeatures()).isEmpty();
     }
 
     // ==================== getServiceById / BySlug ====================
@@ -135,10 +113,9 @@ public class ProfessionalServiceServiceTest {
     // ==================== createService ====================
 
     @Test
-    void createService_shouldSerializeFeatures_andSetUniqueSlug() {
+    void createService_shouldSetUniqueSlug() {
         ServiceRequest request = ServiceRequest.builder()
                 .name("Dán phim cách nhiệt")
-                .features(List.of("Bảo hành 5 năm", "Chống UV"))
                 .build();
         ProfessionalService mapped = new ProfessionalService();
 
@@ -152,23 +129,6 @@ public class ProfessionalServiceServiceTest {
         professionalServiceService.createService(request);
 
         assertThat(mapped.getSlug()).isEqualTo("dan-phim-cach-nhiet-1");
-        assertThat(mapped.getFeatures()).contains("Bảo hành 5 năm").contains("Chống UV");
-    }
-
-    @Test
-    void createService_shouldStoreEmptyJsonArray_whenNoFeatures() {
-        ServiceRequest request = ServiceRequest.builder().name("Rửa xe").features(null).build();
-        ProfessionalService mapped = new ProfessionalService();
-
-        when(serviceMapper.toService(request)).thenReturn(mapped);
-        when(slugUtil.toSlug("Rửa xe")).thenReturn("rua-xe");
-        when(slugUtil.createUniqueSlug(eq("rua-xe"), any())).thenReturn("rua-xe");
-        when(serviceRepository.save(mapped)).thenReturn(mapped);
-        when(serviceMapper.toServiceResponse(mapped)).thenReturn(new ServiceResponse());
-
-        professionalServiceService.createService(request);
-
-        assertThat(mapped.getFeatures()).isEqualTo("[]");
     }
 
     // ==================== updateService ====================
@@ -177,7 +137,7 @@ public class ProfessionalServiceServiceTest {
     void updateService_shouldRegenerateSlug_whenNameChanged() {
         ProfessionalService service = buildService(1L, "Tên cũ");
         ServiceRequest request = ServiceRequest.builder()
-                .name("Tên mới").features(List.of("A")).build();
+                .name("Tên mới").build();
 
         when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(slugUtil.toSlug("Tên mới")).thenReturn("ten-moi");
@@ -195,7 +155,7 @@ public class ProfessionalServiceServiceTest {
     void updateService_shouldKeepSlug_whenNameUnchanged() {
         ProfessionalService service = buildService(1L, "Dán phim cách nhiệt");
         ServiceRequest request = ServiceRequest.builder()
-                .name("Dán phim cách nhiệt").features(List.of("A")).build();
+                .name("Dán phim cách nhiệt").build();
 
         when(serviceRepository.findById(1L)).thenReturn(Optional.of(service));
         when(serviceRepository.save(service)).thenReturn(service);

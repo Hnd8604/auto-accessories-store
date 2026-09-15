@@ -1,12 +1,8 @@
 package app.store.dto.request.user;
 
-
-import app.store.validator.DobConstraint;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-
-import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -22,6 +18,5 @@ public class UserCreationRequest {
     String email;
     String fullName;
     String phoneNumber;
-
 
 }

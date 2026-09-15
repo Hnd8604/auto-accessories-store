@@ -3,8 +3,6 @@ package app.store.dto.response;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
-import java.util.List;
-
 @Getter
 @Setter
 @Builder
@@ -16,7 +14,6 @@ public class ServiceResponse {
     String name;
     String shortDescription;
     String fullDescription;
-    List<String> features;
     String slug;
     Integer displayOrder;
     String primaryImageUrl;

@@ -22,9 +22,6 @@ public class ProfessionalService extends BaseEntityLong {
     @Column(columnDefinition = "TEXT")
     String fullDescription;
 
-    @Column(columnDefinition = "TEXT")
-    String features;
-
     String slug;
 
     Integer displayOrder;

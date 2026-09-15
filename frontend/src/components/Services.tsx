@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ImageIcon, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ImageIcon, ArrowRight } from "lucide-react";
 import { ServicesApi } from "@/features/services/api/services";
 
 export const Services = () => {
@@ -67,18 +67,6 @@ export const Services = () => {
                     <p className="text-sm text-muted-foreground leading-relaxed mb-3 line-clamp-2">
                       {service.shortDescription}
                     </p>
-                  )}
-
-                  {/* Highlights */}
-                  {service.features && service.features.length > 0 && (
-                    <ul className="space-y-1.5 mb-4">
-                      {service.features.slice(0, 4).map((feat, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                          <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                          <span>{feat}</span>
-                        </li>
-                      ))}
-                    </ul>
                   )}
 
                   <div className="mt-auto">

@@ -3,8 +3,6 @@ package app.store.dto.request;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
-import java.util.List;
-
 @Getter
 @Setter
 @Builder
@@ -15,6 +13,5 @@ public class ServiceRequest {
     String name;
     String shortDescription;
     String fullDescription;
-    List<String> features;
     Integer displayOrder;
 }

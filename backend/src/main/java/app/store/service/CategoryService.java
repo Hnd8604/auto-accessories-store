@@ -16,8 +16,6 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
@@ -35,6 +33,7 @@ public class CategoryService {
     BrandRepository brandRepository;
     BrandMapper brandMapper;
     SlugUtil slugUtil;
+
     @PreAuthorize("hasAuthority('CATEGORY_CREATE')")
     public CategoryResponse createCategory(CategoryRequest request) {
         Category category = categoryMapper.toCategory(request);
@@ -45,16 +44,19 @@ public class CategoryService {
         category.setSlug(uniqueSlug);
         return categoryMapper.toCategoryResponse(categoryRepository.save(category));
     }
+
     public CategoryResponse getCategoryById(Long categoryId) {
         return categoryRepository.findById(categoryId)
                 .map(categoryMapper::toCategoryResponse)
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_EXISTED));
     }
+
     public CategoryResponse getCategoryBySlug(String slug) {
         return categoryRepository.findBySlug(slug)
                 .map(categoryMapper::toCategoryResponse)
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_EXISTED));
     }
+
     public List<CategoryResponse> getAllCategories() {
         return categoryRepository.findAll()
                 .stream()
@@ -62,20 +64,20 @@ public class CategoryService {
                 .toList();
     }
 
-        public List<BrandResponse> getBrandsByCategory(Long categoryId) {
+    public List<BrandResponse> getBrandsByCategory(Long categoryId) {
         Category category = categoryRepository.findById(categoryId)
-            .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_EXISTED));
+                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_EXISTED));
 
         return brandRepository.findByCategoriesId(category.getId())
-            .stream()
-            .map(brandMapper::toBrandResponse)
-            .toList();
-        }
+                .stream()
+                .map(brandMapper::toBrandResponse)
+                .toList();
+    }
 
-        @PreAuthorize("hasAuthority('CATEGORY_UPDATE')")
-        public List<BrandResponse> updateCategoryBrands(Long categoryId, List<Long> brandIds) {
+    @PreAuthorize("hasAuthority('CATEGORY_UPDATE')")
+    public List<BrandResponse> updateCategoryBrands(Long categoryId, List<Long> brandIds) {
         Category category = categoryRepository.findById(categoryId)
-            .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_EXISTED));
+                .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_EXISTED));
 
         List<Brand> brands = brandIds == null ? List.of() : brandRepository.findAllById(brandIds);
         if (brandIds != null && brands.size() != brandIds.size()) {
@@ -86,10 +88,12 @@ public class CategoryService {
         category.setBrands(brandSet);
         Category saved = categoryRepository.save(category);
 
-        return saved.getBrands() == null ? List.of() : saved.getBrands().stream()
-            .map(brandMapper::toBrandResponse)
-            .toList();
-        }
+        return saved.getBrands() == null ? List.of()
+                : saved.getBrands().stream()
+                        .map(brandMapper::toBrandResponse)
+                        .toList();
+    }
+
     @PreAuthorize("hasAuthority('CATEGORY_UPDATE')")
     public CategoryResponse updateCategory(Long categoryId, CategoryRequest request) {
         Category category = categoryRepository.findById(categoryId)
@@ -98,13 +102,14 @@ public class CategoryService {
         // Cập nhật slug nếu tên thay đổi
         if (!category.getName().equals(request.getName())) {
             String baseSlug = slugUtil.toSlug(request.getName());
-            String uniqueSlug = slugUtil.createUniqueSlug(baseSlug, slug ->
-                    !slug.equals(category.getSlug()) && categoryRepository.existsBySlug(slug));
+            String uniqueSlug = slugUtil.createUniqueSlug(baseSlug,
+                    slug -> !slug.equals(category.getSlug()) && categoryRepository.existsBySlug(slug));
             category.setSlug(uniqueSlug);
         }
         categoryMapper.updateCategory(category, request);
         return categoryMapper.toCategoryResponse(categoryRepository.save(category));
     }
+
     @PreAuthorize("hasAuthority('CATEGORY_DELETE')")
     public void deleteCategory(Long categoryId) {
         Category category = categoryRepository.findById(categoryId)
