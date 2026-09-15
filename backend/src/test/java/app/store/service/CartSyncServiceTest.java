@@ -2,6 +2,8 @@ package app.store.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -18,7 +20,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import app.store.dto.request.CartItemRequest;
 import app.store.entity.Cart;
 import app.store.entity.User;
 import app.store.repository.CartRepository;
@@ -56,12 +57,11 @@ public class CartSyncServiceTest {
 
         cartSyncService.syncSessionCart(user, session);
 
-        ArgumentCaptor<CartItemRequest> captor = ArgumentCaptor.forClass(CartItemRequest.class);
-        verify(cartService, times(2)).addItemToCart(captor.capture());
-        assertThat(captor.getAllValues())
-                .allMatch(r -> r.cartId().equals(10L))
-                .extracting(CartItemRequest::productId)
-                .containsExactlyInAnyOrder(1L, 2L);
+        ArgumentCaptor<Long> productIds = ArgumentCaptor.forClass(Long.class);
+        verify(cartService, times(2)).addItem(eq(dbCart), productIds.capture(), anyInt());
+        assertThat(productIds.getAllValues()).containsExactlyInAnyOrder(1L, 2L);
+        verify(cartService).addItem(dbCart, 1L, 2);
+        verify(cartService).addItem(dbCart, 2L, 3);
 
         verify(session).removeAttribute("CART"); // tránh sync lặp lại ở lần đăng nhập sau
     }
@@ -72,7 +72,7 @@ public class CartSyncServiceTest {
 
         cartSyncService.syncSessionCart(buildUser(), session);
 
-        verify(cartService, never()).addItemToCart(any());
+        verify(cartService, never()).addItem(any(), any(), anyInt());
         verify(session, never()).removeAttribute(any());
     }
 
@@ -83,6 +83,6 @@ public class CartSyncServiceTest {
         cartSyncService.syncSessionCart(buildUser(), session);
 
         verify(cartRepository, never()).findByUserId(any());
-        verify(cartService, never()).addItemToCart(any());
+        verify(cartService, never()).addItem(any(), any(), anyInt());
     }
 }

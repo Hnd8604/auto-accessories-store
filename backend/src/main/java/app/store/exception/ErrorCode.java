@@ -69,7 +69,11 @@ public enum ErrorCode {
 
     // Professional Service
     SERVICE_NOT_EXISTED(7001, "Service not existed", HttpStatus.NOT_FOUND),
-    SERVICE_IMAGE_NOT_EXISTED(7002, "Service image not existed", HttpStatus.NOT_FOUND)
+    SERVICE_IMAGE_NOT_EXISTED(7002, "Service image not existed", HttpStatus.NOT_FOUND),
+
+    // Live chat
+    CONVERSATION_NOT_EXISTED(8001, "Conversation not existed", HttpStatus.NOT_FOUND),
+    CONVERSATION_CLOSED(8002, "Conversation is closed", HttpStatus.BAD_REQUEST)
     ;
 
     private ErrorCode(int code, String message, HttpStatusCode statusCode) {

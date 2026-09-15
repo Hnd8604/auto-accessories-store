@@ -14,12 +14,13 @@ public class ProductSpecification {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             // sản phẩm thì có tên hoặc description là được tìm thấy
-            if (req.keyword() != null) {
-                String pattern = "%" + req.keyword().toLowerCase() + "%";
+            // keyword rỗng/toàn khoảng trắng coi như không lọc
+            if (req.keyword() != null && !req.keyword().isBlank()) {
+                String pattern = "%" + req.keyword().trim().toLowerCase() + "%";
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("name")), pattern),
-                        cb.like(cb.lower(root.get("description")), pattern)
-                ));
+
+                        cb.like(cb.lower(root.get("description")), pattern)));
             }
 
             // danh mục phải đúng tên

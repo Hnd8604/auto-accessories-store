@@ -6,6 +6,7 @@ import { Send, X } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { InboxApi } from "../api/InboxApi";
 import { useStompChat } from "../hooks/useStompChat";
+import { useToast } from "@/hooks/use-toast";
 import type { Conversation, ChatMessage } from "../types";
 
 interface Props {
@@ -21,14 +22,24 @@ export function ChatWindow({ conversation, onClose, onMarkRead, onConversationCl
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const { toast } = useToast();
+
   const { send } = useStompChat({
     conversationId: conversation.id,
+    authenticated: true,
     onMessage: (msg) => {
       setMessages((prev) => {
         if (prev.find((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
       });
       scrollToBottom();
+    },
+    onError: (err) => {
+      toast({
+        title: "Không gửi được tin nhắn",
+        description: err.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -56,7 +67,7 @@ export function ChatWindow({ conversation, onClose, onMarkRead, onConversationCl
   function handleSend() {
     const text = input.trim();
     if (!text) return;
-    send({ conversationId: conversation.id, content: text, senderType: "ADMIN" });
+    send({ conversationId: conversation.id, content: text });
     setInput("");
   }
 

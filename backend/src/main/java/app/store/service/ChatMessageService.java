@@ -3,6 +3,7 @@ package app.store.service;
 import app.store.dto.request.SendChatMessageRequest;
 import app.store.dto.response.ChatMessageResponse;
 import app.store.entity.ChatMessage;
+import app.store.enums.SenderType;
 import app.store.repository.ChatMessageRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -23,10 +24,12 @@ public class ChatMessageService {
     SimpMessagingTemplate messagingTemplate;
 
     @Transactional
-    public ChatMessageResponse send(SendChatMessageRequest request) {
+    public ChatMessageResponse send(SendChatMessageRequest request, SenderType senderType) {
+        conversationService.getOpenConversation(request.conversationId());
+
         ChatMessage message = ChatMessage.builder()
                 .conversationId(request.conversationId())
-                .senderType(request.senderType())
+                .senderType(senderType.name())
                 .content(request.content())
                 .build();
         message = chatMessageRepository.save(message);
@@ -40,7 +43,7 @@ public class ChatMessageService {
         );
 
         // If message from customer, increment unread for admin
-        if ("CUSTOMER".equals(request.senderType())) {
+        if (senderType == SenderType.CUSTOMER) {
             conversationService.incrementUnread(request.conversationId(), request.content());
             // Notify admin panel of new message
             messagingTemplate.convertAndSend("/topic/admin/new-message", response);

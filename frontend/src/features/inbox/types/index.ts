@@ -17,8 +17,13 @@ export interface ChatMessage {
   createdAt: string;
 }
 
+// senderType do server suy ra từ phiên STOMP (có token admin hay không)
 export interface SendMessagePayload {
   conversationId: string;
   content: string;
-  senderType: "CUSTOMER" | "ADMIN";
+}
+
+export interface ChatError {
+  code: number;
+  message: string;
 }

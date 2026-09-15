@@ -1,15 +1,15 @@
 package app.store.service;
 
-import app.store.dto.request.CartItemRequest;
 import app.store.entity.Cart;
 import app.store.entity.User;
+import app.store.exception.AppException;
+import app.store.exception.ErrorCode;
 import app.store.repository.CartRepository;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -24,15 +24,11 @@ public class CartSyncService {
 
         if (sessionCart == null || sessionCart.isEmpty()) return;
 
-        Optional<Cart> dbCart = cartRepository.findByUserId(user.getId());
+        Cart dbCart = cartRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_EXISTED));
 
         for (var entry : sessionCart.entrySet()) {
-            Long productId = entry.getKey();
-            Integer quantity = entry.getValue();
-
-            CartService.addItemToCart(
-                    new CartItemRequest(dbCart.get().getId(), productId, quantity)
-            );
+            CartService.addItem(dbCart, entry.getKey(), entry.getValue());
         }
 
         // Xóa session cart để tránh sync lại

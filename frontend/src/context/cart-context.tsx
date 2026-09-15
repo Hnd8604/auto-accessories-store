@@ -163,11 +163,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
 
     // If user is logged in, add to user cart
-    const targetCartId = cartId || 0;
-    
     try {
       const response = await addItemMutation.mutateAsync({
-        cartId: targetCartId,
         productId,
         quantity,
       });

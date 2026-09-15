@@ -23,6 +23,8 @@ import org.springframework.data.domain.PageRequest;
 
 import app.store.dto.request.CreateConversationRequest;
 import app.store.entity.Conversation;
+import app.store.exception.AppException;
+import app.store.exception.ErrorCode;
 import app.store.repository.ConversationRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -75,8 +77,39 @@ public class ConversationServiceTest {
         when(conversationRepository.findById("missing")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> conversationService.getById("missing"))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Conversation not found");
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.CONVERSATION_NOT_EXISTED);
+    }
+
+    @Test
+    void getOpenConversation_shouldReturnConversation_whenOpen() {
+        Conversation conversation = buildConversation();
+        when(conversationRepository.findById("c1")).thenReturn(Optional.of(conversation));
+
+        assertThat(conversationService.getOpenConversation("c1")).isSameAs(conversation);
+    }
+
+    @Test
+    void getOpenConversation_shouldThrow_whenNotFound() {
+        when(conversationRepository.findById("missing")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> conversationService.getOpenConversation("missing"))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.CONVERSATION_NOT_EXISTED);
+    }
+
+    @Test
+    void getOpenConversation_shouldThrow_whenClosed() {
+        Conversation conversation = buildConversation();
+        conversation.setStatus("CLOSED");
+        when(conversationRepository.findById("c1")).thenReturn(Optional.of(conversation));
+
+        assertThatThrownBy(() -> conversationService.getOpenConversation("c1"))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.CONVERSATION_CLOSED);
     }
 
     @Test

@@ -20,7 +20,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -36,8 +35,7 @@ public class CartService {
     CartItemRepository cartItemRepository;
     CartItemMapper cartItemMapper;
     public CartResponse getMyCart() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Cart cart = cartRepository.findByUser_Username(authentication.getName())
+        Cart cart = cartRepository.findByUser_Username(currentUsername())
                 .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_EXISTED));
         return cartMapper.toCartResponse(cart);
     }
@@ -47,55 +45,76 @@ public class CartService {
                 .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_EXISTED));
         return cartMapper.toCartResponse(cart);
     }
-//@PreAuthorize("hasAuthority('CART_ADD_ITEM')")
-public CartItemResponse addItemToCart(CartItemRequest request) {
-    Cart cart = cartRepository.findById(request.cartId())
-            .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_EXISTED));
-    Product product = productRepository.findById(request.productId())
-            .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_EXISTED));
-
-    // Check if the product is already in the cart
-    CartItem cartItem = cart.getCartItems().stream()
-            .filter(item -> item.getProduct().getId().equals(product.getId()))
-            .findFirst()
-            .orElse(null);
-
-    if (cartItem != null) {
-        // If item exists, update the quantity
-        int newQuantity = cartItem.getQuantity() + request.quantity();
-        if (newQuantity <= 0 || newQuantity > product.getStockQuantity()) {
-            throw new IllegalArgumentException("Quantity is not valid");
-        }
-        cartItem.setQuantity(newQuantity);
-    } else {
-        // If item does not exist, create a new one
-        if (request.quantity() <= 0 || request.quantity() > product.getStockQuantity()) {
-            throw new IllegalArgumentException("Quantity is not valid");
-        }
-        cartItem = new CartItem(); // neu bang null thi tao moi
-        cartItem.setCart(cart);
-        cartItem.setProduct(product);
-        cartItem.setQuantity(request.quantity());
+    // Luôn thêm vào giỏ của user trong JWT, không nhận cartId từ client
+    public CartItemResponse addItemToCart(CartItemRequest request) {
+        Cart cart = cartRepository.findByUser_Username(currentUsername())
+                .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_EXISTED));
+        return addItem(cart, request.productId(), request.quantity());
     }
-    cartItemRepository.save(cartItem);
-    return cartItemMapper.toCartItemResponse(cartItem);
-}
+
+    // Dùng khi đã xác định được cart phía server (vd. gộp giỏ session lúc đăng nhập,
+    // khi SecurityContext chưa có user)
+    public CartItemResponse addItem(Cart cart, Long productId, int quantity) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_EXISTED));
+
+        // Check if the product is already in the cart
+        CartItem cartItem = cart.getCartItems().stream()
+                .filter(item -> item.getProduct().getId().equals(product.getId()))
+                .findFirst()
+                .orElse(null);
+
+        if (cartItem != null) {
+            // If item exists, update the quantity
+            int newQuantity = cartItem.getQuantity() + quantity;
+            if (newQuantity <= 0 || newQuantity > product.getStockQuantity()) {
+                throw new IllegalArgumentException("Quantity is not valid");
+            }
+            cartItem.setQuantity(newQuantity);
+        } else {
+            // If item does not exist, create a new one
+            if (quantity <= 0 || quantity > product.getStockQuantity()) {
+                throw new IllegalArgumentException("Quantity is not valid");
+            }
+            cartItem = new CartItem(); // neu bang null thi tao moi
+            cartItem.setCart(cart);
+            cartItem.setProduct(product);
+            cartItem.setQuantity(quantity);
+        }
+        cartItemRepository.save(cartItem);
+        return cartItemMapper.toCartItemResponse(cartItem);
+    }
+
     @PreAuthorize("hasAuthority('CART_REMOVE_ITEM')")
     public void removeItemFromCart(Long cartId, Long itemId) {
-        CartItem item = cartItemRepository.findById(itemId)
-                .orElseThrow(() -> new AppException(ErrorCode.CART_ITEM_NOT_EXISTED));
+        CartItem item = findMyCartItem(itemId);
 
         if (!item.getCart().getId().equals(cartId)) {
             throw new IllegalArgumentException("Item does not belong to cart " + cartId);
         }
         cartItemRepository.delete(item);
     }
+
     @PreAuthorize("hasAuthority('CART_UPDATE_ITEM')")
     public CartItemResponse updateItemInCart(Long itemId, CartItemUpdateRequest request) {
-        CartItem cartItem = cartItemRepository.findById(itemId)
-                .orElseThrow(() -> new AppException(ErrorCode.CART_ITEM_NOT_EXISTED));
+        CartItem cartItem = findMyCartItem(itemId);
+        if (request.quantity() > cartItem.getProduct().getStockQuantity()) {
+            throw new IllegalArgumentException("Quantity is not valid");
+        }
         cartItem.setQuantity(request.quantity());
         cartItemRepository.save(cartItem);
         return cartItemMapper.toCartItemResponse(cartItem);
+    }
+
+    // Item của giỏ người khác trả về như không tồn tại để không lộ ID hợp lệ
+    private CartItem findMyCartItem(Long itemId) {
+        String username = currentUsername();
+        return cartItemRepository.findById(itemId)
+                .filter(item -> username.equals(item.getCart().getUser().getUsername()))
+                .orElseThrow(() -> new AppException(ErrorCode.CART_ITEM_NOT_EXISTED));
+    }
+
+    private String currentUsername() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
     }
 }

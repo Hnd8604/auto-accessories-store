@@ -1,7 +1,7 @@
 import axios from "axios";
 import AuthHttpClient, { simpleHttp } from "@/services/axios";
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, API_BASE_URL } from "@/constants/config";
-import { UsersApi } from "@/features/users/api/users";
+import type { ApiResponse } from "@/types";
 import type {
   UserCreationRequest,
   UserResponse,
@@ -43,6 +43,8 @@ export const refreshCall = async (
 };
 
 export const http = new AuthHttpClient(refreshCall);
+
+export const refreshAccessToken = () => http.refreshAccessToken();
 
 export const AuthService = {
   async login(payload: AuthenticationRequest) {
@@ -90,8 +92,10 @@ export const AuthService = {
   },
 
   async register(payload: UserCreationRequest) {
-    // Use public API for user registration
-    return UsersApi.create(payload);
+    return simpleHttp.request<ApiResponse<UserResponse>>("/auth/register", {
+      method: "POST",
+      body: payload,
+    });
   },
 
   async logout() {

@@ -3,6 +3,8 @@ package app.store.service;
 import app.store.dto.request.CreateConversationRequest;
 import app.store.dto.response.ConversationResponse;
 import app.store.entity.Conversation;
+import app.store.exception.AppException;
+import app.store.exception.ErrorCode;
 import app.store.repository.ConversationRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -40,8 +42,17 @@ public class ConversationService {
 
     public ConversationResponse getById(String id) {
         Conversation c = conversationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Conversation not found: " + id));
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_EXISTED));
         return toResponse(c, null);
+    }
+
+    public Conversation getOpenConversation(String id) {
+        Conversation c = conversationRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_EXISTED));
+        if ("CLOSED".equals(c.getStatus())) {
+            throw new AppException(ErrorCode.CONVERSATION_CLOSED);
+        }
+        return c;
     }
 
     @Transactional

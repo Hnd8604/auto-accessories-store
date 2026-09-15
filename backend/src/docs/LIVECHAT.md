@@ -114,7 +114,7 @@ File: `src/main/java/app/store/entity/Conversation.java`
 | Cột | Kiểu | Mô tả |
 |-----|------|-------|
 | `id` | VARCHAR(36) PK | UUID tự sinh |
-| `conversation_id` | VARCHAR(36) NOT NULL | FK logic đến `conversations.id` |
+| `conversation_id` | VARCHAR(36) NOT NULL | FK `fk_chat_messages_conversation` đến `conversations.id` (migration V6) |
 | `sender_type` | VARCHAR(20) | `CUSTOMER` / `ADMIN` |
 | `content` | VARCHAR(2000) NOT NULL | Nội dung tin nhắn |
 | `created_at` | DATETIME | JPA auditing tự điền |
@@ -127,32 +127,30 @@ File: `src/main/java/app/store/entity/ChatMessage.java`
 
 File: `src/main/java/app/store/config/WebSocketConfig.java`
 
-```java
-@Configuration
-@EnableWebSocketMessageBroker
-public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+- Broker: `enableSimpleBroker("/topic", "/queue")`, prefix gửi `/app`
+- Endpoint `/ws` (SockJS), origin giới hạn theo `app.cors.allowed-origins` (dùng chung với CORS REST)
+- Client inbound channel đi qua `StompAuthChannelInterceptor`
 
-    @Override
-    public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/topic");      // prefix kênh subscribe
-        registry.setApplicationDestinationPrefixes("/app"); // prefix kênh gửi
-    }
+#### Xác thực & phân quyền STOMP
 
-    @Override
-    public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
-                .withSockJS(); // SockJS fallback tự động
-    }
-}
-```
+File: `src/main/java/app/store/config/StompAuthChannelInterceptor.java`
 
-**STOMP topics được sử dụng:**
+| Frame | Quy tắc |
+|-------|---------|
+| `CONNECT` có header `Authorization: Bearer <accessToken>` | Decode bằng `CustomJwtDecoder` (có introspect) → user là `JwtAuthenticationToken`. Token sai/hết hạn → ERROR frame, đóng kết nối |
+| `CONNECT` không có header | User là guest (`guest-<uuid>`) — khách chat không cần đăng nhập |
+| `SUBSCRIBE /topic/admin/**` | Chỉ `ROLE_ADMIN` |
+| `SUBSCRIBE /topic/conversation/{id}`, `/user/queue/errors` | Mọi kết nối |
+| `SUBSCRIBE` destination khác | Bị chặn |
+| `SEND` | Chỉ `/app/**`; client không được gửi thẳng tới `/topic`, `/queue` |
 
-| Topic | Mô tả |
+**STOMP destinations được sử dụng:**
+
+| Destination | Mô tả |
 |-------|-------|
 | `/topic/conversation/{id}` | Tin nhắn mới trong 1 hội thoại cụ thể |
-| `/topic/admin/new-message` | Thông báo cho admin panel khi có tin từ khách |
+| `/topic/admin/new-message` | Thông báo cho admin panel khi có tin từ khách (chỉ admin) |
+| `/user/queue/errors` | Lỗi khi gửi tin, chỉ gửi về session đã gửi (`{ code, message }`) |
 
 ### 3.4 API Endpoints
 
@@ -200,10 +198,19 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 ```json
 {
   "conversationId": "550e8400-e29b-41d4-a716-446655440000",
-  "content": "Cho hỏi giá sản phẩm X?",
-  "senderType": "CUSTOMER"
+  "content": "Cho hỏi giá sản phẩm X?"
 }
 ```
+
+`senderType` không nhận từ client: phiên STOMP có `ROLE_ADMIN` → `ADMIN`, còn lại → `CUSTOMER`.
+
+**Lỗi trả về `/user/queue/errors`:**
+
+| code | Khi nào |
+|------|---------|
+| `1001` | Payload không hợp lệ (thiếu `conversationId`, `content` rỗng hoặc quá 2000 ký tự) |
+| `8001` | Conversation không tồn tại |
+| `8002` | Conversation đã `CLOSED` |
 
 **Broadcast nhận được tại `/topic/conversation/{id}`:**
 ```json
@@ -226,6 +233,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 | `create(request)` | Tạo conversation mới channel=WEB |
 | `getAll(page, size)` | Phân trang, sắp xếp theo `lastMessageAt` DESC |
 | `getById(id)` | Lấy 1 conversation theo id |
+| `getOpenConversation(id)` | Lấy conversation đang OPEN; ném `CONVERSATION_NOT_EXISTED` / `CONVERSATION_CLOSED` |
 | `markAsRead(id)` | Reset `unreadCount = 0` |
 | `close(id)` | Đặt `status = CLOSED` |
 | `incrementUnread(id, lastMsg)` | Tăng `unreadCount + 1`, cập nhật `lastMessageAt` |
@@ -237,7 +245,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
 | Method | Mô tả |
 |--------|-------|
-| `send(request)` | Lưu message → broadcast STOMP → nếu CUSTOMER thì tăng unread và notify admin |
+| `send(request, senderType)` | Kiểm tra conversation OPEN → lưu message → broadcast STOMP → nếu CUSTOMER thì tăng unread và notify admin |
 | `getMessages(conversationId, page, size)` | Lịch sử tin nhắn phân trang |
 
 ### 3.6 Security
@@ -248,7 +256,7 @@ Cập nhật `SecurityConfig.java`:
 // Public endpoints — thêm /ws/** và POST /conversations
 private static final String[] PUBLIC_ENDPOINTS = {
     ...,
-    "/ws/**"  // WebSocket handshake
+    "/ws/**"  // WebSocket handshake — SockJS không gửi được header Authorization, xác thực ở STOMP CONNECT
 };
 
 // POST public
@@ -315,12 +323,17 @@ const { send } = useStompChat({
   conversationId: "conv-uuid",  // subscribe topic của conversation này
   onMessage: (msg) => { /* nhận tin nhắn mới */ },
   onAdminNewMessage: (msg) => { /* admin nhận notify có conversation mới */ },
+  onError: (err) => { /* lỗi từ /user/queue/errors: { code, message } */ },
+  authenticated: true, // gửi access token khi CONNECT — chỉ dùng ở Inbox admin
   enabled: true,
 });
 
 // Gửi tin nhắn
-send({ conversationId, content: "Xin chào!", senderType: "CUSTOMER" });
+send({ conversationId, content: "Xin chào!" });
 ```
+
+- `ChatWidget` (khách) không bật `authenticated` nên luôn kết nối như guest, kể cả khi đang đăng nhập bằng tài khoản admin
+- Token đọc trong `beforeConnect`, nên mỗi lần reconnect sẽ dùng token mới nhất trong localStorage
 
 - Tự động kết nối lại sau 5 giây nếu mất kết nối (`reconnectDelay: 5000`)
 - Dùng SockJS làm transport layer (fallback cho HTTP long-polling)
@@ -344,6 +357,7 @@ Chat bình thường — gửi/nhận real-time
 **Lưu trữ session:**
 - `localStorage["chat_conversation_id"]` — ID hội thoại, giữ khi reload trang
 - `localStorage["chat_guest_name"]` — tên khách
+- Nhận lỗi `8001`/`8002` khi gửi → xoá `chat_conversation_id`, quay về form nhập tên để mở hội thoại mới
 
 ### 4.5 Inbox Admin
 
@@ -375,11 +389,11 @@ Truy cập tại: `/admin/inbox` (mục "Tin nhắn" trong sidebar)
 
 ```
 1. Khách nhập tin nhắn → nhấn Enter
-2. ChatWidget.tsx gọi send({ conversationId, content, senderType: "CUSTOMER" })
-3. STOMP publish đến /app/chat.send
-4. ChatController.sendMessage() nhận
+2. ChatWidget.tsx gọi send({ conversationId, content })
+3. STOMP publish đến /app/chat.send (phiên guest)
+4. ChatController.sendMessage() nhận, Principal không có ROLE_ADMIN → senderType = CUSTOMER
 5. ChatMessageService.send():
-   a. Lưu ChatMessage vào MySQL
+   a. Kiểm tra conversation tồn tại và OPEN, rồi lưu ChatMessage
    b. broadcast response đến /topic/conversation/{id}
    c. conversationService.incrementUnread() → unreadCount++, lastMessageAt = now
    d. broadcast đến /topic/admin/new-message
@@ -392,11 +406,11 @@ Truy cập tại: `/admin/inbox` (mục "Tin nhắn" trong sidebar)
 
 ```
 1. Admin nhập tin nhắn → nhấn Gửi
-2. ChatWindow.tsx gọi send({ conversationId, content, senderType: "ADMIN" })
-3. STOMP publish đến /app/chat.send
-4. ChatController.sendMessage() nhận
+2. ChatWindow.tsx gọi send({ conversationId, content })
+3. STOMP publish đến /app/chat.send (phiên đã CONNECT bằng access token admin)
+4. ChatController.sendMessage() nhận, Principal có ROLE_ADMIN → senderType = ADMIN
 5. ChatMessageService.send():
-   a. Lưu ChatMessage vào MySQL
+   a. Kiểm tra conversation tồn tại và OPEN, rồi lưu ChatMessage
    b. broadcast response đến /topic/conversation/{id}
    c. conversationService.updateLastMessage() → lastMessageAt = now
 6. ChatWindow.tsx nhận lại → hiển thị (với style bong bóng phải)

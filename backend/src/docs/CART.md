@@ -162,9 +162,12 @@ File: `src/main/java/app/store/service/CartService.java`
 |--------|------|-------|
 | `getMyCart()` | User | Lấy giỏ của user hiện tại (theo username trong token) |
 | `getCartById(cartId)` | `CART_GET_BY_ID` | Lấy giỏ theo id |
-| `addItemToCart(request)` | — | Thêm sản phẩm: nếu đã có thì cộng dồn, chưa có thì tạo `CartItem`. **Kiểm tra tồn kho** (`quantity <= stockQuantity`) |
-| `removeItemFromCart(cartId, itemId)` | `CART_REMOVE_ITEM` | Xoá item, kiểm tra item thuộc đúng giỏ |
-| `updateItemInCart(itemId, request)` | `CART_UPDATE_ITEM` | Cập nhật số lượng item |
+| `addItemToCart(request)` | User | Thêm sản phẩm vào giỏ của user hiện tại (theo username trong token), gọi `addItem` |
+| `addItem(cart, productId, quantity)` | — | Dùng nội bộ: nếu đã có thì cộng dồn, chưa có thì tạo `CartItem`. **Kiểm tra tồn kho** (`quantity <= stockQuantity`) |
+| `removeItemFromCart(cartId, itemId)` | `CART_REMOVE_ITEM` | Xoá item; item phải thuộc giỏ của user hiện tại và đúng `cartId` |
+| `updateItemInCart(itemId, request)` | `CART_UPDATE_ITEM` | Cập nhật số lượng; item phải thuộc giỏ của user hiện tại, kiểm tra tồn kho |
+
+Item thuộc giỏ của user khác được trả về `CART_ITEM_NOT_EXISTED` (không lộ là ID tồn tại).
 
 ### 4.3 API Endpoints
 
@@ -174,7 +177,7 @@ File: `src/main/java/app/store/controller/CartController.java` — base path `/c
 |--------|-----|-------|
 | `GET` | `/carts/my-cart` | Lấy giỏ của user hiện tại |
 | `GET` | `/carts/{cartId}` | Lấy giỏ theo id (owner/admin) |
-| `POST` | `/carts/items` | Thêm sản phẩm vào giỏ (`CartItemRequest`: cartId, productId, quantity) |
+| `POST` | `/carts/items` | Thêm sản phẩm vào giỏ của user hiện tại (`CartItemRequest`: productId, quantity) |
 | `DELETE` | `/carts/{cartId}/items/{itemId}` | Xoá sản phẩm khỏi giỏ |
 | `PUT` | `/carts/items/{itemId}` | Cập nhật số lượng (`CartItemUpdateRequest`: quantity) |
 
@@ -204,7 +207,7 @@ Khi user đăng nhập, `AuthenticationService.login()` gọi `cartSyncService.s
 2. Nếu rỗng → return (không làm gì)
 3. Lấy giỏ DB của user (cartRepository.findByUserId)
 4. Duyệt từng (productId, quantity) trong giỏ tạm:
-      CartService.addItemToCart(cartId, productId, quantity)   // cộng dồn vào giỏ DB
+      CartService.addItem(cart, productId, quantity)           // cộng dồn vào giỏ DB
 5. Xoá giỏ tạm: session.removeAttribute("CART")               // tránh sync lại
 ```
 
@@ -224,7 +227,7 @@ Kết quả: mọi sản phẩm khách chọn lúc chưa đăng nhập đều ch
 5. Guest đăng nhập → AuthenticationService.login()
 6. CartSyncService.syncSessionCart():
    a. đọc { 12: 1, 45: 1 }
-   b. addItemToCart vào giỏ DB của user
+   b. addItem vào giỏ DB của user
    c. removeAttribute("CART")
 7. FE gọi GET /carts/my-cart → thấy đủ #12, #45 trong giỏ chính thức
 ```
@@ -232,8 +235,8 @@ Kết quả: mọi sản phẩm khách chọn lúc chưa đăng nhập đều ch
 ### Luồng user đã đăng nhập
 
 ```
-1. FE → POST /carts/items { cartId, productId, quantity }
-2. CartService.addItemToCart():
+1. FE → POST /carts/items { productId, quantity }
+2. CartService.addItemToCart() lấy giỏ theo username trong token, rồi addItem():
    - sản phẩm đã có trong giỏ → cộng dồn quantity
    - chưa có → tạo CartItem mới
    - kiểm tra tồn kho (stockQuantity)

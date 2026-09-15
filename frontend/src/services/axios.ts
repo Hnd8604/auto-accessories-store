@@ -18,8 +18,8 @@ type RefreshFunction = (
 
 class AuthHttpClient {
   private axiosInstance: AxiosInstance;
-  private isRefreshing: boolean = false;
-  private pendingQueue: Array<(token: string | null) => void> = [];
+  // các lời gọi refresh đồng thời dùng chung một promise, chỉ gọi /auth/refresh một lần
+  private refreshPromise: Promise<string | null> | null = null;
   private doRefresh: RefreshFunction;
 
   constructor(refreshFn: RefreshFunction) {
@@ -62,7 +62,12 @@ class AuthHttpClient {
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
 
-          const newToken = await this.refreshTokenIfNeeded();
+          // request này gửi token cũ nhưng trong lúc chờ đã có nơi khác refresh xong → dùng luôn token mới
+          const currentToken = this.getAccessToken();
+          const newToken =
+            currentToken && originalRequest.headers.Authorization !== `Bearer ${currentToken}`
+              ? currentToken
+              : await this.refreshAccessToken();
           if (newToken) {
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
             return this.axiosInstance(originalRequest);
@@ -100,41 +105,32 @@ class AuthHttpClient {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
   }
 
-  private async refreshTokenIfNeeded(): Promise<string | null> {
-    const currentToken = this.getAccessToken();
-    if (currentToken) return currentToken;
-
-    if (this.isRefreshing) {
-      return new Promise<string | null>((resolve) =>
-        this.pendingQueue.push(resolve)
-      );
+  /**
+   * Luôn đổi refresh token lấy access token mới (không trả lại token đang lưu, vì nó có thể đã hết hạn).
+   * Trả về null và xoá token khi không refresh được.
+   */
+  refreshAccessToken(): Promise<string | null> {
+    if (!this.refreshPromise) {
+      this.refreshPromise = this.refreshTokens().finally(() => {
+        this.refreshPromise = null;
+      });
     }
-
-    this.isRefreshing = true;
-    try {
-      const refreshToken = this.getRefreshToken();
-      if (!refreshToken) {
-        this.clearTokens();
-        this.flushQueue(null);
-        return null;
-      }
-      const res = await this.doRefresh(refreshToken);
-      if (res?.accessToken) {
-        this.setTokens(res.accessToken, res.refreshToken);
-        this.flushQueue(res.accessToken);
-        return res.accessToken;
-      }
-      this.clearTokens();
-      this.flushQueue(null);
-      return null;
-    } finally {
-      this.isRefreshing = false;
-    }
+    return this.refreshPromise;
   }
 
-  private flushQueue(token: string | null) {
-    this.pendingQueue.forEach((resolve) => resolve(token));
-    this.pendingQueue = [];
+  private async refreshTokens(): Promise<string | null> {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      this.clearTokens();
+      return null;
+    }
+    const res = await this.doRefresh(refreshToken);
+    if (res?.accessToken) {
+      this.setTokens(res.accessToken, res.refreshToken);
+      return res.accessToken;
+    }
+    this.clearTokens();
+    return null;
   }
 
   async request<T = unknown>(
