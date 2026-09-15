@@ -29,19 +29,7 @@ public class ProfessionalServiceService {
     @Transactional(readOnly = true)
     public List<ServiceResponse> getAllServices() {
         return serviceRepository.findAllWithImages().stream()
-                .map(service -> {
-                    ServiceResponse response = serviceMapper.toServiceResponse(service);
-                    if (service.getImages() != null) {
-                        service.getImages().stream()
-                                .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
-                                .findFirst()
-                                .ifPresent(img -> response.setPrimaryImageUrl(img.getImageUrl()));
-                        if (response.getPrimaryImageUrl() == null && !service.getImages().isEmpty()) {
-                            response.setPrimaryImageUrl(service.getImages().get(0).getImageUrl());
-                        }
-                    }
-                    return response;
-                })
+                .map(serviceMapper::toServiceResponse)
                 .toList();
     }
 
@@ -49,14 +37,14 @@ public class ProfessionalServiceService {
     public ServiceResponse getServiceById(Long id) {
         ProfessionalService service = serviceRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.SERVICE_NOT_EXISTED));
-        return toResponse(service);
+        return serviceMapper.toServiceResponse(service);
     }
 
     @Transactional(readOnly = true)
     public ServiceResponse getServiceBySlug(String slug) {
         ProfessionalService service = serviceRepository.findBySlug(slug)
                 .orElseThrow(() -> new AppException(ErrorCode.SERVICE_NOT_EXISTED));
-        return toResponse(service);
+        return serviceMapper.toServiceResponse(service);
     }
 
     @PreAuthorize("hasAuthority('SERVICE_CREATE')")
@@ -66,7 +54,7 @@ public class ProfessionalServiceService {
         String baseSlug = slugUtil.toSlug(request.getName());
         service.setSlug(slugUtil.createUniqueSlug(baseSlug, serviceRepository::existsBySlug));
 
-        return toResponse(serviceRepository.save(service));
+        return serviceMapper.toServiceResponse(serviceRepository.save(service));
     }
 
     @Transactional
@@ -84,7 +72,7 @@ public class ProfessionalServiceService {
 
         serviceMapper.updateService(service, request);
 
-        return toResponse(serviceRepository.save(service));
+        return serviceMapper.toServiceResponse(serviceRepository.save(service));
     }
 
     @Transactional
@@ -93,19 +81,5 @@ public class ProfessionalServiceService {
         ProfessionalService service = serviceRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.SERVICE_NOT_EXISTED));
         serviceRepository.delete(service);
-    }
-
-    private ServiceResponse toResponse(ProfessionalService service) {
-        ServiceResponse response = serviceMapper.toServiceResponse(service);
-        if (service.getImages() != null) {
-            service.getImages().stream()
-                    .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
-                    .findFirst()
-                    .ifPresent(img -> response.setPrimaryImageUrl(img.getImageUrl()));
-            if (response.getPrimaryImageUrl() == null && !service.getImages().isEmpty()) {
-                response.setPrimaryImageUrl(service.getImages().get(0).getImageUrl());
-            }
-        }
-        return response;
     }
 }
