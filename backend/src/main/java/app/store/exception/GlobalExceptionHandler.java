@@ -23,11 +23,11 @@ public class GlobalExceptionHandler {
     private static final String MIN_ATTRIBUTE = "min";
 
     @ExceptionHandler(value = RuntimeException.class)
-    ResponseEntity<ApiResponse> handlingRuntimeException(RuntimeException exception) {
-        ApiResponse apiResponse = new ApiResponse();
-
-        apiResponse.setCode(ErrorCode.UNCATEGORIZED_EXCEPTION.getCode());
-        apiResponse.setMessage(exception.getMessage());
+    ResponseEntity<ApiResponse<?>> handlingRuntimeException(RuntimeException exception) {
+        ApiResponse<?> apiResponse = ApiResponse.builder()
+                .code(ErrorCode.UNCATEGORIZED_EXCEPTION.getCode())
+                .message(exception.getMessage())
+                .build();
 
         return badRequest().body(apiResponse);
 
@@ -35,52 +35,54 @@ public class GlobalExceptionHandler {
 
     // lỗi hạ tầng như redis, database, ...
     @ExceptionHandler(value = { DataAccessException.class, TransactionException.class })
-    ResponseEntity<ApiResponse> handlingInfrastructureException(RuntimeException exception) {
+    ResponseEntity<ApiResponse<?>> handlingInfrastructureException(RuntimeException exception) {
         ErrorCode errorCode = ErrorCode.UNCATEGORIZED_EXCEPTION;
         log.error("Infrastructure failure, returning {}", errorCode.getStatusCode(), exception);
 
-        ApiResponse apiResponse = new ApiResponse();
-        apiResponse.setCode(errorCode.getCode());
-        apiResponse.setMessage(errorCode.getMessage());
+        ApiResponse<?> apiResponse = ApiResponse.builder()
+                .code(errorCode.getCode())
+                .message(errorCode.getMessage())
+                .build();
 
         return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
     }
 
     @ExceptionHandler(value = AppException.class)
-    ResponseEntity<ApiResponse> handlingAppException(AppException exception) {
+    ResponseEntity<ApiResponse<?>> handlingAppException(AppException exception) {
         ErrorCode errorCode = exception.getErrorCode();
 
-        ApiResponse apiResponse = new ApiResponse();
-        apiResponse.setCode(errorCode.getCode());
-        apiResponse.setMessage(exception.getMessage());
+        ApiResponse<?> apiResponse = ApiResponse.builder()
+                .code(errorCode.getCode())
+                .message(exception.getMessage())
+                .build();
 
         return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
     }
 
     @ExceptionHandler(value = AccessDeniedException.class)
-    ResponseEntity<ApiResponse> handlingAccessDeniedException(AccessDeniedException exception) {
-        ApiResponse apiResponse = new ApiResponse();
-
-        apiResponse.setCode(ErrorCode.UNAUTHORIZED.getCode());
-        apiResponse.setMessage(ErrorCode.UNAUTHORIZED.getMessage());
+    ResponseEntity<ApiResponse<?>> handlingAccessDeniedException(AccessDeniedException exception) {
+        ApiResponse<?> apiResponse = ApiResponse.builder()
+                .code(ErrorCode.UNAUTHORIZED.getCode())
+                .message(ErrorCode.UNAUTHORIZED.getMessage())
+                .build();
 
         return ResponseEntity.status(ErrorCode.UNAUTHORIZED.getStatusCode()).body(apiResponse);
     }
 
     @ExceptionHandler(value = IllegalArgumentException.class)
-    ResponseEntity<ApiResponse> handlingIllegalArgumentException(IllegalArgumentException exception) {
+    ResponseEntity<ApiResponse<?>> handlingIllegalArgumentException(IllegalArgumentException exception) {
         ErrorCode errorCode = ErrorCode.INVALID_ARGUMENT;
-        ApiResponse apiResponse = new ApiResponse();
-
-        apiResponse.setCode(errorCode.getCode());
-        // Use the exception's message to provide specific details
-        apiResponse.setMessage(errorCode.getMessage().replace("{message}", exception.getMessage()));
+        ApiResponse<?> apiResponse = ApiResponse.builder()
+                .code(errorCode.getCode())
+                // Use the exception's message to provide specific details
+                .message(errorCode.getMessage().replace("{message}", exception.getMessage()))
+                .build();
 
         return ResponseEntity.status(ErrorCode.INVALID_ARGUMENT.getStatusCode()).body(apiResponse);
     }
 
     @ExceptionHandler(value = MethodArgumentNotValidException.class)
-    ResponseEntity<ApiResponse> handlingValidation(MethodArgumentNotValidException exception) {
+    ResponseEntity<ApiResponse<?>> handlingValidation(MethodArgumentNotValidException exception) {
         String enumKey = exception.getFieldError().getDefaultMessage();
 
         ErrorCode errorCode = ErrorCode.INVALID_KEY;
@@ -99,11 +101,11 @@ public class GlobalExceptionHandler {
 
         }
 
-        ApiResponse apiResponse = new ApiResponse();
-
-        apiResponse.setCode(errorCode.getCode());
-        apiResponse.setMessage(Objects.nonNull(attributes) ? mapAttribute(errorCode.getMessage(), attributes)
-                : errorCode.getMessage());
+        ApiResponse<?> apiResponse = ApiResponse.builder()
+                .code(errorCode.getCode())
+                .message(Objects.nonNull(attributes) ? mapAttribute(errorCode.getMessage(), attributes)
+                        : errorCode.getMessage())
+                .build();
 
         return ResponseEntity.status(errorCode.getStatusCode())
                 .body(apiResponse);

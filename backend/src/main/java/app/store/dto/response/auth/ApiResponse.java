@@ -2,19 +2,19 @@ package app.store.dto.response.auth;
 
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import lombok.Builder;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
-@FieldDefaults(level = AccessLevel.PRIVATE)
 @JsonInclude(JsonInclude.Include.NON_NULL) // Exclude null fields from JSON serialization
-public class ApiResponse<T> {
-    @Builder.Default
-    int code = 1000;
-    String message;
-    T result;
+public record ApiResponse<T>(
+        int code,
+        String message,
+        T result
+) {
+    public ApiResponse {
+        // builder không truyền code thì int mặc định là 0 -> dùng mã thành công 1000
+        if (code == 0) {
+            code = 1000;
+        }
+    }
 }
