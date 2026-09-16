@@ -127,10 +127,10 @@ public class UserServiceTest {
     void getMyInfo_shouldReadUsernameFromSecurityContext() {
         User user = buildUser();
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("john", null, List.of()));
+                new UsernamePasswordAuthenticationToken("u1", null, List.of()));
         UserResponse expected = UserResponse.builder().build();
 
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
         when(userMapper.toUserResponse(user)).thenReturn(expected);
 
         assertThat(userService.getMyInfo()).isSameAs(expected);
@@ -139,9 +139,9 @@ public class UserServiceTest {
     @Test
     void getMyInfo_shouldThrow_whenUserNotFound() {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("ghost", null, List.of()));
+                new UsernamePasswordAuthenticationToken("ghost-id", null, List.of()));
 
-        when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
+        when(userRepository.findById("ghost-id")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.getMyInfo())
                 .isInstanceOf(AppException.class)

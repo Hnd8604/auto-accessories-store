@@ -9,6 +9,7 @@ import app.store.mapper.PostMapper;
 import app.store.repository.PostCategoryRepository;
 import app.store.repository.PostRepository;
 import app.store.repository.UserRepository;
+import app.store.utils.SecurityUtils;
 import app.store.utils.SlugUtil;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +20,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,7 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.springframework.security.core.context.SecurityContextHolder.getContext;
+
 
 @Service
 @RequiredArgsConstructor
@@ -46,11 +45,10 @@ public class PostService {
     @PreAuthorize("hasAuthority('POST_CREATE')")
     public PostResponse createPost(MultipartFile file, PostRequest request) {
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String authorName = authentication.getName(); // Lấy ID từ JWT token
+        String authorId = SecurityUtils.currentUserId();
         // Tìm tác giả
-        User author = userRepository.findByUsername(authorName)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy tác giả với ID: " + authorName));
+        User author = userRepository.findById(authorId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tác giả với ID: " + authorId));
 
         // Tìm danh mục nếu có
         PostCategory postCategory = null;

@@ -14,13 +14,13 @@ import app.store.mapper.CartMapper;
 import app.store.repository.CartItemRepository;
 import app.store.repository.CartRepository;
 import app.store.repository.ProductRepository;
+import app.store.utils.SecurityUtils;
 import com.nimbusds.jose.JOSEException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
@@ -37,7 +37,7 @@ public class CartService {
     CartItemMapper cartItemMapper;
 
     public CartResponse getMyCart() {
-        Cart cart = cartRepository.findByUser_Username(currentUsername())
+        Cart cart = cartRepository.findByUserId(SecurityUtils.currentUserId())
                 .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_EXISTED));
         return cartMapper.toCartResponse(cart);
     }
@@ -51,7 +51,7 @@ public class CartService {
 
     // Luôn thêm vào giỏ của user trong JWT, không nhận cartId từ client
     public CartItemResponse addItemToCart(CartItemRequest request) {
-        Cart cart = cartRepository.findByUser_Username(currentUsername())
+        Cart cart = cartRepository.findByUserId(SecurityUtils.currentUserId())
                 .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_EXISTED));
         return addItem(cart, request.productId(), request.quantity());
     }
@@ -156,13 +156,9 @@ public class CartService {
 
     // Item của giỏ người khác trả về như không tồn tại để không lộ ID hợp lệ
     private CartItem findMyCartItem(Long itemId) {
-        String username = currentUsername();
+        String userId = SecurityUtils.currentUserId();
         return cartItemRepository.findById(itemId)
-                .filter(item -> username.equals(item.getCart().getUser().getUsername()))
+                .filter(item -> userId.equals(item.getCart().getUser().getId()))
                 .orElseThrow(() -> new AppException(ErrorCode.CART_ITEM_NOT_EXISTED));
-    }
-
-    private String currentUsername() {
-        return SecurityContextHolder.getContext().getAuthentication().getName();
     }
 }

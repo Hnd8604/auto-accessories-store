@@ -66,7 +66,7 @@ public class OrderServiceTest {
     @InjectMocks
     OrderService orderService;
 
-    private static final String OWNER = "alice";
+    private static final String OWNER = "u1"; // user.id — principal name là sub = user.id
 
     @BeforeEach
     void setUp() {
@@ -78,9 +78,9 @@ public class OrderServiceTest {
         SecurityContextHolder.clearContext();
     }
 
-    private static void authenticateAs(String username, String... authorities) {
+    private static void authenticateAs(String userId, String... authorities) {
         SecurityContextHolder.getContext()
-                .setAuthentication(new TestingAuthenticationToken(username, null, authorities));
+                .setAuthentication(new TestingAuthenticationToken(userId, null, authorities));
     }
 
     private User buildUser() {
@@ -114,7 +114,7 @@ public class OrderServiceTest {
                 .orderDetails(List.of(detailRequest)).build();
 
         when(orderMapper.createOrder(request)).thenReturn(new Order());
-        when(userRepository.findByUsername(OWNER)).thenReturn(Optional.of(user));
+        when(userRepository.findById(OWNER)).thenReturn(Optional.of(user));
         when(paymentService.generateOrderCode()).thenReturn("DH123");
         when(cartRepository.findByUserId("u1")).thenReturn(Optional.of(cart));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
@@ -148,7 +148,7 @@ public class OrderServiceTest {
                 .build();
 
         when(orderMapper.createOrder(request)).thenReturn(new Order());
-        when(userRepository.findByUsername(OWNER)).thenReturn(Optional.of(user));
+        when(userRepository.findById(OWNER)).thenReturn(Optional.of(user));
         when(cartRepository.findByUserId("u1")).thenReturn(Optional.of(cart));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
@@ -173,7 +173,7 @@ public class OrderServiceTest {
                 .build();
 
         when(orderMapper.createOrder(request)).thenReturn(new Order());
-        when(userRepository.findByUsername(OWNER)).thenReturn(Optional.of(user));
+        when(userRepository.findById(OWNER)).thenReturn(Optional.of(user));
         when(cartRepository.findByUserId("u1")).thenReturn(Optional.of(cart));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
@@ -190,7 +190,7 @@ public class OrderServiceTest {
                 .build();
 
         when(orderMapper.createOrder(request)).thenReturn(new Order());
-        when(userRepository.findByUsername(OWNER)).thenReturn(Optional.empty());
+        when(userRepository.findById(OWNER)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.createOrderFromCart(request))
                 .isInstanceOf(AppException.class)
@@ -216,7 +216,7 @@ public class OrderServiceTest {
                 .build();
 
         when(orderMapper.createOrder(request)).thenReturn(new Order());
-        when(userRepository.findByUsername(OWNER)).thenReturn(Optional.of(user));
+        when(userRepository.findById(OWNER)).thenReturn(Optional.of(user));
         when(cartRepository.findByUserId("u1")).thenReturn(Optional.of(cart));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -234,7 +234,7 @@ public class OrderServiceTest {
     void cancelOrder_shouldThrow_whenStatusNotCancelable() {
         Order order = new Order();
         order.setStatus(OrderStatus.DELIVERED);
-        when(orderRepository.findByIdAndUserUsername("o1", OWNER)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdAndUserId("o1", OWNER)).thenReturn(Optional.of(order));
 
         assertThatThrownBy(() -> orderService.cancelOrder("o1"))
                 .isInstanceOf(RuntimeException.class);
@@ -257,7 +257,7 @@ public class OrderServiceTest {
         order.setUser(user);
         order.setOrderCode("DH123");
 
-        when(orderRepository.findByIdAndUserUsername("o1", OWNER)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdAndUserId("o1", OWNER)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
         when(orderMapper.toOrderResponse(any())).thenReturn(OrderResponse.builder().build());
 
@@ -271,8 +271,8 @@ public class OrderServiceTest {
 
     @Test
     void cancelOrder_shouldHideOrder_whenCallerIsNotOwner() {
-        authenticateAs("mallory", "ORDER_CANCEL");
-        when(orderRepository.findByIdAndUserUsername("o1", "mallory")).thenReturn(Optional.empty());
+        authenticateAs("mallory-id", "ORDER_CANCEL");
+        when(orderRepository.findByIdAndUserId("o1", "mallory-id")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.cancelOrder("o1"))
                 .isInstanceOf(AppException.class)
@@ -300,13 +300,13 @@ public class OrderServiceTest {
         orderService.cancelOrder("o1");
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELED);
-        verify(orderRepository, never()).findByIdAndUserUsername(any(), any());
+        verify(orderRepository, never()).findByIdAndUserId(any(), any());
     }
 
     @Test
     void updateOrderByUser_shouldHideOrder_whenCallerIsNotOwner() {
-        authenticateAs("mallory", "ORDER_UPDATE_BY_USER");
-        when(orderRepository.findByIdAndUserUsername("o1", "mallory")).thenReturn(Optional.empty());
+        authenticateAs("mallory-id", "ORDER_UPDATE_BY_USER");
+        when(orderRepository.findByIdAndUserId("o1", "mallory-id")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.updateOrderByUser("o1", OrderUpdateByUserRequest.builder().build()))
                 .isInstanceOf(AppException.class)
@@ -320,7 +320,7 @@ public class OrderServiceTest {
     @Test
     void updateOrderByUser_shouldUpdateRecipient_whenCallerIsOwner() {
         Order order = new Order();
-        when(orderRepository.findByIdAndUserUsername("o1", OWNER)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdAndUserId("o1", OWNER)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
         when(orderMapper.toOrderResponse(any())).thenReturn(OrderResponse.builder().build());
 

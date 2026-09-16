@@ -40,10 +40,11 @@ public class BannerServiceTest {
             new MockMultipartFile("file", "banner.png", "image/png", "bytes".getBytes());
 
     @Test
-    void createBanner_shouldUploadImage_andDefaultIsActiveToTrue() {
+    // Giá trị mặc định của isActive/displayOrder do Banner.applyDefaults() (@PrePersist)
+    // lo, repository ở đây là mock nên callback JPA không chạy — xem BannerTest.
+    void createBanner_shouldUploadImage() {
         BannerRequest request = BannerRequest.builder().title("Khuyến mãi").build();
         Banner mapped = new Banner();
-        mapped.setIsActive(null); // mapper không set -> service phải tự bật
 
         when(bannerMapper.toBanner(request)).thenReturn(mapped);
         when(cloudinaryService.uploadImage(file, "store/banners")).thenReturn("http://cloud/banner.png");
@@ -53,7 +54,6 @@ public class BannerServiceTest {
         bannerService.createBanner(file, request);
 
         assertThat(mapped.getImageUrl()).isEqualTo("http://cloud/banner.png");
-        assertThat(mapped.getIsActive()).isTrue();
     }
 
     @Test

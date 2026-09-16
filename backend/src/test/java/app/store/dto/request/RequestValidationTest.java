@@ -84,9 +84,17 @@ class RequestValidationTest {
 
     @Test
     void userUpdate_shortPassword_isRejected() {
-        UserUpdateRequest request = UserUpdateRequest.builder().password("1234567").build();
+        UserUpdateRequest request = UserUpdateRequest.builder().username("john").password("1234567").build();
 
         assertThat(messages(request)).containsExactly("Password must be at least 8 characters");
+    }
+
+    @Test
+    void userUpdate_missingUsername_isRejected() {
+        // PUT thay thế toàn bộ resource và users.username là NOT NULL
+        UserUpdateRequest request = UserUpdateRequest.builder().build();
+
+        assertThat(messages(request)).containsExactly("Username is required");
     }
 
     @Test

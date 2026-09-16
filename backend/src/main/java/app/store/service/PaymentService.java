@@ -286,7 +286,7 @@ public class PaymentService {
 
         Optional<Order> order = canViewAnyOrder
                 ? orderRepository.findById(orderId)
-                : orderRepository.findByIdAndUserUsername(orderId, authentication.getName());
+                : orderRepository.findByIdAndUserId(orderId, authentication.getName()); // getName() = sub = user.id
 
         return order.orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
     }

@@ -57,9 +57,9 @@ public class CartServiceTest {
         SecurityContextHolder.clearContext();
     }
 
-    private void loginAs(String username) {
+    private void loginAs(String userId) {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(username, null));
+                new UsernamePasswordAuthenticationToken(userId, null)); // principal name = sub = user.id
     }
 
     private Product buildProduct(int stock) {
@@ -69,9 +69,9 @@ public class CartServiceTest {
         return product;
     }
 
-    private Cart buildCartOf(String username, Long cartId) {
+    private Cart buildCartOf(String userId, Long cartId) {
         User owner = new User();
-        owner.setUsername(username);
+        owner.setId(userId);
         Cart cart = new Cart();
         cart.setId(cartId);
         cart.setUser(owner);
@@ -90,12 +90,12 @@ public class CartServiceTest {
 
     @Test
     void addItemToCart_shouldUseCartOfCurrentUser() {
-        loginAs("john");
-        Cart cart = buildCartOf("john", 10L);
+        loginAs("u1");
+        Cart cart = buildCartOf("u1", 10L);
         Product product = buildProduct(10);
         CartItemRequest request = CartItemRequest.builder().productId(1L).quantity(3).build();
 
-        when(cartRepository.findByUser_Username("john")).thenReturn(Optional.of(cart));
+        when(cartRepository.findByUserId("u1")).thenReturn(Optional.of(cart));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(cartItemMapper.toCartItemResponse(any(CartItem.class))).thenReturn(CartItemResponse.builder().build());
 
@@ -107,9 +107,9 @@ public class CartServiceTest {
 
     @Test
     void addItemToCart_shouldThrow_whenCurrentUserHasNoCart() {
-        loginAs("john");
+        loginAs("u1");
         CartItemRequest request = CartItemRequest.builder().productId(1L).quantity(1).build();
-        when(cartRepository.findByUser_Username("john")).thenReturn(Optional.empty());
+        when(cartRepository.findByUserId("u1")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> cartService.addItemToCart(request))
                 .isInstanceOf(AppException.class)
@@ -119,7 +119,7 @@ public class CartServiceTest {
 
     @Test
     void addItem_shouldCreateNewItem_whenNotInCart() {
-        Cart cart = buildCartOf("john", 10L);
+        Cart cart = buildCartOf("u1", 10L);
         Product product = buildProduct(10);
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
@@ -133,7 +133,7 @@ public class CartServiceTest {
     @Test
     void addItem_shouldAccumulateQuantity_whenAlreadyInCart() {
         Product product = buildProduct(10);
-        Cart cart = buildCartOf("john", 10L);
+        Cart cart = buildCartOf("u1", 10L);
         CartItem existingItem = buildItem(cart, product, 2);
         cart.setCartItems(new ArrayList<>(List.of(existingItem)));
 
@@ -148,7 +148,7 @@ public class CartServiceTest {
 
     @Test
     void addItem_shouldThrow_whenNewQuantityExceedsStock() {
-        Cart cart = buildCartOf("john", 10L);
+        Cart cart = buildCartOf("u1", 10L);
         Product product = buildProduct(2);
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
@@ -164,7 +164,7 @@ public class CartServiceTest {
     @Test
     void addItem_shouldThrow_whenAccumulatedQuantityExceedsStock() {
         Product product = buildProduct(3);
-        Cart cart = buildCartOf("john", 10L);
+        Cart cart = buildCartOf("u1", 10L);
         cart.setCartItems(new ArrayList<>(List.of(buildItem(cart, product, 2))));
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
@@ -177,7 +177,7 @@ public class CartServiceTest {
 
     @Test
     void addItem_shouldThrowInvalidQuantity_whenQuantityNotPositive() {
-        Cart cart = buildCartOf("john", 10L);
+        Cart cart = buildCartOf("u1", 10L);
         Product product = buildProduct(10);
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
@@ -192,7 +192,7 @@ public class CartServiceTest {
 
     @Test
     void mergeItem_shouldCapQuantityAtStock_insteadOfThrowing() {
-        Cart cart = buildCartOf("john", 10L);
+        Cart cart = buildCartOf("u1", 10L);
         Product product = buildProduct(3);
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
@@ -207,7 +207,7 @@ public class CartServiceTest {
     @Test
     void mergeItem_shouldAccumulateOntoExistingItem_upToStock() {
         Product product = buildProduct(5);
-        Cart cart = buildCartOf("john", 10L);
+        Cart cart = buildCartOf("u1", 10L);
         CartItem existingItem = buildItem(cart, product, 2);
         cart.setCartItems(new ArrayList<>(List.of(existingItem)));
 
@@ -221,7 +221,7 @@ public class CartServiceTest {
 
     @Test
     void mergeItem_shouldSkip_whenProductNoLongerExists() {
-        Cart cart = buildCartOf("john", 10L);
+        Cart cart = buildCartOf("u1", 10L);
         when(productRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThat(cartService.mergeItem(cart, 99L, 1)).isFalse();
@@ -231,7 +231,7 @@ public class CartServiceTest {
 
     @Test
     void mergeItem_shouldSkip_whenProductOutOfStock() {
-        Cart cart = buildCartOf("john", 10L);
+        Cart cart = buildCartOf("u1", 10L);
         when(productRepository.findById(1L)).thenReturn(Optional.of(buildProduct(0)));
 
         assertThat(cartService.mergeItem(cart, 1L, 2)).isFalse();
@@ -242,7 +242,7 @@ public class CartServiceTest {
     @Test
     void mergeItem_shouldSkip_whenExistingItemAlreadyAtStock() {
         Product product = buildProduct(3);
-        Cart cart = buildCartOf("john", 10L);
+        Cart cart = buildCartOf("u1", 10L);
         cart.setCartItems(new ArrayList<>(List.of(buildItem(cart, product, 3))));
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
@@ -254,7 +254,7 @@ public class CartServiceTest {
 
     @Test
     void addItem_shouldThrow_whenProductNotFound() {
-        Cart cart = buildCartOf("john", 10L);
+        Cart cart = buildCartOf("u1", 10L);
         when(productRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> cartService.addItem(cart, 99L, 1))
@@ -265,7 +265,7 @@ public class CartServiceTest {
 
     @Test
     void removeItemFromCart_shouldThrow_whenItemNotFound() {
-        loginAs("john");
+        loginAs("u1");
         when(cartItemRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> cartService.removeItemFromCart(10L, 1L))
@@ -276,7 +276,7 @@ public class CartServiceTest {
 
     @Test
     void removeItemFromCart_shouldThrow_whenItemBelongsToAnotherUser() {
-        loginAs("john");
+        loginAs("u1");
         CartItem item = buildItem(buildCartOf("mary", 20L), buildProduct(5), 1);
         when(cartItemRepository.findById(1L)).thenReturn(Optional.of(item));
 
@@ -290,8 +290,8 @@ public class CartServiceTest {
 
     @Test
     void removeItemFromCart_shouldThrow_whenItemBelongsToDifferentCart() {
-        loginAs("john");
-        CartItem item = buildItem(buildCartOf("john", 20L), buildProduct(5), 1);
+        loginAs("u1");
+        CartItem item = buildItem(buildCartOf("u1", 20L), buildProduct(5), 1);
         when(cartItemRepository.findById(1L)).thenReturn(Optional.of(item));
 
         assertThatThrownBy(() -> cartService.removeItemFromCart(10L, 1L))
@@ -302,8 +302,8 @@ public class CartServiceTest {
 
     @Test
     void removeItemFromCart_shouldDelete_whenItemBelongsToCart() {
-        loginAs("john");
-        CartItem item = buildItem(buildCartOf("john", 10L), buildProduct(5), 1);
+        loginAs("u1");
+        CartItem item = buildItem(buildCartOf("u1", 10L), buildProduct(5), 1);
         when(cartItemRepository.findById(1L)).thenReturn(Optional.of(item));
 
         cartService.removeItemFromCart(10L, 1L);
@@ -313,8 +313,8 @@ public class CartServiceTest {
 
     @Test
     void updateItemInCart_shouldUpdateQuantity_happyPath() {
-        loginAs("john");
-        CartItem item = buildItem(buildCartOf("john", 10L), buildProduct(10), 1);
+        loginAs("u1");
+        CartItem item = buildItem(buildCartOf("u1", 10L), buildProduct(10), 1);
         CartItemUpdateRequest request = CartItemUpdateRequest.builder().quantity(7).build();
 
         when(cartItemRepository.findById(1L)).thenReturn(Optional.of(item));
@@ -328,8 +328,8 @@ public class CartServiceTest {
 
     @Test
     void updateItemInCart_shouldThrow_whenQuantityExceedsStock() {
-        loginAs("john");
-        CartItem item = buildItem(buildCartOf("john", 10L), buildProduct(3), 1);
+        loginAs("u1");
+        CartItem item = buildItem(buildCartOf("u1", 10L), buildProduct(3), 1);
         CartItemUpdateRequest request = CartItemUpdateRequest.builder().quantity(4).build();
 
         when(cartItemRepository.findById(1L)).thenReturn(Optional.of(item));
@@ -342,7 +342,7 @@ public class CartServiceTest {
 
     @Test
     void updateItemInCart_shouldThrow_whenItemBelongsToAnotherUser() {
-        loginAs("john");
+        loginAs("u1");
         CartItem item = buildItem(buildCartOf("mary", 20L), buildProduct(10), 1);
         CartItemUpdateRequest request = CartItemUpdateRequest.builder().quantity(2).build();
 
@@ -358,7 +358,7 @@ public class CartServiceTest {
 
     @Test
     void updateItemInCart_shouldThrow_whenItemNotFound() {
-        loginAs("john");
+        loginAs("u1");
         CartItemUpdateRequest request = CartItemUpdateRequest.builder().quantity(1).build();
         when(cartItemRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -370,8 +370,8 @@ public class CartServiceTest {
 
     @Test
     void getMyCart_shouldThrow_whenCartNotFound() {
-        loginAs("john");
-        when(cartRepository.findByUser_Username("john")).thenReturn(Optional.empty());
+        loginAs("u1");
+        when(cartRepository.findByUserId("u1")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> cartService.getMyCart())
                 .isInstanceOf(AppException.class)
@@ -381,11 +381,11 @@ public class CartServiceTest {
 
     @Test
     void getMyCart_shouldReturnResponse_happyPath() {
-        loginAs("john");
+        loginAs("u1");
         Cart cart = new Cart();
         CartResponse response = CartResponse.builder().build();
 
-        when(cartRepository.findByUser_Username("john")).thenReturn(Optional.of(cart));
+        when(cartRepository.findByUserId("u1")).thenReturn(Optional.of(cart));
         when(cartMapper.toCartResponse(cart)).thenReturn(response);
 
         assertThat(cartService.getMyCart()).isSameAs(response);

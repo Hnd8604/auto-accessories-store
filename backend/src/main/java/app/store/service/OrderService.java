@@ -14,6 +14,7 @@ import app.store.exception.AppException;
 import app.store.exception.ErrorCode;
 import app.store.mapper.OrderMapper;
 import app.store.repository.*;
+import app.store.utils.SecurityUtils;
 import app.store.service.OrderEventProducer;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -59,17 +60,14 @@ public class OrderService {
     }
     @PreAuthorize("hasAuthority('ORDER_GET_MY_ORDER')")
     public List<OrderResponse> getMyOrder() {
-        var context = SecurityContextHolder.getContext();
-        String name = context.getAuthentication().getName();
-        List<Order> orders = orderRepository.getOrderByUserName(name);
+        List<Order> orders = orderRepository.findByUserId(SecurityUtils.currentUserId());
         return orders.stream()
                 .map(orderMapper::toOrderResponse).toList();
     }
     @PreAuthorize("hasAuthority('ORDER_CREATE')")
     public OrderResponse createOrderFromCart(OrderCreationRequest orderRequest) {
         Order order = orderMapper.createOrder(orderRequest);
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User user = userRepository.findByUsername(username)
+        User user = userRepository.findById(SecurityUtils.currentUserId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         // Generate unique orderCode
@@ -216,7 +214,7 @@ public class OrderService {
 
         Optional<Order> order = canModifyAnyOrder
                 ? orderRepository.findById(orderId)
-                : orderRepository.findByIdAndUserUsername(orderId, authentication.getName());
+                : orderRepository.findByIdAndUserId(orderId, authentication.getName()); // getName() = sub = user.id
 
         return order.orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
     }

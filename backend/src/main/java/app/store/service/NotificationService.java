@@ -9,6 +9,7 @@ import app.store.exception.ErrorCode;
 import app.store.mapper.NotificationMapper;
 import app.store.repository.NotificationRepository;
 import app.store.repository.UserRepository;
+import app.store.utils.SecurityUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -16,7 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -81,10 +81,13 @@ public class NotificationService {
         log.info("Marked {} notifications as read for userId={}", count, userId);
     }
 
+    // Vẫn kiểm tra user còn tồn tại: access token của user đã bị xoá vẫn hợp lệ
+    // tới khi hết hạn, giữ nguyên lỗi USER_NOT_EXISTED như trước.
     private String getCurrentUserId() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-        return user.getId();
+        String userId = SecurityUtils.currentUserId();
+        if (!userRepository.existsById(userId)) {
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
+        }
+        return userId;
     }
 }

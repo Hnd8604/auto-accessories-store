@@ -58,9 +58,9 @@ public class NotificationServiceTest {
         return user;
     }
 
-    private void loginAs(String username) {
+    private void loginAs(String userId) {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(username, null, List.of()));
+                new UsernamePasswordAuthenticationToken(userId, null, List.of())); // principal name = sub = user.id
     }
 
     // ==================== createNotification ====================
@@ -108,11 +108,11 @@ public class NotificationServiceTest {
 
     @Test
     void getMyNotifications_shouldQueryByCurrentUserId() {
-        loginAs("john");
+        loginAs("u1");
         var pageable = PageRequest.of(0, 10);
         Notification notification = Notification.builder().title("t").message("m").build();
 
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(buildUser()));
+        when(userRepository.existsById("u1")).thenReturn(true);
         when(notificationRepository.findByUserIdOrderByCreatedAtDesc("u1", pageable))
                 .thenReturn(new PageImpl<>(List.of(notification)));
         when(notificationMapper.toNotificationResponse(notification))
@@ -123,9 +123,9 @@ public class NotificationServiceTest {
 
     @Test
     void countUnread_shouldDelegateToRepository() {
-        loginAs("john");
+        loginAs("u1");
 
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(buildUser()));
+        when(userRepository.existsById("u1")).thenReturn(true);
         when(notificationRepository.countByUserIdAndIsReadFalse("u1")).thenReturn(3L);
 
         assertThat(notificationService.countUnread()).isEqualTo(3L);
@@ -133,9 +133,9 @@ public class NotificationServiceTest {
 
     @Test
     void countUnread_shouldThrow_whenCurrentUserNotFound() {
-        loginAs("ghost");
+        loginAs("ghost-id");
 
-        when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
+        when(userRepository.existsById("ghost-id")).thenReturn(false);
 
         assertThatThrownBy(() -> notificationService.countUnread())
                 .isInstanceOf(AppException.class)
@@ -147,9 +147,9 @@ public class NotificationServiceTest {
 
     @Test
     void markAsRead_shouldPass_whenOneRowUpdated() {
-        loginAs("john");
+        loginAs("u1");
 
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(buildUser()));
+        when(userRepository.existsById("u1")).thenReturn(true);
         when(notificationRepository.markAsReadByIdAndUserId("n1", "u1")).thenReturn(1);
 
         notificationService.markAsRead("n1");
@@ -159,9 +159,9 @@ public class NotificationServiceTest {
 
     @Test
     void markAsRead_shouldThrow_whenNotificationNotOwnedByUser() {
-        loginAs("john");
+        loginAs("u1");
 
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(buildUser()));
+        when(userRepository.existsById("u1")).thenReturn(true);
         when(notificationRepository.markAsReadByIdAndUserId("n-cua-nguoi-khac", "u1")).thenReturn(0);
 
         assertThatThrownBy(() -> notificationService.markAsRead("n-cua-nguoi-khac"))
@@ -172,9 +172,9 @@ public class NotificationServiceTest {
 
     @Test
     void markAllAsRead_shouldDelegateToRepository() {
-        loginAs("john");
+        loginAs("u1");
 
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(buildUser()));
+        when(userRepository.existsById("u1")).thenReturn(true);
         when(notificationRepository.markAllAsReadByUserId("u1")).thenReturn(5);
 
         notificationService.markAllAsRead();

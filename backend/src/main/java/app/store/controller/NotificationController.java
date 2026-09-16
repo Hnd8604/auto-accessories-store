@@ -3,12 +3,12 @@ package app.store.controller;
 import app.store.constant.ResponseMessage;
 import app.store.dto.response.NotificationResponse;
 import app.store.dto.response.auth.ApiResponse;
-import app.store.entity.User;
 import app.store.exception.AppException;
 import app.store.exception.ErrorCode;
 import app.store.repository.UserRepository;
 import app.store.service.NotificationService;
 import app.store.service.SseEmitterService;
+import app.store.utils.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AccessLevel;
@@ -19,7 +19,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -84,9 +83,10 @@ public class NotificationController {
         }
 
         private String getCurrentUserId() {
-                String username = SecurityContextHolder.getContext().getAuthentication().getName();
-                User user = userRepository.findByUsername(username)
-                                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-                return user.getId();
+                String userId = SecurityUtils.currentUserId();
+                if (!userRepository.existsById(userId)) {
+                        throw new AppException(ErrorCode.USER_NOT_EXISTED);
+                }
+                return userId;
         }
 }

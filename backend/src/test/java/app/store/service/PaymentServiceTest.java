@@ -68,7 +68,7 @@ public class PaymentServiceTest {
     private static final String PAYMENT_LINK_ID = "link-42";
     private static final String CHECKOUT_URL = "https://pay.payos.vn/web/link-42";
     private static final String REFERENCE_CODE = "FT24015ABCDE";
-    private static final String OWNER = "alice";
+    private static final String OWNER = "u1"; // user.id — principal name là sub = user.id
     private static final String RETURN_URL = "https://shop.test/";
 
     @BeforeEach
@@ -84,9 +84,9 @@ public class PaymentServiceTest {
         SecurityContextHolder.clearContext();
     }
 
-    private static void authenticateAs(String username, String... authorities) {
+    private static void authenticateAs(String userId, String... authorities) {
         SecurityContextHolder.getContext()
-                .setAuthentication(new TestingAuthenticationToken(username, null, authorities));
+                .setAuthentication(new TestingAuthenticationToken(userId, null, authorities));
     }
 
     private Order buildOrder(PaymentStatus status, PaymentMethod method) {
@@ -134,7 +134,7 @@ public class PaymentServiceTest {
     }
 
     private void givenOwnOrder(Order order) {
-        when(orderRepository.findByIdAndUserUsername("o1", OWNER)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdAndUserId("o1", OWNER)).thenReturn(Optional.of(order));
     }
 
     private void givenPayosCreatesLink(long payosOrderCode, String paymentLinkId, String checkoutUrl) {
@@ -291,7 +291,7 @@ public class PaymentServiceTest {
 
     @Test
     void createPayment_shouldThrow_whenOrderNotFound() {
-        when(orderRepository.findByIdAndUserUsername("missing", OWNER)).thenReturn(Optional.empty());
+        when(orderRepository.findByIdAndUserId("missing", OWNER)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> paymentService.createPayment("missing"))
                 .isInstanceOf(AppException.class)
@@ -301,8 +301,8 @@ public class PaymentServiceTest {
 
     @Test
     void createPayment_shouldHideOrder_whenCallerIsNotOwner() {
-        authenticateAs("mallory", "ORDER_GET_MY_ORDER");
-        when(orderRepository.findByIdAndUserUsername("o1", "mallory")).thenReturn(Optional.empty());
+        authenticateAs("mallory-id", "ORDER_GET_MY_ORDER");
+        when(orderRepository.findByIdAndUserId("o1", "mallory-id")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> paymentService.createPayment("o1"))
                 .isInstanceOf(AppException.class)
@@ -410,8 +410,8 @@ public class PaymentServiceTest {
 
     @Test
     void checkPaymentStatus_shouldHideOrder_whenCallerIsNotOwner() {
-        authenticateAs("mallory", "ORDER_GET_MY_ORDER");
-        when(orderRepository.findByIdAndUserUsername("o1", "mallory")).thenReturn(Optional.empty());
+        authenticateAs("mallory-id", "ORDER_GET_MY_ORDER");
+        when(orderRepository.findByIdAndUserId("o1", "mallory-id")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> paymentService.checkPaymentStatus("o1"))
                 .isInstanceOf(AppException.class)
@@ -430,7 +430,7 @@ public class PaymentServiceTest {
         var response = paymentService.checkPaymentStatus("o1");
 
         assertThat(response.orderId()).isEqualTo("o1");
-        verify(orderRepository, never()).findByIdAndUserUsername(any(), any());
+        verify(orderRepository, never()).findByIdAndUserId(any(), any());
     }
 
     // ==================== handlePayosWebhook ====================

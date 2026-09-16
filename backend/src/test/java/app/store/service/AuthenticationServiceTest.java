@@ -183,7 +183,7 @@ public class AuthenticationServiceTest {
         assertThat(response.authenticated()).isTrue();
         // Token thật -> parse ra để kiểm claim
         var claims = SignedJWT.parse(response.accessToken()).getJWTClaimsSet();
-        assertThat(claims.getSubject()).isEqualTo("john");
+        assertThat(claims.getSubject()).isEqualTo("u1"); // sub = user.id, không phải username
         assertThat(claims.getClaim("type")).isEqualTo("accessToken");
         assertThat(claims.getStringClaim("scope")).contains("ROLE_USER");
         assertThat(SignedJWT.parse(response.refreshToken()).getJWTClaimsSet().getClaim("type"))
@@ -229,7 +229,7 @@ public class AuthenticationServiceTest {
         String refreshToken = authenticationService.generateAuthResponse(user).refreshToken();
 
         when(invalidatedRepository.existsById(any())).thenReturn(false);
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
 
         var response = authenticationService.refreshToken(
                 RefreshRequest.builder().refreshToken(refreshToken).build());
@@ -237,6 +237,24 @@ public class AuthenticationServiceTest {
         assertThat(response.authenticated()).isTrue();
         assertThat(SignedJWT.parse(response.accessToken()).getJWTClaimsSet().getClaim("type"))
                 .isEqualTo("accessToken");
+    }
+
+    @Test
+    void refreshToken_shouldNotResolveToAnotherUser_whenOwnerDeletedAndUsernameReused() throws Exception {
+        // User "john" (id u1) đăng nhập rồi bị xoá; người khác đăng ký lại username "john".
+        User deleted = buildUser("secret123");
+        when(userMapper.toUserResponse(deleted)).thenReturn(UserResponse.builder().build());
+        String refreshToken = authenticationService.generateAuthResponse(deleted).refreshToken();
+
+        when(invalidatedRepository.existsById(any())).thenReturn(false);
+        when(userRepository.findById("u1")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authenticationService.refreshToken(
+                RefreshRequest.builder().refreshToken(refreshToken).build()))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.USER_NOT_EXISTED);
+        verify(userRepository, never()).findByUsername(any());
     }
 
     @Test
@@ -317,16 +335,16 @@ public class AuthenticationServiceTest {
 
     // ==================== changePassword ====================
 
-    private void loginAs(String username) {
+    private void loginAs(String userId) {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(username, null, java.util.List.of()));
+                new UsernamePasswordAuthenticationToken(userId, null, java.util.List.of())); // principal name = sub = user.id
     }
 
     @Test
     void changePassword_shouldSaveNewHashedPassword() {
-        loginAs("john");
+        loginAs("u1");
         User user = buildUser("old-password");
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
 
         authenticationService.changePassword(ChangePasswordRequest.builder()
                 .currentPassword("old-password")
@@ -340,9 +358,9 @@ public class AuthenticationServiceTest {
 
     @Test
     void changePassword_shouldThrow_whenCurrentPasswordWrong() {
-        loginAs("john");
+        loginAs("u1");
         User user = buildUser("old-password");
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authenticationService.changePassword(ChangePasswordRequest.builder()
                 .currentPassword("sai-mat-khau")
@@ -358,9 +376,9 @@ public class AuthenticationServiceTest {
 
     @Test
     void changePassword_shouldThrow_whenNewPasswordSameAsCurrent() {
-        loginAs("john");
+        loginAs("u1");
         User user = buildUser("old-password");
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authenticationService.changePassword(ChangePasswordRequest.builder()
                 .currentPassword("old-password")
@@ -374,9 +392,9 @@ public class AuthenticationServiceTest {
 
     @Test
     void changePassword_shouldThrow_whenConfirmationMismatch() {
-        loginAs("john");
+        loginAs("u1");
         User user = buildUser("old-password");
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authenticationService.changePassword(ChangePasswordRequest.builder()
                 .currentPassword("old-password")
@@ -392,8 +410,8 @@ public class AuthenticationServiceTest {
 
     @Test
     void changePassword_shouldThrow_whenUserNotFound() {
-        loginAs("ghost");
-        when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
+        loginAs("ghost-id");
+        when(userRepository.findById("ghost-id")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authenticationService.changePassword(ChangePasswordRequest.builder()
                 .currentPassword("a").newPassword("b").confirmPassword("b").build()))

@@ -61,7 +61,7 @@ public class PostServiceTest {
     @Test
     void createPost_happyPath_setsSlugAuthorAndCategory() {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("john", null));
+                new UsernamePasswordAuthenticationToken("u1", null));
 
         PostRequest request = PostRequest.builder()
                 .title("Đèn LED")
@@ -78,7 +78,7 @@ public class PostServiceTest {
 
         Post mappedPost = new Post();
 
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(author));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(author));
         when(postCategoryRepository.findById(1L)).thenReturn(Optional.of(category));
         when(postMapper.toPost(request)).thenReturn(mappedPost);
         when(cloudinaryService.uploadImage(any(), any())).thenReturn("http://img.url/x.png");
@@ -99,7 +99,7 @@ public class PostServiceTest {
     @Test
     void createPost_shouldThrow_whenCategoryNotFound() {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("john", null));
+                new UsernamePasswordAuthenticationToken("u1", null));
 
         PostRequest request = PostRequest.builder()
                 .title("Đèn LED")
@@ -107,7 +107,7 @@ public class PostServiceTest {
                 .build();
 
         User author = new User();
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(author));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(author));
         when(postCategoryRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> postService.createPost(emptyFile(), request))
