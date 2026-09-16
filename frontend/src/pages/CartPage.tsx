@@ -9,6 +9,8 @@ import { useNavigate } from "react-router-dom";
 import { ProductImagesApi, ProductsApi } from "@/features/products/api";
 import { SessionCartsApi } from "@/features/cart/api/session-carts";
 import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/utils/errors";
 
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('vi-VN', {
@@ -30,6 +32,7 @@ interface SessionProduct {
 export default function CartPage() {
   const { cart, sessionCart, isAuthenticated, itemCount, totalPrice, updateQuantity, removeFromCart, clearCart } = useCart();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [productImages, setProductImages] = useState<Record<number, string>>({});
   const [sessionProducts, setSessionProducts] = useState<SessionProduct[]>([]);
@@ -136,20 +139,32 @@ export default function CartPage() {
       }
       // Refetch session cart to update UI
       await queryClient.invalidateQueries({ queryKey: ["sessionCart"] });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to update session cart:", error);
+      toast({
+        title: "Lỗi",
+        description: getErrorMessage(error, "Không thể cập nhật số lượng"),
+        variant: "destructive",
+      });
+      // Đồng bộ lại để UI quay về số lượng thật thay vì giữ giá trị vừa bấm
+      await queryClient.invalidateQueries({ queryKey: ["sessionCart"] });
     }
-  }, [sessionCart, queryClient]);
+  }, [sessionCart, queryClient, toast]);
 
   const handleSessionRemoveItem = useCallback(async (productId: number) => {
     try {
       await SessionCartsApi.remove(productId);
       // Refetch session cart to update UI
       await queryClient.invalidateQueries({ queryKey: ["sessionCart"] });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to remove from session cart:", error);
+      toast({
+        title: "Lỗi",
+        description: getErrorMessage(error, "Không thể xóa sản phẩm khỏi giỏ hàng"),
+        variant: "destructive",
+      });
     }
-  }, [queryClient]);
+  }, [queryClient, toast]);
 
   const handleOrderComplete = useCallback(() => {
     clearCart();

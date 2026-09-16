@@ -65,8 +65,8 @@ public class AuthenticationController {
         summary = "Login with Google",
         description = "Authenticates user with Google OAuth2 authorization code. Creates new account if user doesn't exist."
     )
-    ApiResponse<AuthenticationResponse> googleLogin(@Valid @RequestBody GoogleAuthRequest request) {
-        var result = googleAuthService.authenticateWithGoogle(request);
+    ApiResponse<AuthenticationResponse> googleLogin(@Valid @RequestBody GoogleAuthRequest request, HttpSession session) {
+        var result = googleAuthService.authenticateWithGoogle(request, session);
         return ApiResponse.<AuthenticationResponse>builder()
                 .result(result)
                 .message(ResponseMessage.AUTHENTICATE_SUCCESS)

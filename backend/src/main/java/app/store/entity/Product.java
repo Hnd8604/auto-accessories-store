@@ -24,7 +24,8 @@ public class Product extends BaseEntityLong {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     Category category;
-    Integer stockQuantity;
+    @Column(nullable = false, columnDefinition = "integer default 0")
+    Integer stockQuantity = 0;
     
     @OneToMany(mappedBy ="product", cascade = CascadeType.ALL, orphanRemoval = true)
     List<ProductImage> productImages;

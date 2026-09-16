@@ -12,6 +12,7 @@ import app.store.repository.RoleRepository;
 import app.store.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpSession;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -48,6 +49,7 @@ public class GoogleAuthService {
     RoleRepository roleRepository;
     UserMapper userMapper;
     AuthenticationService authenticationService;
+    CartSyncService cartSyncService;
 
     @NonFinal
     @Value("${google.client-id}")
@@ -68,7 +70,7 @@ public class GoogleAuthService {
      * Xử lý đăng nhập Google.
      * Đổi code → token → user info → tạo/login user → trả JWT tokens.
      */
-    public AuthenticationResponse authenticateWithGoogle(GoogleAuthRequest request) {
+    public AuthenticationResponse authenticateWithGoogle(GoogleAuthRequest request, HttpSession session) {
         // Step 1: Đổi authorization code → Google access token
         String googleAccessToken = exchangeCodeForToken(request.code());
 
@@ -79,7 +81,10 @@ public class GoogleAuthService {
         // Step 3: Tìm hoặc tạo user
         User user = findOrCreateUser(googleUserInfo);
 
-        // Step 4: Generate JWT tokens
+        // Step 4: Gộp giỏ session vào giỏ user, giống login thường
+        cartSyncService.syncSessionCart(user, session);
+
+        // Step 5: Generate JWT tokens
         return authenticationService.generateAuthResponse(user);
     }
 

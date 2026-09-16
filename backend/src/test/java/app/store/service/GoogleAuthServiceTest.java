@@ -36,6 +36,7 @@ import app.store.exception.ErrorCode;
 import app.store.mapper.UserMapper;
 import app.store.repository.RoleRepository;
 import app.store.repository.UserRepository;
+import jakarta.servlet.http.HttpSession;
 
 @ExtendWith(MockitoExtension.class)
 public class GoogleAuthServiceTest {
@@ -48,6 +49,10 @@ public class GoogleAuthServiceTest {
     UserMapper userMapper;
     @Mock
     AuthenticationService authenticationService;
+    @Mock
+    CartSyncService cartSyncService;
+    @Mock
+    HttpSession session;
     @InjectMocks
     GoogleAuthService googleAuthService;
 
@@ -93,7 +98,7 @@ public class GoogleAuthServiceTest {
             when(authenticationService.generateAuthResponse(any(User.class)))
                     .thenReturn(AuthenticationResponse.builder().accessToken("jwt").authenticated(true).build());
 
-            var response = googleAuthService.authenticateWithGoogle(request());
+            var response = googleAuthService.authenticateWithGoogle(request(), session);
 
             assertThat(response.accessToken()).isEqualTo("jwt");
 
@@ -104,6 +109,24 @@ public class GoogleAuthServiceTest {
             assertThat(created.getGoogleId()).isEqualTo("g-123");
             assertThat(created.getPassword()).isNull();            // user Google không có mật khẩu
             assertThat(created.getCart()).isNotNull();
+        }
+    }
+
+    @Test
+    void authenticateWithGoogle_shouldSyncSessionCart_likeNormalLogin() {
+        User existing = new User();
+        existing.setUsername("john");
+        existing.setGoogleId("g-123");
+
+        try (MockedConstruction<RestTemplate> ignored = mockGoogleApi(USER_INFO_JSON)) {
+            when(userRepository.findByGoogleId("g-123")).thenReturn(Optional.of(existing));
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(authenticationService.generateAuthResponse(any(User.class)))
+                    .thenReturn(AuthenticationResponse.builder().accessToken("jwt").authenticated(true).build());
+
+            googleAuthService.authenticateWithGoogle(request(), session);
+
+            verify(cartSyncService).syncSessionCart(existing, session);
         }
     }
 
@@ -119,7 +142,7 @@ public class GoogleAuthServiceTest {
             when(authenticationService.generateAuthResponse(any(User.class)))
                     .thenReturn(AuthenticationResponse.builder().build());
 
-            googleAuthService.authenticateWithGoogle(request());
+            googleAuthService.authenticateWithGoogle(request(), session);
 
             ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
             verify(userRepository).save(captor.capture());
@@ -140,7 +163,7 @@ public class GoogleAuthServiceTest {
             when(authenticationService.generateAuthResponse(existing))
                     .thenReturn(AuthenticationResponse.builder().build());
 
-            googleAuthService.authenticateWithGoogle(request());
+            googleAuthService.authenticateWithGoogle(request(), session);
 
             assertThat(existing.getAvatarUrl()).isEqualTo("http://pic/new.png");
             verify(userRepository).save(existing);
@@ -162,7 +185,7 @@ public class GoogleAuthServiceTest {
             when(authenticationService.generateAuthResponse(existing))
                     .thenReturn(AuthenticationResponse.builder().build());
 
-            googleAuthService.authenticateWithGoogle(request());
+            googleAuthService.authenticateWithGoogle(request(), session);
 
             assertThat(existing.getGoogleId()).isEqualTo("g-123");
             assertThat(existing.getAvatarUrl()).isEqualTo("http://pic/new.png");
@@ -176,7 +199,7 @@ public class GoogleAuthServiceTest {
                 (mock, context) -> lenient().when(mock.postForEntity(anyString(), any(), eq(String.class)))
                         .thenThrow(new RestClientException("400 Bad Request")))) {
 
-            assertThatThrownBy(() -> googleAuthService.authenticateWithGoogle(request()))
+            assertThatThrownBy(() -> googleAuthService.authenticateWithGoogle(request(), session))
                     .isInstanceOf(AppException.class)
                     .extracting(e -> ((AppException) e).getErrorCode())
                     .isEqualTo(ErrorCode.GOOGLE_AUTH_FAILED);
@@ -189,7 +212,7 @@ public class GoogleAuthServiceTest {
     void authenticateWithGoogle_shouldThrowGoogleAuthFailed_whenUserInfoHasNoId() {
         try (MockedConstruction<RestTemplate> ignored = mockGoogleApi("{\"email\":\"john@gmail.com\"}")) {
 
-            assertThatThrownBy(() -> googleAuthService.authenticateWithGoogle(request()))
+            assertThatThrownBy(() -> googleAuthService.authenticateWithGoogle(request(), session))
                     .isInstanceOf(AppException.class)
                     .extracting(e -> ((AppException) e).getErrorCode())
                     .isEqualTo(ErrorCode.GOOGLE_AUTH_FAILED);

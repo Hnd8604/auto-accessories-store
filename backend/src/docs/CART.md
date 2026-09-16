@@ -200,18 +200,29 @@ File: `src/main/java/app/store/controller/CartController.java` — base path `/c
 
 File: `src/main/java/app/store/service/CartSyncService.java`
 
-Khi user đăng nhập, `AuthenticationService.login()` gọi `cartSyncService.syncSessionCart(user, session)`:
+Khi user đăng nhập, `AuthenticationService.authenticate()` gọi `cartSyncService.syncSessionCart(user, session)`.
+`GoogleAuthService.authenticateWithGoogle()` cũng gọi y hệt, nên login Google gộp giỏ như login thường.
+
+Method được bọc `@Transactional` để không gộp được nửa chừng:
 
 ```
 1. Đọc giỏ tạm từ session: Map<productId, quantity>
 2. Nếu rỗng → return (không làm gì)
 3. Lấy giỏ DB của user (cartRepository.findByUserId)
-4. Duyệt từng (productId, quantity) trong giỏ tạm:
-      CartService.addItem(cart, productId, quantity)           // cộng dồn vào giỏ DB
-5. Xoá giỏ tạm: session.removeAttribute("CART")               // tránh sync lại
+4. findAllById(productIds) một lần để biết sản phẩm nào còn tồn tại
+5. Duyệt từng (productId, quantity) trong giỏ tạm:
+      - sản phẩm đã bị xoá        → log.warn, bỏ qua
+      - CartService.mergeItem()   → cộng dồn vào giỏ DB, CẮT BỚT theo tồn kho
+      - item nào ném lỗi          → log.warn, bỏ qua, đi tiếp
+6. Xoá giỏ tạm: session.removeAttribute("CART")               // tránh sync lại
 ```
 
-Kết quả: mọi sản phẩm khách chọn lúc chưa đăng nhập đều chuyển sang giỏ chính thức.
+Nguyên tắc: **việc gộp giỏ không bao giờ được làm hỏng request đăng nhập.** Vì thế bước 5
+dùng `mergeItem` (cắt bớt, trả `boolean`) chứ không dùng `addItem` (ném `AppException`), và
+bước 6 luôn chạy kể cả khi có item bị bỏ — nếu không, lỗi sẽ lặp lại ở mỗi lần đăng nhập sau
+cho tới khi session hết hạn.
+
+Kết quả: mọi sản phẩm hợp lệ khách chọn lúc chưa đăng nhập đều chuyển sang giỏ chính thức.
 
 ---
 
@@ -221,16 +232,19 @@ Kết quả: mọi sản phẩm khách chọn lúc chưa đăng nhập đều ch
 
 ```
 1. Guest mở web, bấm "Thêm vào giỏ" sản phẩm #12
-2. FE → POST /session-carts/add?productId=12&qty=1
-3. SessionCartService.addToCart() → HttpSession["CART"] = { 12: 1 }
+2. FE → POST /session-carts/add?productId=12&qty=1        // qty là DELTA, âm để giảm
+3. SessionCartService.addToCart() kiểm tra tồn kho → HttpSession["CART"] = { 12: 1 }
 4. Guest thêm tiếp #45 → HttpSession["CART"] = { 12: 1, 45: 1 }
-5. Guest đăng nhập → AuthenticationService.login()
+5. Guest đăng nhập → AuthenticationService.authenticate() (hoặc login Google)
 6. CartSyncService.syncSessionCart():
    a. đọc { 12: 1, 45: 1 }
-   b. addItem vào giỏ DB của user
+   b. mergeItem vào giỏ DB của user, bỏ qua item không hợp lệ
    c. removeAttribute("CART")
 7. FE gọi GET /carts/my-cart → thấy đủ #12, #45 trong giỏ chính thức
 ```
+
+Số lượng vượt tồn kho bị chặn ngay ở bước 3 (`INSUFFICIENT_STOCK`), nên dữ liệu session
+không bao giờ hỏng sẵn trước khi tới bước 6.
 
 ### Luồng user đã đăng nhập
 

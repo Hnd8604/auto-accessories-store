@@ -14,6 +14,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -153,7 +154,9 @@ public class CartServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
         assertThatThrownBy(() -> cartService.addItem(cart, 1L, 5))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.INSUFFICIENT_STOCK);
 
         verify(cartItemRepository, never()).save(any());
     }
@@ -167,7 +170,86 @@ public class CartServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
         assertThatThrownBy(() -> cartService.addItem(cart, 1L, 2)) // 2 + 2 = 4 > stock 3
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.INSUFFICIENT_STOCK);
+    }
+
+    @Test
+    void addItem_shouldThrowInvalidQuantity_whenQuantityNotPositive() {
+        Cart cart = buildCartOf("john", 10L);
+        Product product = buildProduct(10);
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        assertThatThrownBy(() -> cartService.addItem(cart, 1L, 0))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_QUANTITY);
+
+        verify(cartItemRepository, never()).save(any());
+    }
+
+    @Test
+    void mergeItem_shouldCapQuantityAtStock_insteadOfThrowing() {
+        Cart cart = buildCartOf("john", 10L);
+        Product product = buildProduct(3);
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        assertThat(cartService.mergeItem(cart, 1L, 10)).isTrue();
+
+        ArgumentCaptor<CartItem> saved = ArgumentCaptor.forClass(CartItem.class);
+        verify(cartItemRepository).save(saved.capture());
+        assertThat(saved.getValue().getQuantity()).isEqualTo(3); // cắt bớt về đúng tồn kho
+    }
+
+    @Test
+    void mergeItem_shouldAccumulateOntoExistingItem_upToStock() {
+        Product product = buildProduct(5);
+        Cart cart = buildCartOf("john", 10L);
+        CartItem existingItem = buildItem(cart, product, 2);
+        cart.setCartItems(new ArrayList<>(List.of(existingItem)));
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        assertThat(cartService.mergeItem(cart, 1L, 9)).isTrue();
+
+        assertThat(existingItem.getQuantity()).isEqualTo(5);
+        verify(cartItemRepository).save(existingItem);
+    }
+
+    @Test
+    void mergeItem_shouldSkip_whenProductNoLongerExists() {
+        Cart cart = buildCartOf("john", 10L);
+        when(productRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThat(cartService.mergeItem(cart, 99L, 1)).isFalse();
+
+        verify(cartItemRepository, never()).save(any());
+    }
+
+    @Test
+    void mergeItem_shouldSkip_whenProductOutOfStock() {
+        Cart cart = buildCartOf("john", 10L);
+        when(productRepository.findById(1L)).thenReturn(Optional.of(buildProduct(0)));
+
+        assertThat(cartService.mergeItem(cart, 1L, 2)).isFalse();
+
+        verify(cartItemRepository, never()).save(any());
+    }
+
+    @Test
+    void mergeItem_shouldSkip_whenExistingItemAlreadyAtStock() {
+        Product product = buildProduct(3);
+        Cart cart = buildCartOf("john", 10L);
+        cart.setCartItems(new ArrayList<>(List.of(buildItem(cart, product, 3))));
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        assertThat(cartService.mergeItem(cart, 1L, 4)).isFalse();
+
+        verify(cartItemRepository, never()).save(any());
     }
 
     @Test

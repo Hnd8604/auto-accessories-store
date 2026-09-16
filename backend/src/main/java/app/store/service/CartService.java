@@ -24,6 +24,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
+
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -34,17 +35,20 @@ public class CartService {
     ProductRepository productRepository;
     CartItemRepository cartItemRepository;
     CartItemMapper cartItemMapper;
+
     public CartResponse getMyCart() {
         Cart cart = cartRepository.findByUser_Username(currentUsername())
                 .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_EXISTED));
         return cartMapper.toCartResponse(cart);
     }
+
     @PreAuthorize("hasAuthority('CART_GET_BY_ID')")
     public CartResponse getCartById(Long cartId) throws ParseException, JOSEException {
         Cart cart = cartRepository.findById(cartId)
                 .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_EXISTED));
         return cartMapper.toCartResponse(cart);
     }
+
     // Luôn thêm vào giỏ của user trong JWT, không nhận cartId từ client
     public CartItemResponse addItemToCart(CartItemRequest request) {
         Cart cart = cartRepository.findByUser_Username(currentUsername())
@@ -52,7 +56,8 @@ public class CartService {
         return addItem(cart, request.productId(), request.quantity());
     }
 
-    // Dùng khi đã xác định được cart phía server (vd. gộp giỏ session lúc đăng nhập,
+    // Dùng khi đã xác định được cart phía server (vd. gộp giỏ session lúc đăng
+    // nhập,
     // khi SecurityContext chưa có user)
     public CartItemResponse addItem(Cart cart, Long productId, int quantity) {
         Product product = productRepository.findById(productId)
@@ -64,25 +69,68 @@ public class CartService {
                 .findFirst()
                 .orElse(null);
 
-        if (cartItem != null) {
-            // If item exists, update the quantity
-            int newQuantity = cartItem.getQuantity() + quantity;
-            if (newQuantity <= 0 || newQuantity > product.getStockQuantity()) {
-                throw new IllegalArgumentException("Quantity is not valid");
-            }
-            cartItem.setQuantity(newQuantity);
-        } else {
-            // If item does not exist, create a new one
-            if (quantity <= 0 || quantity > product.getStockQuantity()) {
-                throw new IllegalArgumentException("Quantity is not valid");
-            }
-            cartItem = new CartItem(); // neu bang null thi tao moi
+        int stock = product.getStockQuantity();
+
+        int current = cartItem == null ? 0 : cartItem.getQuantity();
+        int newQuantity = current + quantity;
+        if (newQuantity <= 0) {
+            throw new AppException(ErrorCode.INVALID_QUANTITY);
+        }
+        if (newQuantity > stock) {
+            throw new AppException(ErrorCode.INSUFFICIENT_STOCK);
+        }
+
+        if (cartItem == null) {
+            cartItem = new CartItem();
             cartItem.setCart(cart);
             cartItem.setProduct(product);
-            cartItem.setQuantity(quantity);
         }
+        cartItem.setQuantity(newQuantity);
         cartItemRepository.save(cartItem);
         return cartItemMapper.toCartItemResponse(cartItem);
+    }
+
+    /**
+     * Gộp một sản phẩm vào giỏ DB khi đăng nhập: cắt bớt theo tồn kho thay vì ném
+     * lỗi,
+     * để một item hỏng trong giỏ session không làm hỏng cả request đăng nhập.
+     *
+     * @return true nếu gộp được ít nhất 1 đơn vị, false nếu bỏ qua item này
+     */
+    public boolean mergeItem(Cart cart, Long productId, int quantity) {
+        if (quantity <= 0) {
+            return false;
+        }
+
+        Product product = productRepository.findById(productId).orElse(null);
+        if (product == null) {
+            return false;
+        }
+
+        int stock = product.getStockQuantity();
+        if (stock <= 0) {
+            return false;
+        }
+
+        CartItem cartItem = cart.getCartItems().stream()
+                .filter(item -> item.getProduct().getId().equals(product.getId()))
+                .findFirst()
+                .orElse(null);
+
+        int current = cartItem == null ? 0 : cartItem.getQuantity();
+        int newQuantity = Math.min(current + quantity, stock);
+        if (newQuantity <= current) {
+            return false; // giỏ DB đã chạm tồn kho, không gộp thêm được gì
+        }
+
+        if (cartItem == null) {
+            cartItem = new CartItem();
+            cartItem.setCart(cart);
+            cartItem.setProduct(product);
+        }
+        cartItem.setQuantity(newQuantity);
+        cartItemRepository.save(cartItem);
+        return true;
     }
 
     @PreAuthorize("hasAuthority('CART_REMOVE_ITEM')")

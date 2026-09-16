@@ -34,6 +34,8 @@ public enum ErrorCode {
     CART_NOT_EXISTED(1005, "Cart not existed", HttpStatus.NOT_FOUND),
     // cart item
     CART_ITEM_NOT_EXISTED(1005, "Cart item not existed", HttpStatus.NOT_FOUND),
+    INVALID_QUANTITY(1008, "Quantity must be greater than 0", HttpStatus.BAD_REQUEST),
+    INSUFFICIENT_STOCK(1009, "Not enough stock available", HttpStatus.BAD_REQUEST),
 
     // product image
     PRODUCT_IMAGE_NOT_EXISTED(1005, "Product image not existed", HttpStatus.NOT_FOUND),
