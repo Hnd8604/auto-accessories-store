@@ -42,9 +42,10 @@ public class Conversation {
     LocalDateTime lastMessageAt;
 
     @CreatedDate
-    @Column(updatable = false)
+    @Column(nullable = false, updatable = false)
     LocalDateTime createdAt;
 
     @LastModifiedDate
+    @Column(nullable = false)
     LocalDateTime updatedAt;
 }

@@ -16,23 +16,28 @@ import java.util.List;
 @Entity
 public class Product extends BaseEntityLong {
 
+    @Column(nullable = false)
     String name;
 
     @Column(columnDefinition = "TEXT")
     String description;
+
+    @Column(nullable = false)
     BigDecimal unitPrice;
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id")
+    @JoinColumn(name = "category_id", nullable = false)
     Category category;
     @Column(nullable = false, columnDefinition = "integer default 0")
     Integer stockQuantity = 0;
-    
-    @OneToMany(mappedBy ="product", cascade = CascadeType.ALL, orphanRemoval = true)
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     List<ProductImage> productImages;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name= "brand_id", nullable = true)
+    @JoinColumn(name = "brand_id", nullable = true)
     Brand brand;
 
+    @Column(nullable = false)
     String slug;
 }

@@ -1,6 +1,5 @@
 package app.store.entity;
 
-
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -20,11 +19,11 @@ public abstract class BaseEntityLong {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
-
     @CreatedDate
-    @Column(updatable = false)
+    @Column(nullable = false, updatable = false)
     LocalDateTime createdAt;
 
     @LastModifiedDate
+    @Column(nullable = false)
     LocalDateTime updatedAt;
 }

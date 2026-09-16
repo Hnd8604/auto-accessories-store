@@ -24,6 +24,7 @@ public class Payment extends BaseEntityLong {
     @Column(nullable = false)
     BigDecimal amount;
 
+    @Column(nullable = false)
     String gateway; // Cổng thanh toán (PAYOS)
     String transactionCode; // paymentLinkId của payOS
     String referenceCode; // Mã tham chiếu giao dịch ngân hàng, duy nhất

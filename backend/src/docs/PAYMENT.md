@@ -92,7 +92,7 @@ payos:
 
 ### 3.2 Bảng dữ liệu & Enums
 
-#### Bảng `payos_payment_links` — `V4__payos_payment_links.sql`
+#### Bảng `payos_payment_links` — `V1__init_schema.sql`
 
 File: `entity/PayosPaymentLink.java`
 

@@ -14,6 +14,7 @@ import java.util.List;
 @Entity
 public class ProfessionalService extends BaseEntityLong {
 
+    @Column(nullable = false)
     String name;
 
     @Column(columnDefinition = "TEXT")
@@ -22,10 +23,19 @@ public class ProfessionalService extends BaseEntityLong {
     @Column(columnDefinition = "TEXT")
     String fullDescription;
 
+    @Column(nullable = false)
     String slug;
 
-    Integer displayOrder;
+    @Column(nullable = false)
+    Integer displayOrder = 0;
 
     @OneToMany(mappedBy = "service", cascade = CascadeType.ALL, orphanRemoval = true)
     List<ServiceImage> images;
+
+    @PrePersist
+    @PreUpdate
+    void applyDefaults() {
+        if (displayOrder == null)
+            displayOrder = 0;
+    }
 }

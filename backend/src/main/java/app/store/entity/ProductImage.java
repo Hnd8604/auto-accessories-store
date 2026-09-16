@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
-
-
 @Getter
 @Setter
 @NoArgsConstructor
@@ -15,10 +13,24 @@ import lombok.experimental.FieldDefaults;
 public class ProductImage extends BaseEntityLong{
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name= "product_id")
+    @JoinColumn(name= "product_id", nullable = false)
     Product product;
+
+    @Column(nullable = false)
     String imageUrl;
+
     String altText;
-    Boolean isPrimary;
-    Integer sortOrder;
+
+    @Column(nullable = false)
+    Boolean isPrimary = false;
+
+    @Column(nullable = false)
+    Integer sortOrder = 0;
+.
+    @PrePersist
+    @PreUpdate
+    void applyDefaults() {
+        if (isPrimary == null) isPrimary = false;
+        if (sortOrder == null) sortOrder = 0;
+    }
 }
