@@ -4,22 +4,20 @@ import app.store.dto.request.user.UserCreationRequest;
 import app.store.dto.request.user.UserUpdateRequest;
 import app.store.dto.response.user.UserResponse;
 import app.store.entity.User;
-import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.Mapping;
-import org.mapstruct.NullValuePropertyMappingStrategy;
 
-
-@Mapper(componentModel = "spring",uses = {RoleMapper.class})
+@Mapper(componentModel = "spring", uses = { RoleMapper.class })
 public interface UserMapper {
 
     User toUser(UserCreationRequest request);
-    // When mapping User to UserResponse, use the custom mapping for roles to exclude permissions
+
+    // When mapping User to UserResponse, use the custom mapping for roles to
+    // exclude permissions
     @Mapping(source = "roles", target = "roles", qualifiedByName = "toRoleResponseWithoutPermissions")
     UserResponse toUserResponse(User user);
 
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true) // Ignore the ID field during update
     @Mapping(target = "roles", ignore = true) // Ignore role during update
     @Mapping(target = "cart", ignore = true) // Ignore cart during update

@@ -33,11 +33,6 @@ public class BannerService {
 
         String imageUrl = cloudinaryService.uploadImage(file, "store/banners");
         banner.setImageUrl(imageUrl);
-
-        if (banner.getIsActive() == null) {
-            banner.setIsActive(true);
-        }
-
         return bannerMapper.toBannerResponse(bannerRepository.save(banner));
     }
 

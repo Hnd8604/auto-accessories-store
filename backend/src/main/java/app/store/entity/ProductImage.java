@@ -10,10 +10,10 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Entity
-public class ProductImage extends BaseEntityLong{
+public class ProductImage extends BaseEntityLong {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name= "product_id", nullable = false)
+    @JoinColumn(name = "product_id", nullable = false)
     Product product;
 
     @Column(nullable = false)
@@ -26,11 +26,13 @@ public class ProductImage extends BaseEntityLong{
 
     @Column(nullable = false)
     Integer sortOrder = 0;
-.
+
     @PrePersist
     @PreUpdate
     void applyDefaults() {
-        if (isPrimary == null) isPrimary = false;
-        if (sortOrder == null) sortOrder = 0;
+        if (isPrimary == null)
+            isPrimary = false;
+        if (sortOrder == null)
+            sortOrder = 0;
     }
 }
