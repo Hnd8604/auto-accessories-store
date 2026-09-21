@@ -82,7 +82,7 @@ public class ServiceImageService {
                 .orElseThrow(() -> new AppException(ErrorCode.SERVICE_IMAGE_NOT_EXISTED));
 
         if (!serviceImage.getService().getId().equals(serviceId)) {
-            throw new RuntimeException("Image " + imageId + " does not belong to service " + serviceId);
+            throw new AppException(ErrorCode.IMAGE_NOT_IN_SERVICE);
         }
 
         serviceImageRepository.resetAllPrimaryImagesForService(serviceId);

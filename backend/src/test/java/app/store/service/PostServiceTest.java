@@ -26,6 +26,8 @@ import app.store.dto.response.PostResponse;
 import app.store.entity.Post;
 import app.store.entity.PostCategory;
 import app.store.entity.User;
+import app.store.exception.AppException;
+import app.store.exception.ErrorCode;
 import app.store.mapper.PostMapper;
 import app.store.repository.PostCategoryRepository;
 import app.store.repository.PostRepository;
@@ -111,7 +113,9 @@ public class PostServiceTest {
         when(postCategoryRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> postService.createPost(emptyFile(), request))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.POST_CATEGORY_NOT_EXISTED));
 
         verify(postRepository, never()).save(any());
     }
@@ -172,7 +176,8 @@ public class PostServiceTest {
                 .build();
 
         assertThatThrownBy(() -> postService.updatePost(null, 99L, request))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.POST_NOT_EXISTED));
     }
 
     @Test
@@ -180,7 +185,8 @@ public class PostServiceTest {
         when(postRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> postService.getPostById(99L))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.POST_NOT_EXISTED));
     }
 
     @Test

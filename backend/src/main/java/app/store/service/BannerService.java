@@ -3,6 +3,8 @@ package app.store.service;
 import app.store.dto.request.BannerRequest;
 import app.store.dto.response.BannerResponse;
 import app.store.entity.Banner;
+import app.store.exception.AppException;
+import app.store.exception.ErrorCode;
 import app.store.mapper.BannerMapper;
 import app.store.repository.BannerRepository;
 import lombok.AccessLevel;
@@ -39,7 +41,7 @@ public class BannerService {
     @PreAuthorize("hasAuthority('BANNER_UPDATE')")
     public BannerResponse updateBanner(Long bannerId, MultipartFile file, BannerRequest request) {
         Banner banner = bannerRepository.findById(bannerId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy banner với ID: " + bannerId));
+                .orElseThrow(() -> new AppException(ErrorCode.BANNER_NOT_EXISTED));
 
         // Apply field updates from request
         bannerMapper.updateBannerFromRequest(request, banner);
@@ -56,14 +58,14 @@ public class BannerService {
     @PreAuthorize("hasAuthority('BANNER_DELETE')")
     public void deleteBanner(Long bannerId) {
         Banner banner = bannerRepository.findById(bannerId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy banner với ID: " + bannerId));
+                .orElseThrow(() -> new AppException(ErrorCode.BANNER_NOT_EXISTED));
         bannerRepository.delete(banner);
     }
 
     @Transactional(readOnly = true)
     public BannerResponse getBannerById(Long bannerId) {
         Banner banner = bannerRepository.findById(bannerId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy banner với ID: " + bannerId));
+                .orElseThrow(() -> new AppException(ErrorCode.BANNER_NOT_EXISTED));
         return bannerMapper.toBannerResponse(banner);
     }
 

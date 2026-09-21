@@ -185,8 +185,8 @@ public class ProductImageServiceTest {
         when(productImageRepository.findById(1L)).thenReturn(Optional.of(image));
 
         assertThatThrownBy(() -> productImageService.setPrimaryImage(1L, 10L))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("does not belong");
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.IMAGE_NOT_IN_PRODUCT));
 
         verify(productImageRepository, never()).setNewPrimaryImage(any(), any());
     }

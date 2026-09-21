@@ -5,6 +5,8 @@ import app.store.dto.response.PostResponse;
 import app.store.entity.Post;
 import app.store.entity.PostCategory;
 import app.store.entity.User;
+import app.store.exception.AppException;
+import app.store.exception.ErrorCode;
 import app.store.mapper.PostMapper;
 import app.store.repository.PostCategoryRepository;
 import app.store.repository.PostRepository;
@@ -48,13 +50,13 @@ public class PostService {
         String authorId = SecurityUtils.currentUserId();
         // Tìm tác giả
         User author = userRepository.findById(authorId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy tác giả với ID: " + authorId));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         // Tìm danh mục nếu có
         PostCategory postCategory = null;
         if (request.categoryId() != null) {
             postCategory = postCategoryRepository.findById(request.categoryId())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục với ID: " + request.categoryId()));
+                    .orElseThrow(() -> new AppException(ErrorCode.POST_CATEGORY_NOT_EXISTED));
         }
 
         Post post = postMapper.toPost(request);
@@ -75,13 +77,13 @@ public class PostService {
     @PreAuthorize("hasAuthority('POST_UPDATE')")
     public PostResponse updatePost(MultipartFile file ,Long id, PostRequest request) {
         Post post = postRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài viết với ID: " + id));
+                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_EXISTED));
 
         // Cập nhật danh mục nếu có
         PostCategory category = null;
         if (request.categoryId() != null) {
             category = postCategoryRepository.findById(request.categoryId())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục với ID: " + request.categoryId()));
+                    .orElseThrow(() -> new AppException(ErrorCode.POST_CATEGORY_NOT_EXISTED));
         }
 
 
@@ -94,7 +96,7 @@ public class PostService {
         }
         // Cập nhật thumbnail nếu có file mới
         if (file != null && !file.isEmpty()) {
-            String thumbnailUrl = CloudinaryService.uploadImage(file, "posts");
+            String thumbnailUrl = CloudinaryService.uploadImage(file, "store/posts");
             post.setThumbnailUrl(thumbnailUrl);
         }
 
@@ -111,7 +113,7 @@ public class PostService {
     public void deletePost(Long id) {
 
         Post post = postRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài viết với ID: " + id));
+                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_EXISTED));
 
         postRepository.delete(post);
 
@@ -119,21 +121,21 @@ public class PostService {
     @Transactional(readOnly = true)
     public PostResponse getPostById(Long id) {
         Post post = postRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài viết với ID: " + id));
+                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_EXISTED));
 
         return postMapper.toPostResponse(post);
     }
     @Transactional(readOnly = true)
     public PostResponse getPostBySlug(String slug) {
         Post post = postRepository.findBySlug(slug)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài viết với slug: " + slug));
+                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_EXISTED));
 
         return postMapper.toPostResponse(post);
     }
     @Transactional
     public PostResponse getPostBySlugAndIncrementView(String slug) {
         Post post = postRepository.findBySlug(slug)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài viết với slug: " + slug));
+                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_EXISTED));
 
         // Chỉ tăng view count cho bài viết đã xuất bản
         if (post.getPublished()) {
@@ -165,7 +167,7 @@ public class PostService {
     @Transactional(readOnly = true)
     public Page<PostResponse> getPostsByCategory(Long categoryId, Pageable pageable) {
         PostCategory category = postCategoryRepository.findById(categoryId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục với ID: " + categoryId));
+                .orElseThrow(() -> new AppException(ErrorCode.POST_CATEGORY_NOT_EXISTED));
 
         return postRepository.findPublishedPostsByCategory(category, pageable)
                 .map(postMapper::toPostResponse);
@@ -173,7 +175,7 @@ public class PostService {
     @Transactional(readOnly = true)
     public Page<PostResponse> getRelatedPosts(Long postId, Pageable pageable) {
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài viết với ID: " + postId));
+                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_EXISTED));
 
         if (post.getCategory() == null) {
             return Page.empty();
@@ -191,7 +193,7 @@ public class PostService {
     public void togglePublishStatus(Long id) {
 
         Post post = postRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài viết với ID: " + id));
+                .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_EXISTED));
 
         post.setPublished(!post.getPublished());
         postRepository.save(post);

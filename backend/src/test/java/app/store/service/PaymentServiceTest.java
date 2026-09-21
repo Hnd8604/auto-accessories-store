@@ -316,8 +316,8 @@ public class PaymentServiceTest {
         givenOwnOrder(buildOrder(PaymentStatus.PAID, PaymentMethod.BANK_TRANSFER));
 
         assertThatThrownBy(() -> paymentService.createPayment("o1"))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("đã được thanh toán");
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ORDER_ALREADY_PAID));
         verify(payosGateway, never()).createLink(any());
     }
 
@@ -326,8 +326,9 @@ public class PaymentServiceTest {
         givenOwnOrder(buildOrder(PaymentStatus.UNPAID, PaymentMethod.COD));
 
         assertThatThrownBy(() -> paymentService.createPayment("o1"))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("chuyển khoản");
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.ORDER_PAYMENT_METHOD_INVALID));
     }
 
     @Test
@@ -337,8 +338,8 @@ public class PaymentServiceTest {
         givenOwnOrder(order);
 
         assertThatThrownBy(() -> paymentService.createPayment("o1"))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("huỷ");
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ORDER_CANCELED));
         verify(payosGateway, never()).createLink(any());
     }
 

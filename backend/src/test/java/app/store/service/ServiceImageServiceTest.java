@@ -158,8 +158,8 @@ public class ServiceImageServiceTest {
         when(serviceImageRepository.findById(1L)).thenReturn(Optional.of(image));
 
         assertThatThrownBy(() -> serviceImageService.setPrimaryImage(10L, 1L))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("does not belong");
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.IMAGE_NOT_IN_SERVICE));
 
         verify(serviceImageRepository, never()).setNewPrimaryImage(any(), any());
     }

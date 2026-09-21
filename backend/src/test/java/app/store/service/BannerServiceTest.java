@@ -21,6 +21,8 @@ import org.springframework.web.multipart.MultipartFile;
 import app.store.dto.request.BannerRequest;
 import app.store.dto.response.BannerResponse;
 import app.store.entity.Banner;
+import app.store.exception.AppException;
+import app.store.exception.ErrorCode;
 import app.store.mapper.BannerMapper;
 import app.store.repository.BannerRepository;
 
@@ -125,8 +127,8 @@ public class BannerServiceTest {
         when(bannerRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> bannerService.updateBanner(99L, file, BannerRequest.builder().build()))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Không tìm thấy banner");
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.BANNER_NOT_EXISTED));
     }
 
     @Test
@@ -144,7 +146,8 @@ public class BannerServiceTest {
         when(bannerRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> bannerService.deleteBanner(99L))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.BANNER_NOT_EXISTED));
 
         verify(bannerRepository, never()).delete(any());
     }
@@ -154,7 +157,8 @@ public class BannerServiceTest {
         when(bannerRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> bannerService.getBannerById(99L))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.BANNER_NOT_EXISTED));
     }
 
     @Test

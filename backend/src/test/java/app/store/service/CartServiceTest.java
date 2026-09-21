@@ -295,7 +295,8 @@ public class CartServiceTest {
         when(cartItemRepository.findById(1L)).thenReturn(Optional.of(item));
 
         assertThatThrownBy(() -> cartService.removeItemFromCart(10L, 1L))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CART_ITEM_NOT_IN_CART));
 
         verify(cartItemRepository, never()).delete(any());
     }
@@ -335,7 +336,8 @@ public class CartServiceTest {
         when(cartItemRepository.findById(1L)).thenReturn(Optional.of(item));
 
         assertThatThrownBy(() -> cartService.updateItemInCart(1L, request))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INSUFFICIENT_STOCK));
 
         verify(cartItemRepository, never()).save(any());
     }

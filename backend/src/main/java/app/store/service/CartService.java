@@ -138,7 +138,7 @@ public class CartService {
         CartItem item = findMyCartItem(itemId);
 
         if (!item.getCart().getId().equals(cartId)) {
-            throw new IllegalArgumentException("Item does not belong to cart " + cartId);
+            throw new AppException(ErrorCode.CART_ITEM_NOT_IN_CART);
         }
         cartItemRepository.delete(item);
     }
@@ -147,7 +147,7 @@ public class CartService {
     public CartItemResponse updateItemInCart(Long itemId, CartItemUpdateRequest request) {
         CartItem cartItem = findMyCartItem(itemId);
         if (request.quantity() > cartItem.getProduct().getStockQuantity()) {
-            throw new IllegalArgumentException("Quantity is not valid");
+            throw new AppException(ErrorCode.INSUFFICIENT_STOCK);
         }
         cartItem.setQuantity(request.quantity());
         cartItemRepository.save(cartItem);

@@ -3,6 +3,8 @@ package app.store.service;
 import app.store.dto.request.PostCategoryRequest;
 import app.store.dto.response.PostCategoryResponse;
 import app.store.entity.PostCategory;
+import app.store.exception.AppException;
+import app.store.exception.ErrorCode;
 import app.store.mapper.PostCategoryMapper;
 import app.store.repository.PostCategoryRepository;
 import app.store.utils.SlugUtil;
@@ -35,7 +37,7 @@ public class PostCategoryService {
 
         // Kiểm tra tên danh mục đã tồn tại chưa
         if (postCategoryRepository.existsByName(request.name())) {
-            throw new RuntimeException("Tên danh mục đã tồn tại");
+            throw new AppException(ErrorCode.POST_CATEGORY_EXISTED);
         }
         PostCategory postCategory = postCategoryMapper.toPostCategory(request);
 
@@ -51,12 +53,12 @@ public class PostCategoryService {
     public PostCategoryResponse updateCategory(Long id, PostCategoryRequest request) {
 
         PostCategory category = postCategoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục với ID: " + id));
+                .orElseThrow(() -> new AppException(ErrorCode.POST_CATEGORY_NOT_EXISTED));
         
         // Kiểm tra tên danh mục mới có trùng với danh mục khác không
         if (!category.getName().equals(request.name()) && 
             postCategoryRepository.existsByName(request.name())) {
-            throw new RuntimeException("Tên danh mục đã tồn tại");
+            throw new AppException(ErrorCode.POST_CATEGORY_EXISTED);
         }
         
         // Cập nhật slug nếu tên thay đổi
@@ -76,11 +78,11 @@ public class PostCategoryService {
     @PreAuthorize("hasAuthority('POST_CATEGORY_DELETE')")
     public void deleteCategory(Long id) {
         PostCategory category = postCategoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục với ID: " + id));
+                .orElseThrow(() -> new AppException(ErrorCode.POST_CATEGORY_NOT_EXISTED));
         
         // Kiểm tra xem danh mục có bài viết nào không
         if (category.getPosts() != null && !category.getPosts().isEmpty()) {
-            throw new RuntimeException("Không thể xóa danh mục đã có bài viết. Vui lòng xóa hoặc chuyển các bài viết trước.");
+            throw new AppException(ErrorCode.POST_CATEGORY_HAS_POSTS);
         }
         
         postCategoryRepository.delete(category);
@@ -88,14 +90,14 @@ public class PostCategoryService {
     @Transactional(readOnly = true)
     public PostCategoryResponse getCategoryById(Long id) {
         PostCategory category = postCategoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục với ID: " + id));
+                .orElseThrow(() -> new AppException(ErrorCode.POST_CATEGORY_NOT_EXISTED));
         
         return postCategoryMapper.toPostCategoryResponse(category);
     }
     @Transactional(readOnly = true)
     public PostCategoryResponse getCategoryBySlug(String slug) {
         PostCategory category = postCategoryRepository.findBySlug(slug)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục với slug: " + slug));
+                .orElseThrow(() -> new AppException(ErrorCode.POST_CATEGORY_NOT_EXISTED));
 
         return postCategoryMapper.toPostCategoryResponse(category);
     }

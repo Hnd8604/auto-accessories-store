@@ -69,12 +69,7 @@ public class ProductImageService {
         ProductImage productImage = productImageRepository.findById(imageId)
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_IMAGE_NOT_EXISTED));
 
-//        // Tìm Product mới
-//        Product product = productRepository.findById(request.getProductId())
-//                .orElseThrow(() -> new RuntimeException("Product not found with id: " + request.getProductId()));
-//
-      productImageMapper.updateProductImage(productImage, request);
-//      productImage.setProduct(product);
+        productImageMapper.updateProductImage(productImage, request);
         return productImageMapper.toProductImageResponse(
                 productImageRepository.save(productImage));
     }
@@ -104,7 +99,7 @@ public class ProductImageService {
 
         // Bước 3: Kiểm tra xem image có thuộc về product không
         if (!productImage.getProduct().getId().equals(productId)) {
-            throw new RuntimeException("Image with id " + imageId + " does not belong to product with id " + productId);
+            throw new AppException(ErrorCode.IMAGE_NOT_IN_PRODUCT);
         }
             productImageRepository.resetAllPrimaryImagesForProduct(productId);
             // Bước 2: "Thiết lập" ảnh mới là true

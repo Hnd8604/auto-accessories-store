@@ -90,8 +90,13 @@ public class OrderService {
             Product product = productRepository.findById(orderDetailRequest.productId())
                     .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_EXISTED));
 
-            if(orderDetailRequest.quantity() <= 0 || orderDetailRequest.quantity() > product.getStockQuantity()) {
-                throw new IllegalArgumentException("Quantity is not valid for product: " + product.getName());
+            if (orderDetailRequest.quantity() <= 0) {
+                throw new AppException(ErrorCode.INVALID_QUANTITY);
+            }
+            if (orderDetailRequest.quantity() > product.getStockQuantity()) {
+                throw new AppException(
+                        ErrorCode.INSUFFICIENT_STOCK,
+                        "Not enough stock available for product: " + product.getName());
             }
             OrderDetail orderDetail = new OrderDetail();
             orderDetail.setProduct(product);
@@ -182,7 +187,7 @@ public class OrderService {
 
         }
         else {
-            throw new RuntimeException("Only orders with status PENDING or PROCESSING can be canceled");
+            throw new AppException(ErrorCode.ORDER_NOT_CANCELABLE);
         }
         List<OrderDetail> orderDetails = order.getOrderDetails();
         for( OrderDetail orderDetail : orderDetails ) {

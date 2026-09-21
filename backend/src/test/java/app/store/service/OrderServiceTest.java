@@ -153,7 +153,33 @@ public class OrderServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
         assertThatThrownBy(() -> orderService.createOrderFromCart(request))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INSUFFICIENT_STOCK));
+
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void createOrderFromCart_shouldThrowInvalidQuantity_whenQuantityIsNotPositive() {
+        User user = buildUser();
+        Product product = new Product();
+        product.setId(1L);
+        product.setStockQuantity(10);
+        Cart cart = new Cart();
+        cart.setCartItems(new ArrayList<>());
+
+        OrderCreationRequest request = OrderCreationRequest.builder()
+                .orderDetails(List.of(OrderDetailRequest.builder().productId(1L).quantity(0).build()))
+                .build();
+
+        when(orderMapper.createOrder(request)).thenReturn(new Order());
+        when(userRepository.findById(OWNER)).thenReturn(Optional.of(user));
+        when(cartRepository.findByUserId("u1")).thenReturn(Optional.of(cart));
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        assertThatThrownBy(() -> orderService.createOrderFromCart(request))
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_QUANTITY));
 
         verify(orderRepository, never()).save(any());
     }
@@ -237,7 +263,8 @@ public class OrderServiceTest {
         when(orderRepository.findByIdAndUserId("o1", OWNER)).thenReturn(Optional.of(order));
 
         assertThatThrownBy(() -> orderService.cancelOrder("o1"))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ORDER_NOT_CANCELABLE));
 
         verify(orderRepository, never()).save(any());
     }

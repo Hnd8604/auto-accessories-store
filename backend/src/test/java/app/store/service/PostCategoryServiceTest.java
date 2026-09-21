@@ -22,6 +22,8 @@ import app.store.dto.request.PostCategoryRequest;
 import app.store.dto.response.PostCategoryResponse;
 import app.store.entity.Post;
 import app.store.entity.PostCategory;
+import app.store.exception.AppException;
+import app.store.exception.ErrorCode;
 import app.store.mapper.PostCategoryMapper;
 import app.store.repository.PostCategoryRepository;
 import app.store.utils.SlugUtil;
@@ -79,8 +81,9 @@ public class PostCategoryServiceTest {
         when(postCategoryRepository.existsByName("Tin tức")).thenReturn(true);
 
         assertThatThrownBy(() -> postCategoryService.createCategory(request))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("đã tồn tại");
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.POST_CATEGORY_EXISTED));
 
         verify(postCategoryRepository, never()).save(any());
     }
@@ -130,8 +133,9 @@ public class PostCategoryServiceTest {
         when(postCategoryRepository.existsByName("Tên đã có")).thenReturn(true);
 
         assertThatThrownBy(() -> postCategoryService.updateCategory(1L, request))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("đã tồn tại");
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.POST_CATEGORY_EXISTED));
     }
 
     @Test
@@ -139,8 +143,9 @@ public class PostCategoryServiceTest {
         when(postCategoryRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> postCategoryService.updateCategory(99L, request("x", null)))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Không tìm thấy danh mục");
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.POST_CATEGORY_NOT_EXISTED));
     }
 
     // ==================== delete ====================
@@ -165,8 +170,9 @@ public class PostCategoryServiceTest {
         when(postCategoryRepository.findById(1L)).thenReturn(Optional.of(category));
 
         assertThatThrownBy(() -> postCategoryService.deleteCategory(1L))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("đã có bài viết");
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.POST_CATEGORY_HAS_POSTS));
 
         verify(postCategoryRepository, never()).delete(any());
     }
@@ -178,8 +184,9 @@ public class PostCategoryServiceTest {
         when(postCategoryRepository.findBySlug("khong-ton-tai")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> postCategoryService.getCategoryBySlug("khong-ton-tai"))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("slug");
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.POST_CATEGORY_NOT_EXISTED));
     }
 
     @Test

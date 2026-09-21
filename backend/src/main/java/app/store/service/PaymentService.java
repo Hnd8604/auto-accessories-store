@@ -99,15 +99,15 @@ public class PaymentService {
         Order order = findAccessibleOrder(orderId);
 
         if (order.getPaymentStatus() == PaymentStatus.PAID) {
-            throw new RuntimeException("Đơn hàng đã được thanh toán");
+            throw new AppException(ErrorCode.ORDER_ALREADY_PAID);
         }
 
         if (order.getPaymentMethod() != PaymentMethod.BANK_TRANSFER) {
-            throw new RuntimeException("Đơn hàng không sử dụng phương thức chuyển khoản");
+            throw new AppException(ErrorCode.ORDER_PAYMENT_METHOD_INVALID);
         }
 
         if (order.getStatus() == OrderStatus.CANCELED) {
-            throw new RuntimeException("Đơn hàng đã bị huỷ");
+            throw new AppException(ErrorCode.ORDER_CANCELED);
         }
 
         Optional<PayosPaymentLink> latest = payosPaymentLinkRepository.findFirstByOrderIdOrderByIdDesc(order.getId());

@@ -237,7 +237,7 @@ Cùng một giao dịch đến từ **cả** webhook lẫn đối soát, và web
 | Database | Unique index `ux_payments_reference_code` | Webhook và đối soát chạy **song song** |
 
 Khi vi phạm unique index:
-- Trong webhook (`@Transactional`): rollback cả việc set `PAID`, exception thành `5xx`. Lần xử lý sau thấy bản ghi của luồng thắng → `DUPLICATE_TRANSACTION`.
+- Trong webhook (`@Transactional`): rollback cả việc set `PAID`, unique violation thành `409 DATA_CONFLICT`. Lần xử lý sau thấy bản ghi của luồng thắng → `DUPLICATE_TRANSACTION`.
 - Trong đối soát (không transaction bao ngoài, mỗi `save` tự commit): `DataAccessException` bị bắt và log, response vẫn trả trạng thái DB; lần poll sau sẽ thấy `PAID`.
 
 ### 3.7 Mã phản hồi webhook
@@ -248,7 +248,8 @@ Tài liệu payOS yêu cầu phản hồi **mã 2XX** để xác nhận đã nh�
 |------------|------|
 | Xử lý xong (mọi `WebhookOutcome`, kể cả `ORDER_NOT_FOUND`) | 200 + `success: true` |
 | Sai/thiếu chữ ký, body không phải JSON | 401 |
-| Lỗi hạ tầng (DB, transaction) | 500 (handler `DataAccessException`/`TransactionException` trong `GlobalExceptionHandler`) |
+| Xung đột unique/FK trong DB | 409 (`DATA_CONFLICT`) |
+| Lỗi hạ tầng hoặc integrity không dự kiến | 500 (`UNCATEGORIZED_EXCEPTION`) |
 
 Controller **không** bọc try/catch: nuốt lỗi DB thành `200` từng làm mất giao dịch có thật ở bản cũ.
 

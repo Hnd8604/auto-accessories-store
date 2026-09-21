@@ -1,30 +1,23 @@
 package app.store.exception;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import lombok.Getter;
 
 @Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
 public class AppException extends RuntimeException {
-    ErrorCode errorCode;
-    String customMessage;
-    
+    private final ErrorCode errorCode;
+
     public AppException(ErrorCode errorCode) {
         super(errorCode.getMessage());
         this.errorCode = errorCode;
     }
-    
+
     public AppException(ErrorCode errorCode, String customMessage) {
-        super(customMessage);
+        super(customMessage != null ? customMessage : errorCode.getMessage());
         this.errorCode = errorCode;
-        this.customMessage = customMessage;
     }
-    
-    @Override
-    public String getMessage() {
-        return customMessage != null ? customMessage : errorCode.getMessage();
+
+    public AppException(ErrorCode errorCode, Throwable cause) {
+        super(errorCode.getMessage(), cause);
+        this.errorCode = errorCode;
     }
 }
