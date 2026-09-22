@@ -208,7 +208,7 @@ File: `src/main/java/app/store/config/StompAuthChannelInterceptor.java`
 
 | code | Khi nào |
 |------|---------|
-| `1001` | Payload không hợp lệ (thiếu `conversationId`, `content` rỗng hoặc quá 2000 ký tự) |
+| `9009` | Payload không hợp lệ (thiếu `conversationId`, `content` rỗng hoặc quá 2000 ký tự) |
 | `8001` | Conversation không tồn tại |
 | `8002` | Conversation đã `CLOSED` |
 

@@ -314,7 +314,7 @@ Mở dialog → createPayment(orderId)
 ```
 1. POST /payments/payos/webhook với chữ ký sai/thiếu
 2. PayosGateway.verifyWebhook ném AppException ngay dòng đầu controller
-3. 401 (code 3001) — PaymentService không được gọi, đơn không đổi
+3. 401 (code 3201) — PaymentService không được gọi, đơn không đổi
 ```
 
 ### Huỷ đơn chưa thanh toán

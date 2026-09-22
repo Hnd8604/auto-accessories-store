@@ -5,12 +5,10 @@ import { Input } from "@/components/ui/input";
 import { InboxApi } from "@/features/inbox/api/InboxApi";
 import { useStompChat } from "@/features/inbox/hooks/useStompChat";
 import type { ChatMessage } from "@/features/inbox/types";
+import { ERROR_CODE } from "@/constants/errorCodes";
 
 const CONVERSATION_KEY = "chat_conversation_id";
 const GUEST_NAME_KEY = "chat_guest_name";
-// khớp ErrorCode ở backend
-const CONVERSATION_NOT_EXISTED = 8001;
-const CONVERSATION_CLOSED = 8002;
 
 function formatTime(dateStr: string) {
   return new Date(dateStr).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
@@ -41,7 +39,10 @@ export function ChatWidget() {
     },
     onError: (err) => {
       // hội thoại đã bị đóng hoặc không còn tồn tại -> quay về form nhập tên để mở hội thoại mới
-      if (err.code === CONVERSATION_NOT_EXISTED || err.code === CONVERSATION_CLOSED) {
+      if (
+        err.code === ERROR_CODE.CONVERSATION_NOT_EXISTED ||
+        err.code === ERROR_CODE.CONVERSATION_CLOSED
+      ) {
         localStorage.removeItem(CONVERSATION_KEY);
         setConversationId(null);
         setMessages([]);
