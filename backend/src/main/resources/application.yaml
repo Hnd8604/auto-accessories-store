@@ -55,10 +55,10 @@ spring:
           min-idle: 0
           max-wait: 2s
   mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
+    host: ${MAIL_HOST:smtp-relay.brevo.com}
     port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}          # Google App Password (16 ký tự)
+    password: ${MAIL_PASSWORD}          # Brevo SMTP key (không phải API key)
     properties:
       mail:
         smtp:
@@ -67,7 +67,7 @@ spring:
             enable: true
             required: true
           ssl:
-            trust: smtp.gmail.com
+            trust: ${MAIL_HOST:smtp-relay.brevo.com}
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
@@ -99,7 +99,7 @@ management:
         include: health,info
   health:
     # Mặc định Spring ping thử SMTP khi check health -> /actuator/health trả
-    # 503 mỗi khi Gmail chập chờn hoặc App Password hết hạn, khiến container
+    # 503 mỗi khi nhà cung cấp SMTP chập chờn hoặc SMTP key hết hạn, khiến container
     # bị đánh dấu unhealthy và bước health check của CD fail dù web vẫn chạy
     # bình thường. Gửi mail không phải điều kiện sống/chết của app.
     mail:
@@ -125,8 +125,11 @@ google:
   redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:3000/auth/google/callback}
 
 app:
+  mail:
+    # Phải là sender/domain đã được xác minh trên Brevo.
+    from-email: ${MAIL_FROM_EMAIL}
+    from-name: ${MAIL_FROM_NAME:AutoLux Store}
   admin:
-
     username: ${ADMIN_USERNAME:admin}
     password: ${ADMIN_PASSWORD:}
     email: ${ADMIN_EMAIL:admin@gmail.com}

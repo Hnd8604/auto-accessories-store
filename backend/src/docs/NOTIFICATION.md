@@ -56,7 +56,7 @@ Tách phần thông báo ra **xử lý bất đồng bộ qua Kafka**:
         │  @KafkaListener (group: store-notification-group)
         ▼
    OrderNotificationConsumer
-        ├── MailService.sendOrder...Email()        → Gmail SMTP
+        ├── MailService.sendOrder...Email()        → Brevo SMTP
         └── NotificationService.createNotification()
                 ├── lưu Notification vào MySQL
                 └── SseEmitterService.sendToUser()  ──► FE (EventSource /notifications/stream)

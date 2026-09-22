@@ -30,7 +30,7 @@
 | Frontend | React 18, TypeScript, Vite 5, Tailwind CSS, shadcn/ui, TanStack Query |
 | Backend | Java 21, Spring Boot 3.4, Spring Security, Spring Data JPA, WebSocket, SSE |
 | Dữ liệu | PostgreSQL 16, Redis 7.4, Flyway |
-| Tích hợp | payOS, Google OAuth2, Cloudinary, Gmail SMTP |
+| Tích hợp | payOS, Google OAuth2, Cloudinary, Brevo SMTP |
 | Vận hành | Docker Compose, Nginx, GitHub Actions |
 
 ## Yêu cầu môi trường
@@ -67,7 +67,7 @@ Có thể tạo khóa JWT bằng lệnh sau nếu máy đã cài OpenSSL:
 openssl rand -base64 48
 ```
 
-Các thông tin Gmail, Google OAuth2, Cloudinary và payOS cần được điền để sử dụng những tính năng tích hợp tương ứng. Không commit `.env.dev` hoặc bất kỳ khóa bí mật nào lên Git.
+Các thông tin Brevo SMTP, Google OAuth2, Cloudinary và payOS cần được điền để sử dụng những tính năng tích hợp tương ứng. Với Brevo, dùng SMTP login và SMTP key (không dùng API key), đồng thời đặt `MAIL_FROM_EMAIL` thành sender/domain đã xác minh. Không commit `.env.dev` hoặc bất kỳ khóa bí mật nào lên Git.
 
 ### 2. Khởi động dự án
 

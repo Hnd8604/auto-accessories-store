@@ -2,26 +2,32 @@ package app.store.service;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.util.Locale;
 
 @Service
-@RequiredArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
 public class MailService {
-    JavaMailSender mailSender;
+    private final JavaMailSender mailSender;
+    private final String fromEmail;
+    private final String fromName;
 
-    private static final String FROM_NAME = "Store App";
+    public MailService(JavaMailSender mailSender,
+                       @Value("${app.mail.from-email}") String fromEmail,
+                       @Value("${app.mail.from-name}") String fromName) {
+        this.mailSender = mailSender;
+        this.fromEmail = fromEmail;
+        this.fromName = fromName;
+    }
 
     /**
      * Gửi email thông báo đặt hàng thành công
@@ -115,12 +121,13 @@ public class MailService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromEmail, fromName);
             helper.setTo(toEmail);
             helper.setSubject(subject);
             helper.setText(htmlBody, true);
             mailSender.send(message);
             log.info("Email sent successfully to {}", toEmail);
-        } catch (MessagingException e) {
+        } catch (MessagingException | UnsupportedEncodingException | MailException e) {
             log.error("Failed to send email to {}: {}", toEmail, e.getMessage(), e);
             throw new RuntimeException("Failed to send email", e);
         }
