@@ -3,6 +3,7 @@ package app.store.service;
 import app.store.dto.event.OrderCreatedEvent;
 import app.store.dto.event.OrderStatusChangedEvent;
 import app.store.enums.NotificationType;
+import app.store.enums.OrderStatus;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -66,7 +67,7 @@ public class OrderNotificationConsumer {
             );
 
             // 2. Lưu thông báo vào DB + push real-time qua SSE
-            NotificationType type = "CANCELED".equals(event.newStatus())
+            NotificationType type = event.newStatus() == OrderStatus.CANCELED
                     ? NotificationType.ORDER_CANCELED
                     : NotificationType.ORDER_STATUS_CHANGED;
 

@@ -14,6 +14,7 @@ import app.store.entity.Cart;
 import app.store.entity.InvalidatedToken;
 import app.store.entity.Role;
 import app.store.entity.User;
+import app.store.enums.TokenType;
 import app.store.exception.AppException;
 import app.store.exception.ErrorCode;
 import app.store.mapper.UserMapper;
@@ -94,10 +95,10 @@ public class AuthenticationService {
         var token = request.token();
         boolean isValid = true;
         try {
-            verifyToken(token);
+            verifyToken(token, TokenType.ACCESS);
         } catch (AppException e) {
             isValid = false;
-            System.out.println(e.getMessage());
+            log.debug("Token introspection failed: {}", e.getMessage());
         }
 
         return IntrospectResponse.builder()
@@ -178,20 +179,20 @@ public class AuthenticationService {
     }
 
     public void logout(LogoutRequest request) throws ParseException, JOSEException {
-        invalidateToken(request.accessToken(), "accessToken");
-        invalidateToken(request.refreshToken(), "refreshToken");
+        invalidateToken(request.accessToken(), TokenType.ACCESS);
+        invalidateToken(request.refreshToken(), TokenType.REFRESH);
     }
 
-    private void invalidateToken(String token, String type) throws ParseException, JOSEException {
+    private void invalidateToken(String token, TokenType type) throws ParseException, JOSEException {
         try {
-            SignedJWT signToken = verifyToken(token);
+            SignedJWT signToken = verifyToken(token, type);
             String jti = signToken.getJWTClaimsSet().getJWTID();
             Date expiryTime = signToken.getJWTClaimsSet().getExpirationTime();
 
             InvalidatedToken invalidatedToken = InvalidatedToken.builder()
                     .id(jti)
                     .expiryTime(expiryTime)
-                    .type(type) // add type to the token
+                    .type(type)
                     .build();
 
             invalidatedRepository.save(invalidatedToken); // save logout token to database
@@ -200,7 +201,7 @@ public class AuthenticationService {
         }
     }
 
-    private SignedJWT verifyToken(String token) throws JOSEException, ParseException {
+    private SignedJWT verifyToken(String token, TokenType expectedType) throws JOSEException, ParseException {
         JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
 
         SignedJWT signedJWT = SignedJWT.parse(token);
@@ -212,23 +213,18 @@ public class AuthenticationService {
         if (!(verifiered && expirationTime.after(new Date())))
             throw new AppException(ErrorCode.UNAUTHENTICATED);
 
+        if (!expectedType.name().equals(signedJWT.getJWTClaimsSet().getClaim("type")))
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+
         if (invalidatedRepository.existsById(signedJWT.getJWTClaimsSet().getJWTID()))
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         return signedJWT;
     }
 
     public RefreshResponse refreshToken(RefreshRequest request) throws ParseException, JOSEException {
-        var signJWT = verifyToken(request.refreshToken());
-
-        var jti = signJWT.getJWTClaimsSet().getJWTID();
-        var expiryTime = signJWT.getJWTClaimsSet().getExpirationTime();
-        var type = signJWT.getJWTClaimsSet().getClaim("type");
+        var signJWT = verifyToken(request.refreshToken(), TokenType.REFRESH);
 
         var userId = signJWT.getJWTClaimsSet().getSubject();
-
-        if (!"refreshToken".equals(type)) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
-        }
 
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
@@ -257,7 +253,7 @@ public class AuthenticationService {
                                                                                                                   // now)
                 .jwtID(UUID.randomUUID().toString()) // add UUID to the token
                 .claim("scope", buildScope(user))
-                .claim("type", "accessToken") // add type to the token
+                .claim("type", TokenType.ACCESS.name())
                 .build();
 
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());
@@ -288,7 +284,7 @@ public class AuthenticationService {
                                                                                                                    // from
                                                                                                                    // now)
                 .jwtID(UUID.randomUUID().toString()) // add UUID to the token
-                .claim("type", "refreshToken") // add type to the token
+                .claim("type", TokenType.REFRESH.name())
                 .build();
 
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());

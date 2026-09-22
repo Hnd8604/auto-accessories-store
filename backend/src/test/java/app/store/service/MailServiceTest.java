@@ -1,5 +1,6 @@
 package app.store.service;
 
+import app.store.enums.OrderStatus;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
@@ -80,12 +81,13 @@ public class MailServiceTest {
         MimeMessage message = realMimeMessage();
         when(mailSender.createMimeMessage()).thenReturn(message);
 
-        mailService.sendOrderStatusChangedEmail("john@mail.com", "John", "DH123", "PENDING", "SHIPPING");
+        mailService.sendOrderStatusChangedEmail(
+                "john@mail.com", "John", "DH123", OrderStatus.PENDING, OrderStatus.SHIPPED);
 
         assertThat(message.getSubject()).isEqualTo("Cập nhật đơn hàng #DH123");
         String body = htmlBodyOf(message);
-        assertThat(body).contains("PENDING").contains("SHIPPING")
-                .contains("#F39C12"); // màu riêng của trạng thái SHIPPING
+        assertThat(body).contains("PENDING").contains("SHIPPED")
+                .contains("#F39C12"); // màu riêng của trạng thái SHIPPED
     }
 
     @Test

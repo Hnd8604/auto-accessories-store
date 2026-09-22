@@ -143,7 +143,7 @@ public class OrderService {
                             .userEmail(user.getEmail())
                             .recipientName(savedOrder.getNameRecipient())
                             .totalPrice(savedOrder.getTotalPrice())
-                            .paymentMethod(savedOrder.getPaymentMethod().name())
+                            .paymentMethod(savedOrder.getPaymentMethod())
                             .createdAt(savedOrder.getCreatedAt())
                             .build()
             );
@@ -233,8 +233,8 @@ public class OrderService {
                             .userId(order.getUser().getId())
                             .userEmail(order.getUser().getEmail())
                             .recipientName(order.getNameRecipient())
-                            .oldStatus(oldStatus.name())
-                            .newStatus(newStatus.name())
+                            .oldStatus(oldStatus)
+                            .newStatus(newStatus)
                             .changedAt(LocalDateTime.now())
                             .build()
             );

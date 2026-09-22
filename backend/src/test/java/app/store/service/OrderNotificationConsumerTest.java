@@ -17,6 +17,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import app.store.dto.event.OrderCreatedEvent;
 import app.store.dto.event.OrderStatusChangedEvent;
 import app.store.enums.NotificationType;
+import app.store.enums.OrderStatus;
+import app.store.enums.PaymentMethod;
 
 @ExtendWith(MockitoExtension.class)
 public class OrderNotificationConsumerTest {
@@ -36,18 +38,18 @@ public class OrderNotificationConsumerTest {
                 .userEmail("john@mail.com")
                 .recipientName("John")
                 .totalPrice(BigDecimal.valueOf(200_000))
-                .paymentMethod("COD")
+                .paymentMethod(PaymentMethod.COD)
                 .build();
     }
 
-    private OrderStatusChangedEvent buildStatusChangedEvent(String newStatus) {
+    private OrderStatusChangedEvent buildStatusChangedEvent(OrderStatus newStatus) {
         return OrderStatusChangedEvent.builder()
                 .orderId("o1")
                 .orderCode("DH123")
                 .userId("u1")
                 .userEmail("john@mail.com")
                 .recipientName("John")
-                .oldStatus("PENDING")
+                .oldStatus(OrderStatus.PENDING)
                 .newStatus(newStatus)
                 .build();
     }
@@ -70,19 +72,19 @@ public class OrderNotificationConsumerTest {
 
     @Test
     void handleOrderStatusChanged_shouldUseStatusChangedType_forNormalStatus() {
-        OrderStatusChangedEvent event = buildStatusChangedEvent("SHIPPING");
+        OrderStatusChangedEvent event = buildStatusChangedEvent(OrderStatus.SHIPPED);
 
         orderNotificationConsumer.handleOrderStatusChanged(event);
 
         verify(mailService).sendOrderStatusChangedEmail(
-                "john@mail.com", "John", "DH123", "PENDING", "SHIPPING");
+                "john@mail.com", "John", "DH123", OrderStatus.PENDING, OrderStatus.SHIPPED);
         verify(notificationService).createNotification(
                 eq("u1"), any(), any(), eq(NotificationType.ORDER_STATUS_CHANGED), eq("o1"));
     }
 
     @Test
     void handleOrderStatusChanged_shouldUseCanceledType_whenOrderCanceled() {
-        OrderStatusChangedEvent event = buildStatusChangedEvent("CANCELED");
+        OrderStatusChangedEvent event = buildStatusChangedEvent(OrderStatus.CANCELED);
 
         orderNotificationConsumer.handleOrderStatusChanged(event);
 

@@ -1,5 +1,6 @@
 package app.store.dto.event;
 
+import app.store.enums.PaymentMethod;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,7 +20,7 @@ public record OrderCreatedEvent(
         String userEmail,
         String recipientName,
         BigDecimal totalPrice,
-        String paymentMethod,
+        PaymentMethod paymentMethod,
         LocalDateTime createdAt
 ) {
 }

@@ -23,23 +23,20 @@ Tài liệu này mô tả tính năng **Live Chat** được tích hợp vào h�
    - [Inbox Admin](#45-inbox-admin)
 5. [Luồng dữ liệu](#5-luồng-dữ-liệu)
 6. [Hướng dẫn chạy & kiểm tra](#6-hướng-dẫn-chạy--kiểm-tra)
-7. [Mở rộng Phase 2 — Zalo & Messenger](#7-mở-rộng-phase-2--zalo--messenger)
 
 ---
 
 ## 1. Tổng quan
 
 ### Vấn đề
-Khách hàng liên hệ qua 3 kênh (website, Zalo OA, Facebook Messenger), admin phải mở từng ứng dụng riêng để xem và trả lời — mất thời gian, dễ bỏ sót.
+Khách hàng cần một kênh hỗ trợ trực tiếp ngay trên website, còn admin cần xem và trả lời tập trung mà không phải rời trang quản trị.
 
-### Giải pháp — Phase 1 (đã triển khai)
+### Giải pháp
 Xây dựng **Website Live Chat** 2 chiều hoàn chỉnh:
 
 | Kênh | Nhận tin | Gửi tin | Ghi chú |
 |------|----------|---------|---------|
 | Website | Admin dashboard | Admin dashboard | Real-time, WebSocket |
-| Zalo OA | *(Phase 2)* | Dùng app Zalo trực tiếp | API gửi mất phí |
-| Messenger | *(Phase 2)* | Dùng app Facebook trực tiếp | API gửi mất phí |
 
 ### Kết quả
 - Khách hàng chat qua widget nút tròn góc dưới phải trang chủ
@@ -100,7 +97,7 @@ JPA tự động tạo bảng qua `spring.jpa.hibernate.ddl-auto`.
 |-----|------|-------|
 | `id` | VARCHAR(36) PK | UUID tự sinh |
 | `guest_name` | VARCHAR(255) NOT NULL | Tên khách nhập khi bắt đầu chat |
-| `channel` | VARCHAR(50) | `WEB` / `ZALO` / `MESSENGER` |
+| `channel` | VARCHAR(50) | Luôn là `WEB` |
 | `status` | VARCHAR(20) | `OPEN` / `CLOSED` |
 | `unread_count` | INT | Số tin chưa đọc (phía admin) |
 | `last_message_at` | DATETIME | Thời điểm tin nhắn cuối |
@@ -472,77 +469,4 @@ SELECT * FROM chat_messages WHERE conversation_id = 'your-id' ORDER BY created_a
 
 ---
 
-## 7. Mở rộng Phase 2 — Zalo & Messenger
-
-### Chiến lược
-- **Chỉ nhận** tin nhắn từ Zalo OA và Messenger về admin dashboard (webhook miễn phí)
-- **Gửi đi** admin tự dùng app Zalo/Facebook trên điện thoại (tránh phí API)
-
-### Zalo OA
-
-**Yêu cầu:**
-- Tài khoản Zalo Official Account
-- Vào [Zalo for Developers](https://developers.zalo.me) → tạo app → lấy OA Access Token
-- Cấu hình webhook URL: `https://yourdomain.com/api/v1/webhook/zalo`
-
-**Cần thêm vào backend:**
-```java
-// controller/ZaloWebhookController.java
-@PostMapping("/webhook/zalo")
-public ResponseEntity<String> receiveZalo(@RequestBody ZaloWebhookPayload payload) {
-    // parse payload → tạo/lấy Conversation (channel=ZALO, externalId=sender.id)
-    // lưu ChatMessage, broadcast STOMP
-    return ResponseEntity.ok("OK");
-}
-```
-
-**application.properties:**
-```properties
-zalo.oa.secret-key=YOUR_SECRET_KEY
-```
-
-### Facebook Messenger
-
-**Yêu cầu:**
-- Facebook App với permission `pages_messaging`
-- Page Access Token
-- Webhook URL: `https://yourdomain.com/api/v1/webhook/messenger`
-- Webhook Verify Token (chuỗi tự đặt)
-
-**Cần thêm vào backend:**
-```java
-// controller/MessengerWebhookController.java
-
-@GetMapping("/webhook/messenger")  // Facebook gọi để verify
-public String verify(@RequestParam("hub.verify_token") String token,
-                     @RequestParam("hub.challenge") String challenge) {
-    if (verifyToken.equals(token)) return challenge;
-    return "Invalid token";
-}
-
-@PostMapping("/webhook/messenger")  // Nhận tin nhắn
-public ResponseEntity<String> receive(@RequestBody MessengerPayload payload) {
-    // parse → tạo Conversation (channel=MESSENGER) → lưu ChatMessage → broadcast
-    return ResponseEntity.ok("EVENT_RECEIVED");
-}
-```
-
-**application.properties:**
-```properties
-facebook.verify-token=YOUR_VERIFY_TOKEN
-facebook.app.secret=YOUR_APP_SECRET
-```
-
-### Thay đổi frontend (Phase 2)
-
-Khi `conversation.channel` là `ZALO` hoặc `MESSENGER`, `ChatWindow.tsx` thay ô nhập tin bằng banner:
-
-```
-⚠️ Kênh Zalo — Vui lòng trả lời trực tiếp trên app Zalo OA (điện thoại)
-```
-
-Không cần thay đổi `ConversationList.tsx` hay `InboxPage.tsx` — chỉ cần thêm `ChannelBadge` hiển thị màu sắc theo kênh.
-
----
-
-*Tài liệu cập nhật lần cuối: 2026-05-31*
+*Tài liệu cập nhật lần cuối: 2026-09-23*

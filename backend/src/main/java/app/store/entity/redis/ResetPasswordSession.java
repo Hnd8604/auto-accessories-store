@@ -1,5 +1,6 @@
 package app.store.entity.redis;
 
+import app.store.enums.PasswordResetStep;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -13,15 +14,12 @@ public class ResetPasswordSession {
 
     String userId;
     String email;
-    String step;
+    PasswordResetStep step;
     String otpHash;
     int otpAttempt;
     long otpExpireAt;
     long createdAt;
     long lastSentAt;
-
-    public static final String STEP_EMAIL_VERIFIED = "EMAIL_VERIFIED";
-    public static final String STEP_OTP_VERIFIED = "OTP_VERIFIED";
 
     public static final int MAX_OTP_ATTEMPTS = 5;
     public static final long OTP_TTL_MILLIS = 3 * 60 * 1000; // 3 minutes

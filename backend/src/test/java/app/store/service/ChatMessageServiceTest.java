@@ -52,7 +52,7 @@ public class ChatMessageServiceTest {
         ChatMessageResponse response = chatMessageService.send(request(), SenderType.CUSTOMER);
 
         assertThat(response.content()).isEqualTo("Xin chào");
-        assertThat(response.senderType()).isEqualTo("CUSTOMER");
+        assertThat(response.senderType()).isEqualTo(SenderType.CUSTOMER);
 
         verify(conversationService).getOpenConversation("c1");
         verify(messagingTemplate).convertAndSend(eq("/topic/conversation/c1"), any(Object.class));
@@ -67,7 +67,7 @@ public class ChatMessageServiceTest {
 
         ChatMessageResponse response = chatMessageService.send(request(), SenderType.ADMIN);
 
-        assertThat(response.senderType()).isEqualTo("ADMIN");
+        assertThat(response.senderType()).isEqualTo(SenderType.ADMIN);
         verify(messagingTemplate).convertAndSend(eq("/topic/conversation/c1"), any(Object.class));
         verify(messagingTemplate, never()).convertAndSend(eq("/topic/admin/new-message"), any(Object.class));
         verify(conversationService).updateLastMessage("c1", "Xin chào");
@@ -105,7 +105,7 @@ public class ChatMessageServiceTest {
     @Test
     void getMessages_shouldPageInAscendingOrder() {
         ChatMessage message = ChatMessage.builder()
-                .id("m1").conversationId("c1").senderType("ADMIN").content("Chào bạn").build();
+                .id("m1").conversationId("c1").senderType(SenderType.ADMIN).content("Chào bạn").build();
 
         when(chatMessageRepository.findByConversationIdOrderByCreatedAtAsc("c1", PageRequest.of(0, 50)))
                 .thenReturn(new PageImpl<>(List.of(message)));

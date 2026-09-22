@@ -23,6 +23,8 @@ import org.springframework.data.domain.PageRequest;
 
 import app.store.dto.request.CreateConversationRequest;
 import app.store.entity.Conversation;
+import app.store.enums.ConversationChannel;
+import app.store.enums.ConversationStatus;
 import app.store.exception.AppException;
 import app.store.exception.ErrorCode;
 import app.store.repository.ConversationRepository;
@@ -39,8 +41,8 @@ public class ConversationServiceTest {
         return Conversation.builder()
                 .id("c1")
                 .guestName("Khách A")
-                .channel("WEB")
-                .status("OPEN")
+                .channel(ConversationChannel.WEB)
+                .status(ConversationStatus.OPEN)
                 .unreadCount(2)
                 .build();
     }
@@ -53,8 +55,8 @@ public class ConversationServiceTest {
 
         ArgumentCaptor<Conversation> captor = ArgumentCaptor.forClass(Conversation.class);
         verify(conversationRepository).save(captor.capture());
-        assertThat(captor.getValue().getChannel()).isEqualTo("WEB");
-        assertThat(captor.getValue().getStatus()).isEqualTo("OPEN");
+        assertThat(captor.getValue().getChannel()).isEqualTo(ConversationChannel.WEB);
+        assertThat(captor.getValue().getStatus()).isEqualTo(ConversationStatus.OPEN);
         assertThat(captor.getValue().getUnreadCount()).isZero();
         assertThat(response.guestName()).isEqualTo("Khách A");
     }
@@ -103,7 +105,7 @@ public class ConversationServiceTest {
     @Test
     void getOpenConversation_shouldThrow_whenClosed() {
         Conversation conversation = buildConversation();
-        conversation.setStatus("CLOSED");
+        conversation.setStatus(ConversationStatus.CLOSED);
         when(conversationRepository.findById("c1")).thenReturn(Optional.of(conversation));
 
         assertThatThrownBy(() -> conversationService.getOpenConversation("c1"))
@@ -140,7 +142,7 @@ public class ConversationServiceTest {
 
         conversationService.close("c1");
 
-        assertThat(conversation.getStatus()).isEqualTo("CLOSED");
+        assertThat(conversation.getStatus()).isEqualTo(ConversationStatus.CLOSED);
         verify(conversationRepository).save(conversation);
     }
 
@@ -169,7 +171,7 @@ public class ConversationServiceTest {
 
     @Test
     void getTotalUnread_shouldDelegateToRepository() {
-        when(conversationRepository.sumTotalUnread()).thenReturn(7L);
+        when(conversationRepository.sumTotalUnread(ConversationStatus.OPEN)).thenReturn(7L);
 
         assertThat(conversationService.getTotalUnread()).isEqualTo(7L);
     }

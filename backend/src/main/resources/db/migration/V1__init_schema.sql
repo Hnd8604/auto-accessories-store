@@ -76,16 +76,16 @@ CREATE TABLE role (
 
 CREATE TABLE invalidated_token (
     id          varchar(255) NOT NULL,
-    type        varchar(255) NOT NULL,
+    type        varchar(255) NOT NULL CHECK (type IN ('ACCESS', 'REFRESH')),
     expiry_time timestamp(6) NOT NULL,
     PRIMARY KEY (id)
 );
 
 CREATE TABLE conversations (
     id              varchar(255) NOT NULL,
-    channel         varchar(255) NOT NULL DEFAULT 'WEB',
+    channel         varchar(255) NOT NULL DEFAULT 'WEB' CHECK (channel = 'WEB'),
     guest_name      varchar(255) NOT NULL,
-    status          varchar(255) NOT NULL DEFAULT 'OPEN',
+    status          varchar(255) NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'CLOSED')),
     unread_count    integer      NOT NULL DEFAULT 0,
     last_message_at timestamp(6),
     created_at      timestamp(6) NOT NULL,
@@ -97,7 +97,7 @@ CREATE TABLE conversations (
 CREATE TABLE chat_messages (
     id              varchar(255)  NOT NULL,
     conversation_id varchar(255)  NOT NULL,
-    sender_type     varchar(255)  NOT NULL,
+    sender_type     varchar(255)  NOT NULL CHECK (sender_type IN ('CUSTOMER', 'ADMIN')),
     content         varchar(2000) NOT NULL,
     created_at      timestamp(6)  NOT NULL,
     PRIMARY KEY (id)
@@ -236,7 +236,7 @@ CREATE TABLE payments (
     order_id         varchar(255)   NOT NULL,
     amount           numeric(38, 2) NOT NULL,
     status           varchar(255)   NOT NULL CHECK (status IN ('UNPAID', 'PAID', 'REFUNDED')),
-    gateway          varchar(255)   NOT NULL,
+    gateway          varchar(255)   NOT NULL CHECK (gateway IN ('PAYOS')),
     account_number   varchar(255),
     reference_code   varchar(255),
     transaction_code varchar(255),

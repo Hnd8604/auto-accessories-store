@@ -73,7 +73,7 @@ Tách phần thông báo ra **xử lý bất đồng bộ qua Kafka**:
 | **Bất đồng bộ** | Đặt hàng không phải chờ gửi mail/SSE — phản hồi nhanh |
 | **Tách rời (decoupling)** | `OrderService` không biết gì về mail/SSE; chỉ phát event |
 | **Bền bỉ (durability)** | Event nằm trong Kafka log; consumer chết rồi bật lại vẫn đọc tiếp (`auto-offset-reset: earliest`) |
-| **Mở rộng** | Thêm consumer mới (SMS, Zalo, thống kê...) chỉ cần subscribe topic, không sửa producer |
+| **Mở rộng** | Thêm consumer mới (SMS, thống kê...) chỉ cần subscribe topic, không sửa producer |
 | **Phân phối theo key** | Dùng `orderId` làm key → các event cùng đơn vào cùng partition, giữ đúng thứ tự |
 
 ---

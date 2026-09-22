@@ -1,5 +1,6 @@
 package app.store.service;
 
+import app.store.enums.OrderStatus;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
@@ -64,7 +65,7 @@ public class MailService {
      * Gửi email thông báo thay đổi trạng thái đơn hàng
      */
     public void sendOrderStatusChangedEmail(String toEmail, String recipientName, String orderCode,
-                                            String oldStatus, String newStatus) {
+                                            OrderStatus oldStatus, OrderStatus newStatus) {
         String subject = "Cập nhật đơn hàng #" + orderCode;
         String statusColor = getStatusColor(newStatus);
         String body = """
@@ -138,12 +139,12 @@ public class MailService {
         return formatter.format(amount);
     }
 
-    private String getStatusColor(String status) {
-        return switch (status.toUpperCase()) {
-            case "DELIVERED" -> "#27AE60";
-            case "CANCELED" -> "#E74C3C";
-            case "SHIPPING" -> "#F39C12";
-            case "PROCESSING" -> "#3498DB";
+    private String getStatusColor(OrderStatus status) {
+        return switch (status) {
+            case DELIVERED -> "#27AE60";
+            case CANCELED -> "#E74C3C";
+            case SHIPPED -> "#F39C12";
+            case PROCESSING -> "#3498DB";
             default -> "#333";
         };
     }

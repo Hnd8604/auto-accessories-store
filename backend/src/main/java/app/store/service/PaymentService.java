@@ -6,6 +6,7 @@ import app.store.entity.Payment;
 import app.store.entity.PayosPaymentLink;
 import app.store.enums.OrderStatus;
 import app.store.enums.PaymentMethod;
+import app.store.enums.PaymentGateway;
 import app.store.enums.PaymentStatus;
 import app.store.enums.WebhookOutcome;
 import app.store.exception.AppException;
@@ -50,7 +51,6 @@ import java.util.UUID;
 public class PaymentService {
 
     private static final String VIEW_ANY_ORDER_AUTHORITY = "ORDER_GET_BY_ID";
-    private static final String GATEWAY_NAME = "PAYOS";
     private static final String SUCCESS_CODE = "00";
     private static final String ORDER_CANCELED_REASON = "Don hang da bi huy";
 
@@ -295,7 +295,7 @@ public class PaymentService {
         Payment payment = Payment.builder()
                 .order(order)
                 .amount(BigDecimal.valueOf(tx.amount()))
-                .gateway(GATEWAY_NAME)
+                .gateway(PaymentGateway.PAYOS)
                 .transactionCode(tx.paymentLinkId())
                 .referenceCode(tx.reference())
                 .transferContent(tx.description())

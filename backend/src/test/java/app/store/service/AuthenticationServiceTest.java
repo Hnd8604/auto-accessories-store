@@ -35,6 +35,8 @@ import app.store.dto.request.auth.RefreshRequest;
 import app.store.dto.request.user.UserCreationRequest;
 import app.store.entity.Role;
 import app.store.entity.User;
+import app.store.entity.InvalidatedToken;
+import app.store.enums.TokenType;
 import app.store.exception.AppException;
 import app.store.exception.ErrorCode;
 import app.store.mapper.UserMapper;
@@ -184,10 +186,10 @@ public class AuthenticationServiceTest {
         // Token thật -> parse ra để kiểm claim
         var claims = SignedJWT.parse(response.accessToken()).getJWTClaimsSet();
         assertThat(claims.getSubject()).isEqualTo("u1"); // sub = user.id, không phải username
-        assertThat(claims.getClaim("type")).isEqualTo("accessToken");
+        assertThat(claims.getClaim("type")).isEqualTo(TokenType.ACCESS.name());
         assertThat(claims.getStringClaim("scope")).contains("ROLE_USER");
         assertThat(SignedJWT.parse(response.refreshToken()).getJWTClaimsSet().getClaim("type"))
-                .isEqualTo("refreshToken");
+                .isEqualTo(TokenType.REFRESH.name());
         verify(cartSyncService).syncSessionCart(user, session);
     }
 
@@ -236,7 +238,7 @@ public class AuthenticationServiceTest {
 
         assertThat(response.authenticated()).isTrue();
         assertThat(SignedJWT.parse(response.accessToken()).getJWTClaimsSet().getClaim("type"))
-                .isEqualTo("accessToken");
+                .isEqualTo(TokenType.ACCESS.name());
     }
 
     @Test
@@ -262,8 +264,6 @@ public class AuthenticationServiceTest {
         User user = buildUser("secret123");
         when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
         String accessToken = authenticationService.generateAuthResponse(user).accessToken();
-
-        when(invalidatedRepository.existsById(any())).thenReturn(false);
 
         assertThatThrownBy(() -> authenticationService.refreshToken(
                 RefreshRequest.builder().refreshToken(accessToken).build()))
@@ -318,6 +318,18 @@ public class AuthenticationServiceTest {
     }
 
     @Test
+    void introspect_shouldRejectRefreshToken() throws Exception {
+        User user = buildUser("secret123");
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
+        String refreshToken = authenticationService.generateAuthResponse(user).refreshToken();
+
+        var response = authenticationService.introspect(
+                IntrospectRequest.builder().token(refreshToken).build());
+
+        assertThat(response.valid()).isFalse();
+    }
+
+    @Test
     void logout_shouldSaveBothTokensToBlacklist() throws Exception {
         User user = buildUser("secret123");
         when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
@@ -330,7 +342,11 @@ public class AuthenticationServiceTest {
                 .refreshToken(tokens.refreshToken())
                 .build());
 
-        verify(invalidatedRepository, times(2)).save(any());
+        ArgumentCaptor<InvalidatedToken> captor = ArgumentCaptor.forClass(InvalidatedToken.class);
+        verify(invalidatedRepository, times(2)).save(captor.capture());
+        assertThat(captor.getAllValues())
+                .extracting(InvalidatedToken::getType)
+                .containsExactly(TokenType.ACCESS, TokenType.REFRESH);
     }
 
     // ==================== changePassword ====================

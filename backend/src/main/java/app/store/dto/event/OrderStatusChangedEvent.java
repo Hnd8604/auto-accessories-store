@@ -1,5 +1,6 @@
 package app.store.dto.event;
 
+import app.store.enums.OrderStatus;
 import java.time.LocalDateTime;
 import lombok.Builder;
 
@@ -10,8 +11,8 @@ public record OrderStatusChangedEvent(
         String userId,
         String userEmail,
         String recipientName,
-        String oldStatus,
-        String newStatus,
+        OrderStatus oldStatus,
+        OrderStatus newStatus,
         LocalDateTime changedAt
 ) {
 }

@@ -1,5 +1,6 @@
 package app.store.dto.response;
 
+import app.store.enums.SenderType;
 import java.time.LocalDateTime;
 import lombok.Builder;
 
@@ -7,7 +8,7 @@ import lombok.Builder;
 public record ChatMessageResponse(
         String id,
         String conversationId,
-        String senderType,
+        SenderType senderType,
         String content,
         LocalDateTime createdAt
 ) {

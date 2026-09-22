@@ -1,5 +1,6 @@
 package app.store.entity;
 
+import app.store.enums.PaymentGateway;
 import app.store.enums.PaymentStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -24,8 +25,9 @@ public class Payment extends BaseEntityLong {
     @Column(nullable = false)
     BigDecimal amount;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    String gateway; // Cổng thanh toán (PAYOS)
+    PaymentGateway gateway;
     String transactionCode; // paymentLinkId của payOS
     String referenceCode; // Mã tham chiếu giao dịch ngân hàng, duy nhất
     String transferContent; // Nội dung chuyển khoản

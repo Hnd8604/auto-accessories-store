@@ -1,5 +1,6 @@
 package app.store.entity;
 
+import app.store.enums.SenderType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -28,8 +29,9 @@ public class ChatMessage {
     @Column(nullable = false)
     String conversationId;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    String senderType; // CUSTOMER | ADMIN
+    SenderType senderType;
 
     @Column(nullable = false, length = 2000)
     String content;

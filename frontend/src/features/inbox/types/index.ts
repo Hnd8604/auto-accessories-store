@@ -1,7 +1,7 @@
 export interface Conversation {
   id: string;
   guestName: string;
-  channel: "WEB" | "ZALO" | "MESSENGER";
+  channel: "WEB";
   status: "OPEN" | "CLOSED";
   unreadCount: number;
   lastMessageAt: string | null;

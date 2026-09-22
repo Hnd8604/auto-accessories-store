@@ -1,5 +1,7 @@
 package app.store.dto.response;
 
+import app.store.enums.ConversationChannel;
+import app.store.enums.ConversationStatus;
 import java.time.LocalDateTime;
 import lombok.Builder;
 
@@ -7,8 +9,8 @@ import lombok.Builder;
 public record ConversationResponse(
         String id,
         String guestName,
-        String channel,
-        String status,
+        ConversationChannel channel,
+        ConversationStatus status,
         int unreadCount,
         LocalDateTime lastMessageAt,
         LocalDateTime createdAt,

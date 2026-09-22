@@ -25,6 +25,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import app.store.entity.redis.ResetPasswordSession;
+import app.store.enums.PasswordResetStep;
 import app.store.dto.request.ConfirmResetPasswordRequest;
 import app.store.dto.request.InitResetPasswordRequest;
 import app.store.dto.request.ResendOtpRequest;
@@ -62,7 +63,7 @@ public class ResetPasswordServiceTest {
         return user;
     }
 
-    private ResetPasswordSession buildSession(String step, String rawOtp) {
+    private ResetPasswordSession buildSession(PasswordResetStep step, String rawOtp) {
         long now = System.currentTimeMillis();
         return ResetPasswordSession.builder()
                 .userId("u1")
@@ -98,7 +99,7 @@ public class ResetPasswordServiceTest {
                 ArgumentCaptor.forClass(ResetPasswordSession.class);
         verify(valueOperations).set(anyString(), sessionCaptor.capture(), eq(5L), eq(TimeUnit.MINUTES));
         ResetPasswordSession saved = sessionCaptor.getValue();
-        assertThat(saved.getStep()).isEqualTo(ResetPasswordSession.STEP_EMAIL_VERIFIED);
+        assertThat(saved.getStep()).isEqualTo(PasswordResetStep.EMAIL_VERIFIED);
         assertThat(saved.getOtpAttempt()).isZero();
         assertThat(encoder.matches(otpCaptor.getValue(), saved.getOtpHash())).isTrue();
     }
@@ -121,7 +122,7 @@ public class ResetPasswordServiceTest {
     @Test
     void verifyOtp_shouldMoveSessionToOtpVerified_whenCorrect() {
         ResetPasswordSession session =
-                buildSession(ResetPasswordSession.STEP_EMAIL_VERIFIED, "123456");
+                buildSession(PasswordResetStep.EMAIL_VERIFIED, "123456");
         when(objectRedisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(REDIS_KEY)).thenReturn(session);
 
@@ -129,7 +130,7 @@ public class ResetPasswordServiceTest {
                 VerifyOtpRequest.builder().sessionId(SESSION_ID).otp("123456").build());
 
         assertThat(response.verified()).isTrue();
-        assertThat(session.getStep()).isEqualTo(ResetPasswordSession.STEP_OTP_VERIFIED);
+        assertThat(session.getStep()).isEqualTo(PasswordResetStep.OTP_VERIFIED);
         verify(valueOperations).set(eq(REDIS_KEY), eq(session), anyLong(), any());
     }
 
@@ -148,7 +149,7 @@ public class ResetPasswordServiceTest {
     @Test
     void verifyOtp_shouldThrow_whenWrongStep() {
         ResetPasswordSession session =
-                buildSession(ResetPasswordSession.STEP_OTP_VERIFIED, "123456"); // đã verify rồi
+                buildSession(PasswordResetStep.OTP_VERIFIED, "123456"); // đã verify rồi
         when(objectRedisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(REDIS_KEY)).thenReturn(session);
 
@@ -162,7 +163,7 @@ public class ResetPasswordServiceTest {
     @Test
     void verifyOtp_shouldThrow_whenOtpExpired() {
         ResetPasswordSession session =
-                buildSession(ResetPasswordSession.STEP_EMAIL_VERIFIED, "123456");
+                buildSession(PasswordResetStep.EMAIL_VERIFIED, "123456");
         session.setOtpExpireAt(System.currentTimeMillis() - 1000); // hết hạn 1 giây trước
         when(objectRedisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(REDIS_KEY)).thenReturn(session);
@@ -177,7 +178,7 @@ public class ResetPasswordServiceTest {
     @Test
     void verifyOtp_shouldDeleteSession_whenMaxAttemptsExceeded() {
         ResetPasswordSession session =
-                buildSession(ResetPasswordSession.STEP_EMAIL_VERIFIED, "123456");
+                buildSession(PasswordResetStep.EMAIL_VERIFIED, "123456");
         session.setOtpAttempt(ResetPasswordSession.MAX_OTP_ATTEMPTS);
         when(objectRedisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(REDIS_KEY)).thenReturn(session);
@@ -194,7 +195,7 @@ public class ResetPasswordServiceTest {
     @Test
     void verifyOtp_shouldIncreaseAttempt_whenOtpWrong() {
         ResetPasswordSession session =
-                buildSession(ResetPasswordSession.STEP_EMAIL_VERIFIED, "123456");
+                buildSession(PasswordResetStep.EMAIL_VERIFIED, "123456");
         when(objectRedisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(REDIS_KEY)).thenReturn(session);
 
@@ -205,7 +206,7 @@ public class ResetPasswordServiceTest {
                 .isEqualTo(ErrorCode.OTP_INVALID);
 
         assertThat(session.getOtpAttempt()).isEqualTo(1);
-        assertThat(session.getStep()).isEqualTo(ResetPasswordSession.STEP_EMAIL_VERIFIED);
+        assertThat(session.getStep()).isEqualTo(PasswordResetStep.EMAIL_VERIFIED);
     }
 
     // ==================== confirmResetPassword ====================
@@ -213,7 +214,7 @@ public class ResetPasswordServiceTest {
     @Test
     void confirmResetPassword_shouldSaveNewPassword_andDeleteSession() {
         ResetPasswordSession session =
-                buildSession(ResetPasswordSession.STEP_OTP_VERIFIED, "123456");
+                buildSession(PasswordResetStep.OTP_VERIFIED, "123456");
         User user = buildUser();
         when(objectRedisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(REDIS_KEY)).thenReturn(session);
@@ -230,7 +231,7 @@ public class ResetPasswordServiceTest {
     @Test
     void confirmResetPassword_shouldThrow_whenOtpNotVerifiedYet() {
         ResetPasswordSession session =
-                buildSession(ResetPasswordSession.STEP_EMAIL_VERIFIED, "123456");
+                buildSession(PasswordResetStep.EMAIL_VERIFIED, "123456");
         when(objectRedisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(REDIS_KEY)).thenReturn(session);
 
@@ -249,7 +250,7 @@ public class ResetPasswordServiceTest {
     @Test
     void resendOtp_shouldThrow_whenStillInCooldown() {
         ResetPasswordSession session =
-                buildSession(ResetPasswordSession.STEP_EMAIL_VERIFIED, "123456");
+                buildSession(PasswordResetStep.EMAIL_VERIFIED, "123456");
         session.setLastSentAt(System.currentTimeMillis()); // vừa gửi xong
         when(objectRedisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(REDIS_KEY)).thenReturn(session);
@@ -266,7 +267,7 @@ public class ResetPasswordServiceTest {
     @Test
     void resendOtp_shouldIssueNewOtp_andResetAttempt_whenCooldownPassed() {
         ResetPasswordSession session =
-                buildSession(ResetPasswordSession.STEP_EMAIL_VERIFIED, "123456");
+                buildSession(PasswordResetStep.EMAIL_VERIFIED, "123456");
         session.setOtpAttempt(3);
         session.setLastSentAt(System.currentTimeMillis()
                 - ResetPasswordSession.RESEND_COOLDOWN_MILLIS - 1000);

@@ -29,7 +29,7 @@ public class ChatMessageService {
 
         ChatMessage message = ChatMessage.builder()
                 .conversationId(request.conversationId())
-                .senderType(senderType.name())
+                .senderType(senderType)
                 .content(request.content())
                 .build();
         message = chatMessageRepository.save(message);

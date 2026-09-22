@@ -35,6 +35,7 @@ import app.store.entity.Payment;
 import app.store.entity.PayosPaymentLink;
 import app.store.enums.OrderStatus;
 import app.store.enums.PaymentMethod;
+import app.store.enums.PaymentGateway;
 import app.store.enums.PaymentStatus;
 import app.store.enums.WebhookOutcome;
 import app.store.exception.AppException;
@@ -378,7 +379,7 @@ public class PaymentServiceTest {
         ArgumentCaptor<Payment> captor = ArgumentCaptor.forClass(Payment.class);
         verify(paymentRepository).save(captor.capture());
         assertThat(captor.getValue().getReferenceCode()).isEqualTo(REFERENCE_CODE);
-        assertThat(captor.getValue().getGateway()).isEqualTo("PAYOS");
+        assertThat(captor.getValue().getGateway()).isEqualTo(PaymentGateway.PAYOS);
         assertThat(captor.getValue().getTransactionCode()).isEqualTo(PAYMENT_LINK_ID);
     }
 
