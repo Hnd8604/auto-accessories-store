@@ -264,16 +264,16 @@ không bao giờ hỏng sẵn trước khi tới bước 6.
 ### Khởi động
 ```bash
 cd auto_accessories_store-be
-mvn spring-boot:run        # http://localhost:8080/api/v1
+mvn spring-boot:run        # http://localhost:8082/api/v1
 ```
 
 ### Test giỏ tạm (guest)
 ```bash
 # Thêm sản phẩm (giữ cookie session bằng -c/-b)
-curl -c cookies.txt -X POST "http://localhost:8080/api/v1/session-carts/add?productId=12&qty=2"
+curl -c cookies.txt -X POST "http://localhost:8082/api/v1/session-carts/add?productId=12&qty=2"
 
 # Xem giỏ tạm (dùng lại cookie)
-curl -b cookies.txt "http://localhost:8080/api/v1/session-carts"
+curl -b cookies.txt "http://localhost:8082/api/v1/session-carts"
 # → {"12":2}
 ```
 

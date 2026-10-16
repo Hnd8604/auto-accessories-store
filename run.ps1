@@ -7,7 +7,7 @@
 
     By default it:
       1. Starts PostgreSQL and Redis via Docker Compose (--profile infra)
-      2. Launches the Spring Boot backend in a new window   (http://localhost:8080/api/v1)
+      2. Launches the Spring Boot backend in a new window   (http://localhost:8082/api/v1)
       3. Launches the Vite frontend dev server in a new window (http://localhost:3000)
 
 .PARAMETER Only
@@ -20,6 +20,18 @@
 .PARAMETER Stop
     Stop the Docker infrastructure containers and exit.
 
+.PARAMETER PostgresPort
+    Host port for PostgreSQL (default: 5432).
+
+.PARAMETER RedisPort
+    Host port for Redis (default: 6380).
+
+.PARAMETER BackendPort
+    Host port for Spring Boot (default: 8082).
+
+.PARAMETER FrontendPort
+    Host port for Vite (default: 3000).
+
 .EXAMPLE
     .\run.ps1
     Start everything.
@@ -31,6 +43,15 @@
 .EXAMPLE
     .\run.ps1 -Stop
     Stop the Docker infrastructure.
+
+.EXAMPLE
+    .\run.ps1 -BackendPort 8090 -SkipInstall
+    Start the full stack with the backend on another port.
+
+.NOTES
+    Default ports (backend 8082, Redis 6380) avoid medical-chatbot-system,
+    which uses 8080 (HAPI FHIR), 8081 (Spring backend), 6379 (Redis),
+    5174 (Vite) and 8000 (chatbot-service), so both stacks can run together.
 #>
 
 [CmdletBinding()]
@@ -40,7 +61,12 @@ param(
 
     [switch]$SkipInstall,
 
-    [switch]$Stop
+    [switch]$Stop,
+
+    [ValidateRange(1, 65535)][int]$PostgresPort = 5432,
+    [ValidateRange(1, 65535)][int]$RedisPort = 6380,
+    [ValidateRange(1, 65535)][int]$BackendPort = 8082,
+    [ValidateRange(1, 65535)][int]$FrontendPort = 3000
 )
 
 $ErrorActionPreference = 'Stop'
@@ -154,6 +180,9 @@ Write-Ok 'Prerequisites OK.'
 if ($Only -contains 'infra') {
     Write-Step 'Starting infrastructure (PostgreSQL, Redis)...'
 
+    $env:DEV_POSTGRES_PORT = [string]$PostgresPort
+    $env:DEV_REDIS_PORT = [string]$RedisPort
+
     if (-not (Test-Path $DevEnvFile)) {
         if (Test-Path $DevEnvExample) {
             Copy-Item $DevEnvExample $DevEnvFile
@@ -165,8 +194,10 @@ if ($Only -contains 'infra') {
     }
 
     Invoke-DevCompose @('--profile', 'infra', 'up', '-d')
-    if ($LASTEXITCODE -ne 0) { throw 'docker compose failed to start infrastructure.' }
-    Write-Ok 'Infrastructure containers are up: postgres:5432, redis:6379.'
+    if ($LASTEXITCODE -ne 0) {
+        throw "docker compose failed to start infrastructure. Check host ports $PostgresPort and $RedisPort; use -PostgresPort or -RedisPort if they are occupied."
+    }
+    Write-Ok "Infrastructure containers are up: postgres:$PostgresPort, redis:$RedisPort."
 }
 
 # --------------------------------------------------------------------------
@@ -175,14 +206,18 @@ if ($Only -contains 'infra') {
 if ($Only -contains 'backend') {
     Write-Step 'Launching backend (Spring Boot) in a new window...'
     Import-DevEnv
+    $env:DB_PORT = [string]$PostgresPort
+    $env:REDIS_PORT = [string]$RedisPort
+    $env:SERVER_PORT = [string]$BackendPort
+    $env:APP_CORS_ALLOWED_ORIGINS = "http://localhost:$FrontendPort,http://localhost:5173"
     Write-Ok "Loaded environment variables from $DevEnvFile"
 
     $backendLog = Join-Path $BackendLogs "console-$RunStamp.log"
     Start-Process -FilePath 'powershell.exe' -WorkingDirectory $BackendDir -ArgumentList @(
         '-NoExit', '-Command',
-        "Write-Host 'Backend: http://localhost:8080/api/v1' -ForegroundColor Cyan; Write-Host 'Logging console to $backendLog' -ForegroundColor DarkGray; .\mvnw.cmd spring-boot:run 2>&1 | Tee-Object -FilePath '$backendLog'"
-    )
-    Write-Ok 'Backend starting at http://localhost:8080/api/v1 (Swagger: /swagger-ui.html)'
+        "Write-Host 'Backend: http://localhost:$BackendPort/api/v1' -ForegroundColor Cyan; Write-Host 'Logging console to $backendLog' -ForegroundColor DarkGray; .\mvnw.cmd spring-boot:run 2>&1 | Tee-Object -FilePath '$backendLog'"
+    ) -WindowStyle Hidden
+    Write-Ok "Backend starting at http://localhost:$BackendPort/api/v1 (Swagger: /swagger-ui.html)"
     Write-Ok "Backend console log: $backendLog"
     Write-Ok "Backend app log:     $(Join-Path $BackendLogs 'backend.log')"
 }
@@ -196,14 +231,16 @@ if ($Only -contains 'frontend') {
     # Không còn frontend\.env. Vite đọc thẳng .env.dev ở thư mục gốc — xem
     # phần loadEnv trong frontend\vite.config.ts.
 
-    $installCmd = if ($SkipInstall) { '' } else { 'npm install; ' }
+    $env:DEV_BACKEND_PORT = [string]$BackendPort
+    $env:DEV_FRONTEND_PORT = [string]$FrontendPort
+    $installCmd = if ($SkipInstall) { '' } else { 'npm install; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; ' }
 
     $frontendLog = Join-Path $FrontendLogs "console-$RunStamp.log"
     Start-Process -FilePath 'powershell.exe' -WorkingDirectory $FrontendDir -ArgumentList @(
         '-NoExit', '-Command',
-        "Write-Host 'Frontend: http://localhost:3000' -ForegroundColor Cyan; Write-Host 'Logging console to $frontendLog' -ForegroundColor DarkGray; $installCmd npm run dev 2>&1 | Tee-Object -FilePath '$frontendLog'"
-    )
-    Write-Ok 'Frontend starting at http://localhost:3000'
+        "Write-Host 'Frontend: http://localhost:$FrontendPort' -ForegroundColor Cyan; Write-Host 'Logging console to $frontendLog' -ForegroundColor DarkGray; $installCmd npm run dev 2>&1 | Tee-Object -FilePath '$frontendLog'"
+    ) -WindowStyle Hidden
+    Write-Ok "Frontend starting at http://localhost:$FrontendPort"
     Write-Ok "Frontend console log: $frontendLog"
 }
 

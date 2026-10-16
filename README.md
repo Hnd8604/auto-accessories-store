@@ -92,10 +92,10 @@ Nếu `node_modules` đã sẵn sàng, có thể bỏ qua bước cài dependenc
 | Dịch vụ | Địa chỉ |
 | --- | --- |
 | Giao diện web | <http://localhost:3000> |
-| REST API | <http://localhost:8080/api/v1> |
-| Swagger UI | <http://localhost:8080/api/v1/swagger-ui.html> |
-| OpenAPI JSON | <http://localhost:8080/api/v1/v3/api-docs> |
-| Health check | <http://localhost:8080/api/v1/actuator/health> |
+| REST API | <http://localhost:8082/api/v1> |
+| Swagger UI | <http://localhost:8082/api/v1/swagger-ui.html> |
+| OpenAPI JSON | <http://localhost:8082/api/v1/v3/api-docs> |
+| Health check | <http://localhost:8082/api/v1/actuator/health> |
 | RedisInsight (tùy chọn) | <http://localhost:5540> |
 
 Tài khoản quản trị ban đầu sử dụng `ADMIN_USERNAME` (mặc định là `admin`) và `ADMIN_PASSWORD` trong `.env.dev`. Tài khoản chỉ được tạo khi database chưa có người dùng quản trị tương ứng.

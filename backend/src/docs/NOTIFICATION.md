@@ -273,7 +273,7 @@ docker compose up -d kafka
 
 # Backend
 cd auto_accessories_store-be
-mvn spring-boot:run        # http://localhost:8080/api/v1
+mvn spring-boot:run        # http://localhost:8082/api/v1
 ```
 
 Khi khởi động, `KafkaConfig` tự tạo 2 topic `order.created`, `order.status.changed` (nếu broker cho phép auto-create / qua `NewTopic` bean).

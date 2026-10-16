@@ -4,6 +4,8 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 const rootDir = path.resolve(__dirname, "..");
+const frontendPort = Number(process.env.DEV_FRONTEND_PORT || 3000);
+const backendPort = Number(process.env.DEV_BACKEND_PORT || 8082);
 
 /**
  * Nạp biến VITE_* từ .env.dev ở THƯ MỤC GỐC — cùng file mà docker-compose.yml
@@ -30,10 +32,11 @@ for (const [key, value] of Object.entries(loadEnv("dev", rootDir, "VITE_"))) {
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 3000,
+    port: frontendPort,
+    strictPort: true,
     proxy: {
       "/api": {
-        target: "http://localhost:8080",
+        target: `http://localhost:${backendPort}`,
         changeOrigin: true,
         ws: true,
       },

@@ -433,7 +433,7 @@ Truy cập tại: `/admin/inbox` (mục "Tin nhắn" trong sidebar)
 # Terminal 1 — Backend
 cd auto_accessories_store-be
 mvn spring-boot:run
-# Chạy tại http://localhost:8080/api/v1
+# Chạy tại http://localhost:8082/api/v1
 
 # Terminal 2 — Frontend
 cd store-fe
@@ -457,7 +457,7 @@ Khi backend khởi động lần đầu, JPA tự tạo 2 bảng mới: `convers
 ### Kiểm tra WebSocket
 
 Dùng browser DevTools → Network → tab WS:
-- Kết nối `ws://localhost:8080/api/v1/ws/...` (SockJS)
+- Kết nối `ws://localhost:8082/api/v1/ws/...` (SockJS)
 - Thấy các frame STOMP CONNECT, SUBSCRIBE, SEND, MESSAGE
 
 ### Kiểm tra DB

@@ -267,7 +267,7 @@ window.location.href = url;
 ### Khởi động
 ```bash
 # Backend
-cd auto_accessories_store-be && mvn spring-boot:run     # http://localhost:8080/api/v1
+cd auto_accessories_store-be && mvn spring-boot:run     # http://localhost:8082/api/v1
 
 # Frontend
 cd store-fe && npm run dev                              # http://localhost:3000

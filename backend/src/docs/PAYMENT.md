@@ -358,7 +358,7 @@ DATA='{"orderCode":1,"amount":500000,"description":"DH1","accountNumber":"123456
 CANON=$(printf '%s' "$DATA" | jq -r 'to_entries | sort_by(.key) | map("\(.key)=\(.value // "")") | join("&")')
 SIG=$(printf '%s' "$CANON" | openssl dgst -sha256 -hmac "$KEY" | awk '{print $NF}')
 
-curl -i -X POST http://localhost:8080/api/v1/payments/payos/webhook \
+curl -i -X POST http://localhost:8082/api/v1/payments/payos/webhook \
   -H "Content-Type: application/json" \
   -d "{\"code\":\"00\",\"desc\":\"success\",\"success\":true,\"data\":$DATA,\"signature\":\"$SIG\"}"
 # → 200 {"outcome":"PAID"} nếu orderCode khớp một link và amount >= tổng đơn

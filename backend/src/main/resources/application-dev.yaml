@@ -7,11 +7,18 @@
 # môi trường thì để trong application.yaml.
 # ==============================================================
 
+
+server:
+  port: 8082
+
 spring:
   # Log màu cho terminal. Trên server không có TTY nên prod tắt.
   output.ansi.enabled: ALWAYS
   jpa:
     show-sql: true
+  data:
+    redis:
+      port: ${REDIS_PORT:6380}
 
 logging:
   level:
@@ -23,7 +30,4 @@ logging:
 
 app:
   cors:
-    # Vite dev server (3000) và cổng mặc định của Vite (5173).
-    # Ở dev frontend gọi thẳng backend :8080 nên đây là cross-origin thật,
-    # khác prod nơi nginx proxy /api/v1 thành same-origin.
-    allowed-origins: http://localhost:3000,http://localhost:5173
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}

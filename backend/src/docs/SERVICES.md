@@ -273,7 +273,7 @@ Trang chi tiết /services/:slug
 
 ### Khởi động
 ```bash
-cd auto_accessories_store-be && mvn spring-boot:run   # http://localhost:8080/api/v1
+cd auto_accessories_store-be && mvn spring-boot:run   # http://localhost:8082/api/v1
 cd store-fe && npm run dev                            # http://localhost:3000
 ```
 
@@ -286,9 +286,9 @@ cd store-fe && npm run dev                            # http://localhost:3000
 
 ### Kiểm tra API nhanh
 ```bash
-curl http://localhost:8080/api/v1/services
-curl http://localhost:8080/api/v1/services/slug/do-den-bi-led
-curl http://localhost:8080/api/v1/service-images/services/1
+curl http://localhost:8082/api/v1/services
+curl http://localhost:8082/api/v1/services/slug/do-den-bi-led
+curl http://localhost:8082/api/v1/service-images/services/1
 ```
 
 ### Kiểm tra DB
