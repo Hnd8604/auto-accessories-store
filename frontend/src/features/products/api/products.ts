@@ -1,4 +1,4 @@
-import { http } from "@/features/auth/api/auth";
+import { http } from "@/services/http";
 import type { ApiResponse, PageResponse, PaginationParams } from "@/types";
 import type { ProductRequest, ProductResponse, ProductSearchRequest } from "../types";
 

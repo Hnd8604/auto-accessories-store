@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import { ACCESS_TOKEN_KEY, WS_URL } from "@/constants/config";
-import { refreshAccessToken } from "@/features/auth/api/auth";
+import { refreshAccessToken } from "@/services/http";
 import { isTokenExpiringSoon } from "@/utils/jwt";
 import type { ChatError, ChatMessage, SendMessagePayload } from "../types";
 

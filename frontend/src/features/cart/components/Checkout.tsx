@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,15 +13,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { useCart } from "@/context/cart-context";
-import { useAuth } from "@/context/auth-context";
+import { useCart } from "@/features/cart/hooks/useCart";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { OrdersApi } from "@/features/orders/api";
 import type { OrderCreationRequest, PaymentMethod } from "@/features/orders/types";
 import { useMutation } from "@tanstack/react-query";
-import { ProductImagesApi } from "@/features/products/api";
-import { useEffect } from "react";
+import { useProductPrimaryImages } from "@/features/products/hooks/useProductPrimaryImages";
 import { CalendarDays, Clock, Car, Phone, Mail, MapPin, CreditCard, Truck, Loader2, Package, Banknote, QrCode } from "lucide-react";
 import { PaymentDialog } from "@/features/orders/components/PaymentDialog";
+import { formatPrice } from "@/utils/formatPrice";
 
 // Validation schema
 const checkoutSchema = z.object({
@@ -41,13 +41,13 @@ interface CheckoutProps {
 
 export const Checkout = ({ isOpen, onClose, onComplete }: CheckoutProps) => {
   const { toast } = useToast();
-  const { cart, itemCount, totalPrice, clearCart } = useCart();
+  const { cart, itemCount, totalPrice } = useCart();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [productImages, setProductImages] = useState<Record<number, string>>({});
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("COD");
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const submissionInProgress = useRef(false);
 
   const form = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
@@ -58,6 +58,17 @@ export const Checkout = ({ isOpen, onClose, onComplete }: CheckoutProps) => {
       note: "",
     },
   });
+
+  useEffect(() => {
+    if (isOpen && !form.formState.isDirty) {
+      form.reset({
+        nameRecipient: user?.fullName || "",
+        phoneRecipient: user?.phoneNumber || "",
+        addressRecipient: "",
+        note: "",
+      });
+    }
+  }, [isOpen, user?.fullName, user?.phoneNumber, form]);
 
   // Create order mutation
   const createOrderMutation = useMutation({
@@ -81,7 +92,6 @@ export const Checkout = ({ isOpen, onClose, onComplete }: CheckoutProps) => {
           description: `Đơn hàng #${response.result?.orderCode || orderId} đã được tạo. Chúng tôi sẽ liên hệ với bạn sớm.`,
         });
         form.reset();
-        clearCart();
         onComplete();
         onClose();
       }
@@ -95,43 +105,14 @@ export const Checkout = ({ isOpen, onClose, onComplete }: CheckoutProps) => {
     },
   });
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(price);
-  };
+  const cartItems = cart?.items ?? [];
+  const { imageUrls: productImages } = useProductPrimaryImages(
+    cartItems.map((item) => item.productId)
+  );
 
-  const cartItems = cart?.items || [];
-
-  // Fetch product images when cart items change
-  useEffect(() => {
-    const fetchImages = async () => {
-      const images: Record<number, string> = {};
-      for (const item of cartItems) {
-        try {
-          const response = await ProductImagesApi.getByProductId(item.productId);
-          const productImages = response?.result || [];
-          const primaryImage = productImages.find(img => img.isPrimary);
-          if (primaryImage?.imageUrl) {
-            images[item.productId] = primaryImage.imageUrl;
-          }
-        } catch (error) {
-          console.error(`Failed to fetch image for product ${item.productId}:`, error);
-        }
-      }
-      setProductImages(images);
-    };
-
-    if (cartItems.length > 0) {
-      fetchImages();
-    }
-  }, [cartItems]);
-
-  const shippingFee = totalPrice >= 20000000 ? 0 : 30000;
-  const finalTotal = totalPrice + shippingFee;
 
   const onSubmit = async (data: CheckoutFormData) => {
+    if (submissionInProgress.current || paymentDialogOpen) return;
     if (!user?.id) {
       toast({
         variant: "destructive",
@@ -141,6 +122,7 @@ export const Checkout = ({ isOpen, onClose, onComplete }: CheckoutProps) => {
       return;
     }
 
+    submissionInProgress.current = true;
     setIsSubmitting(true);
     try {
       const orderPayload: OrderCreationRequest = {
@@ -156,14 +138,16 @@ export const Checkout = ({ isOpen, onClose, onComplete }: CheckoutProps) => {
       };
 
       await createOrderMutation.mutateAsync(orderPayload);
+    } catch (error) {
+      console.error("Failed to create order:", error);
     } finally {
+      submissionInProgress.current = false;
       setIsSubmitting(false);
     }
   };
 
   const handlePaymentSuccess = () => {
     form.reset();
-    clearCart();
     onComplete();
     // Close the checkout after a short delay
     setTimeout(() => {
@@ -176,14 +160,18 @@ export const Checkout = ({ isOpen, onClose, onComplete }: CheckoutProps) => {
     setPaymentDialogOpen(false);
     // If payment was already created, still close checkout and clear cart
     form.reset();
-    clearCart();
     onComplete();
     onClose();
   };
 
   return (
     <>
-      <Dialog open={isOpen && !paymentDialogOpen} onOpenChange={onClose}>
+      <Dialog
+        open={isOpen && !paymentDialogOpen}
+        onOpenChange={(open) => {
+          if (!open && !submissionInProgress.current) onClose();
+        }}
+      >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-2xl">
@@ -245,25 +233,11 @@ export const Checkout = ({ isOpen, onClose, onComplete }: CheckoutProps) => {
                       <span>Tạm tính:</span>
                       <span>{formatPrice(totalPrice)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="flex items-center gap-2">
-                        <Truck className="h-4 w-4" />
-                        Phí vận chuyển:
-                      </span>
-                      <span className={shippingFee === 0 ? "text-green-600" : ""}>
-                        {shippingFee === 0 ? "Miễn phí" : formatPrice(shippingFee)}
-                      </span>
-                    </div>
                     <Separator />
                     <div className="flex justify-between items-center text-lg font-bold">
-                      <span>Tổng cộng:</span>
-                      <span className="text-primary">{formatPrice(finalTotal)}</span>
+                      <span>Tổng tiền sản phẩm:</span>
+                      <span className="text-primary">{formatPrice(totalPrice)}</span>
                     </div>
-                    {shippingFee === 0 && (
-                      <p className="text-xs text-green-600">
-                        🎉 Bạn được miễn phí vận chuyển!
-                      </p>
-                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -436,7 +410,9 @@ export const Checkout = ({ isOpen, onClose, onComplete }: CheckoutProps) => {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={onClose}
+                      onClick={() => {
+                        if (!submissionInProgress.current) onClose();
+                      }}
                       className="flex-1"
                       disabled={isSubmitting}
                     >

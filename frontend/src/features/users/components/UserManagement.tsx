@@ -265,10 +265,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       }
     });
 
-    console.log("Final request payload:", userRequest);
-    console.log("User ID:", editingUser.id);
-    console.log("=== END UPDATE DEBUG ===");
-
     updateMutation.mutate({ id: editingUser.id, data: userRequest });
   };
 

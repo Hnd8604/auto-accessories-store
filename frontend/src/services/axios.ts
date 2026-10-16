@@ -59,7 +59,7 @@ class AuthHttpClient {
           _retry?: boolean;
         };
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
           originalRequest._retry = true;
 
           // request này gửi token cũ nhưng trong lúc chờ đã có nơi khác refresh xong → dùng luôn token mới

@@ -1,4 +1,4 @@
-import { http } from "@/features/auth/api/auth";
+import { http } from "@/services/http";
 import { simpleHttp } from "@/services/axios";
 import type {
   ApiResponse,

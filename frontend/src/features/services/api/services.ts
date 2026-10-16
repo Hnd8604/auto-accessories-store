@@ -1,4 +1,4 @@
-import { http } from "@/features/auth/api/auth";
+import { http } from "@/services/http";
 import type { ApiResponse } from "@/types";
 import type { ServiceRequest, ServiceResponse } from "../types";
 

@@ -21,6 +21,8 @@ export function ChatWindow({ conversation, onClose, onMarkRead, onConversationCl
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const onMarkReadRef = useRef(onMarkRead);
+  onMarkReadRef.current = onMarkRead;
 
   const { toast } = useToast();
 
@@ -44,12 +46,23 @@ export function ChatWindow({ conversation, onClose, onMarkRead, onConversationCl
   });
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     setMessages([]);
     InboxApi.getMessages(conversation.id)
-      .then((res) => setMessages(res.result.content))
-      .finally(() => setLoading(false));
-    InboxApi.markAsRead(conversation.id).then(onMarkRead).catch(() => {});
+      .then((res) => {
+        if (!cancelled) setMessages(res.result.content);
+      })
+      .catch((error) => console.error("Failed to load messages:", error))
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    InboxApi.markAsRead(conversation.id)
+      .then(() => {
+        if (!cancelled) onMarkReadRef.current();
+      })
+      .catch((error) => console.error("Failed to mark conversation as read:", error));
+    return () => { cancelled = true; };
   }, [conversation.id]);
 
   useEffect(() => {

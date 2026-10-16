@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { OrdersApi } from "@/features/orders/api";
 import { useToast } from "@/hooks/use-toast";
@@ -6,8 +7,12 @@ import type { OrderResponse } from "@/features/orders/types";
 import type {
   OrderStatus,
   PaymentStatus,
-  PaymentMethod,
 } from "@/features/orders/types";
+import {
+  getOrderStatusLabel,
+  getPaymentMethodLabel,
+  getPaymentStatusLabel,
+} from "@/features/orders/lib/orderPresentation";
 
 import {
   Card,
@@ -54,17 +59,6 @@ import {
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 // ─── Helper functions ───────────────────────────────────────────
-const getOrderStatusLabel = (status?: OrderStatus) => {
-  const labels: Record<OrderStatus, string> = {
-    PENDING: "Chờ xử lý",
-    PROCESSING: "Đang xử lý",
-    SHIPPED: "Đang giao hàng",
-    DELIVERED: "Đã giao hàng",
-    CANCELED: "Đã hủy",
-  };
-  return status ? labels[status] : "-";
-};
-
 const getOrderStatusIcon = (status?: OrderStatus) => {
   switch (status) {
     case "PENDING":
@@ -99,15 +93,6 @@ const getOrderStatusColor = (status?: OrderStatus) => {
   }
 };
 
-const getPaymentStatusLabel = (status?: PaymentStatus) => {
-  const labels: Record<PaymentStatus, string> = {
-    UNPAID: "Chưa thanh toán",
-    PAID: "Đã thanh toán",
-    REFUNDED: "Đã hoàn tiền",
-  };
-  return status ? labels[status] : "-";
-};
-
 const getPaymentStatusColor = (status?: PaymentStatus) => {
   switch (status) {
     case "UNPAID":
@@ -119,14 +104,6 @@ const getPaymentStatusColor = (status?: PaymentStatus) => {
     default:
       return "bg-gray-500/10 text-gray-600 border-gray-500/20";
   }
-};
-
-const getPaymentMethodLabel = (method?: PaymentMethod) => {
-  const labels: Record<PaymentMethod, string> = {
-    COD: "Thanh toán khi nhận hàng",
-    BANK_TRANSFER: "Chuyển khoản ngân hàng",
-  };
-  return method ? labels[method] : "-";
 };
 
 // ─── Filter tabs ────────────────────────────────────────────────
@@ -340,11 +317,8 @@ export const MyOrders = () => {
               : `Không có đơn hàng nào ở trạng thái "${FILTER_TABS.find((t) => t.key === activeFilter)?.label}"`}
           </p>
           {activeFilter === "ALL" && (
-            <Button
-              className="mt-4"
-              onClick={() => (window.location.href = "/products")}
-            >
-              Khám phá sản phẩm
+            <Button className="mt-4" asChild>
+              <Link to="/products">Khám phá sản phẩm</Link>
             </Button>
           )}
         </div>

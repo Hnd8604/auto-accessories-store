@@ -1,32 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { PostsApi } from "@/features/posts/api";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
+import { StoreLayout } from "@/app/components/StoreLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, Calendar, Eye, User } from "lucide-react";
 import { useMemo } from "react";
 import { renderContent } from "@/utils/contentRenderer";
 
-const PageLayout = ({ children }: { children: React.ReactNode }) => (
-  <div className="min-h-screen bg-background">
-    <Header />
-    {children}
-    <Footer />
-  </div>
-);
-
 const LoadingState = () => (
-  <PageLayout>
+  <StoreLayout>
     <div className="pt-20 flex items-center justify-center min-h-[60vh]">
       <Loader2 className="h-12 w-12 animate-spin text-primary" />
     </div>
-  </PageLayout>
+  </StoreLayout>
 );
 
 const ErrorState = ({ onBack }: { onBack: () => void }) => (
-  <PageLayout>
+  <StoreLayout>
     <div className="pt-20 container mx-auto px-4 py-12">
       <div className="text-center">
         <h1 className="text-3xl font-bold mb-4">Không tìm thấy bài viết</h1>
@@ -36,7 +27,7 @@ const ErrorState = ({ onBack }: { onBack: () => void }) => (
         </Button>
       </div>
     </div>
-  </PageLayout>
+  </StoreLayout>
 );
 
 const PostMeta = ({ 
@@ -97,7 +88,7 @@ export const PostDetailPage = () => {
   if (error || !post) return <ErrorState onBack={handleBackToBlog} />;
 
   return (
-    <PageLayout>
+    <StoreLayout>
       <div className="pt-20">
         <article className="container mx-auto px-4 py-12 max-w-4xl">
           <Button
@@ -152,7 +143,7 @@ export const PostDetailPage = () => {
           />
         </article>
       </div>
-    </PageLayout>
+    </StoreLayout>
   );
 };
 

@@ -1,30 +1,34 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Filter, Grid, List, SlidersHorizontal, X } from "lucide-react";
+import { Search, Filter, SlidersHorizontal, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Slider } from "@/components/ui/slider";
 import { CategoriesApi } from "@/features/categories/api/categories";
 import type { ProductSearchRequest } from "@/features/products/types";
 import { Badge } from "@/components/ui/badge";
+import { FilterContent } from "./FilterContent";
 
 interface ProductFiltersProps {
   onSearch: (params: ProductSearchRequest) => void;
   onSort: (sort: string) => void;
+  initialKeyword?: string;
 }
 
-export const ProductFilters = ({ onSearch, onSort }: ProductFiltersProps) => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+export const ProductFilters = ({ onSearch, onSort, initialKeyword = "" }: ProductFiltersProps) => {
+  const [searchQuery, setSearchQuery] = useState(initialKeyword);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(initialKeyword);
   const [priceRange, setPriceRange] = useState([0, 50000000]);
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [selectedBrands, setSelectedBrands] = useState<number[]>([]);
   const [inStockOnly, setInStockOnly] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    setSearchQuery(initialKeyword);
+    setDebouncedSearchQuery(initialKeyword);
+  }, [initialKeyword]);
 
   // Debounce search query
   useEffect(() => {
@@ -49,8 +53,11 @@ export const ProductFilters = ({ onSearch, onSort }: ProductFiltersProps) => {
     enabled: Boolean(activeCategoryId),
   });
 
-  const categories = categoriesData?.result || [];
-  const brands = activeCategoryId ? (categoryBrandsData?.result || []) : [];
+  const categories = useMemo(() => categoriesData?.result ?? [], [categoriesData]);
+  const brands = useMemo(
+    () => activeCategoryId ? (categoryBrandsData?.result ?? []) : [],
+    [activeCategoryId, categoryBrandsData]
+  );
 
   // Apply filters whenever search params change (using debounced search query)
   useEffect(() => {
@@ -101,17 +108,13 @@ export const ProductFilters = ({ onSearch, onSort }: ProductFiltersProps) => {
 
   const handleCategoryToggle = (categoryId: number) => {
     setSelectedCategories(prev =>
-      prev.includes(categoryId)
-        ? prev.filter(c => c !== categoryId)
-        : [...prev, categoryId]
+      prev.includes(categoryId) ? [] : [categoryId]
     );
   };
 
   const handleBrandToggle = (brandId: number) => {
     setSelectedBrands(prev =>
-      prev.includes(brandId)
-        ? prev.filter(b => b !== brandId)
-        : [...prev, brandId]
+      prev.includes(brandId) ? [] : [brandId]
     );
   };
 
@@ -126,13 +129,6 @@ export const ProductFilters = ({ onSearch, onSort }: ProductFiltersProps) => {
 
   const hasActiveFilters = debouncedSearchQuery || selectedCategories.length > 0 || 
     selectedBrands.length > 0 || priceRange[0] > 0 || priceRange[1] < 50000000 || inStockOnly;
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(price);
-  };
 
   return (
     <div className="bg-card border-b border-border/50 py-6 mt-4">
@@ -170,7 +166,6 @@ export const ProductFilters = ({ onSearch, onSort }: ProductFiltersProps) => {
                 <SelectItem value="featured">Nổi bật</SelectItem>
                 <SelectItem value="price-low">Giá thấp đến cao</SelectItem>
                 <SelectItem value="price-high">Giá cao đến thấp</SelectItem>
-                <SelectItem value="rating">Đánh giá cao</SelectItem>
                 <SelectItem value="newest">Mới nhất</SelectItem>
               </SelectContent>
             </Select>
@@ -198,7 +193,7 @@ export const ProductFilters = ({ onSearch, onSort }: ProductFiltersProps) => {
                   setPriceRange={setPriceRange}
                   inStockOnly={inStockOnly}
                   setInStockOnly={setInStockOnly}
-                  formatPrice={formatPrice}
+                  idPrefix="mobile"
                 />
               </SheetContent>
             </Sheet>
@@ -209,7 +204,6 @@ export const ProductFilters = ({ onSearch, onSort }: ProductFiltersProps) => {
                 variant="ghost"
                 size="sm"
                 onClick={handleClearFilters}
-                className="hidden lg:flex"
               >
                 <X className="h-4 w-4 mr-2" />
                 Xóa bộ lọc
@@ -287,143 +281,11 @@ export const ProductFilters = ({ onSearch, onSort }: ProductFiltersProps) => {
               setPriceRange={setPriceRange}
               inStockOnly={inStockOnly}
               setInStockOnly={setInStockOnly}
-              formatPrice={formatPrice}
+              idPrefix="desktop"
               isHorizontal
             />
           </div>
         )}
-      </div>
-    </div>
-  );
-};
-
-interface FilterContentProps {
-  categories: Array<{ id: string; name: string }>;
-  brands: Array<{ id: number; name: string }>;
-  selectedCategories: number[];
-  selectedBrands: number[];
-  onCategoryToggle: (categoryId: number) => void;
-  onBrandToggle: (brandId: number) => void;
-  priceRange: number[];
-  setPriceRange: (range: number[]) => void;
-  inStockOnly: boolean;
-  setInStockOnly: (value: boolean) => void;
-  formatPrice: (price: number) => string;
-  isHorizontal?: boolean;
-}
-
-const FilterContent = ({ 
-  categories, 
-  brands, 
-  selectedCategories,
-  selectedBrands,
-  onCategoryToggle,
-  onBrandToggle,
-  priceRange, 
-  setPriceRange, 
-  inStockOnly,
-  setInStockOnly,
-  formatPrice, 
-  isHorizontal = false 
-}: FilterContentProps) => {
-  const containerClass = isHorizontal 
-    ? "grid grid-cols-1 md:grid-cols-3 gap-8" 
-    : "space-y-8";
-
-  return (
-    <div className={containerClass}>
-      {/* Categories */}
-      <div>
-        <h3 className="font-semibold text-foreground mb-4">Danh Mục</h3>
-        <div className="space-y-3 max-h-64 overflow-y-auto">
-          {categories.map((category) => (
-            <div key={category.id} className="flex items-center space-x-2">
-              <Checkbox 
-                id={`category-${category.id}`}
-                checked={selectedCategories.includes(Number(category.id))}
-                onCheckedChange={() => onCategoryToggle(Number(category.id))}
-              />
-              <label 
-                htmlFor={`category-${category.id}`} 
-                className="text-sm text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                {category.name}
-              </label>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Price Range */}
-      <div>
-        <h3 className="font-semibold text-foreground mb-4">Khoảng Giá</h3>
-        <div className="space-y-2">
-          {[
-            { label: "Dưới 5 triệu", min: 0, max: 5000000 },
-            { label: "5 - 10 triệu", min: 5000000, max: 10000000 },
-            { label: "10 - 20 triệu", min: 10000000, max: 20000000 },
-            { label: "20 - 30 triệu", min: 20000000, max: 30000000 },
-            { label: "30 - 50 triệu", min: 30000000, max: 50000000 },
-            { label: "Trên 50 triệu", min: 50000000, max: 100000000 }
-          ].map((range) => (
-            <div key={range.label} className="flex items-center space-x-2">
-              <Checkbox 
-                id={range.label}
-                checked={priceRange[0] === range.min && priceRange[1] === range.max}
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    setPriceRange([range.min, range.max]);
-                  }
-                }}
-              />
-              <label 
-                htmlFor={range.label} 
-                className="text-sm text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                {range.label}
-              </label>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Brands */}
-      <div>
-        <h3 className="font-semibold text-foreground mb-4">Thương Hiệu Xe</h3>
-        <div className="space-y-3 max-h-64 overflow-y-auto">
-          {brands.map((brand) => (
-            <div key={brand.id} className="flex items-center space-x-2">
-              <Checkbox 
-                id={`brand-${brand.id}`}
-                checked={selectedBrands.includes(brand.id)}
-                onCheckedChange={() => onBrandToggle(brand.id)}
-              />
-              <label 
-                htmlFor={`brand-${brand.id}`} 
-                className="text-sm text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                {brand.name}
-              </label>
-            </div>
-          ))}
-        </div>
-        
-        {/* In Stock Filter */}
-        <div className="mt-4 pt-4 border-t border-border/50">
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="in-stock"
-              checked={inStockOnly}
-              onCheckedChange={setInStockOnly}
-            />
-            <label 
-              htmlFor="in-stock" 
-              className="text-sm text-muted-foreground hover:text-foreground cursor-pointer"
-            >
-              Chỉ hiển thị sản phẩm còn hàng
-            </label>
-          </div>
-        </div>
       </div>
     </div>
   );

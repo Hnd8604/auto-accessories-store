@@ -9,7 +9,6 @@ import app.store.entity.User;
 import app.store.exception.AppException;
 import app.store.exception.ErrorCode;
 import app.store.mapper.UserMapper;
-import app.store.repository.CartRepository;
 import app.store.repository.RoleRepository;
 import app.store.repository.UserRepository;
 import app.store.utils.SecurityUtils;

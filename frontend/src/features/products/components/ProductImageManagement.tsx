@@ -296,8 +296,6 @@ export const ProductImageManagement = ({
 
   // Handle form submission
   const onSubmit = async (data: ImageFormData) => {
-    console.log("Form data before submit:", data); // Debug log
-
     if (!editingImage && !selectedFile) {
       toast({
         variant: "destructive",

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -68,15 +68,9 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ProductImageManagement } from "@/features/products/components/ProductImageManagement";
+import { ProductDetailDialog } from "@/features/products/components/ProductDetailDialog";
+import { useProductImageUploads } from "@/features/products/hooks/useProductImageUploads";
 import type { ProductRequest, ProductResponse } from "../types";
-
-// ---- Image upload types ----
-interface UploadImageItem {
-  id: string;
-  file: File;
-  previewUrl: string;
-  isPrimary: boolean;
-}
 
 const productSchema = z.object({
   name: z.string().min(1, { message: "Tên sản phẩm không được để trống." }),
@@ -115,11 +109,20 @@ export const ProductManagement = ({
     useState<ProductResponse | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
 
-  // Image upload state (for create product)
-  const [uploadImages, setUploadImages] = useState<UploadImageItem[]>([]);
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const [isUploadingImages, setIsUploadingImages] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const {
+    uploadImages,
+    isDraggingOver,
+    isUploadingImages,
+    setIsUploadingImages,
+    fileInputRef,
+    removeImage,
+    setPrimaryImage,
+    handleFileInputChange,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    resetUploadImages,
+  } = useProductImageUploads();
   const pageSize = 10;
 
   const { toast } = useToast();
@@ -145,13 +148,17 @@ export const ProductManagement = ({
     enabled: selectedCategoryId > 0,
   });
 
-  const categoryBrandOptions = categoryBrandsData?.result || [];
+  const categoryBrandOptions = useMemo(
+    () => categoryBrandsData?.result ?? [],
+    [categoryBrandsData]
+  );
 
   useEffect(() => {
     if (!selectedCategoryId) {
       form.setValue("brandId", undefined);
       return;
     }
+    if (!categoryBrandsData) return;
     const currentBrandId = form.getValues("brandId");
     if (
       currentBrandId &&
@@ -159,7 +166,7 @@ export const ProductManagement = ({
     ) {
       form.setValue("brandId", undefined);
     }
-  }, [categoryBrandOptions, form, selectedCategoryId]);
+  }, [categoryBrandOptions, categoryBrandsData, form, selectedCategoryId]);
 
   // Query: Get products with pagination
   const {
@@ -172,67 +179,6 @@ export const ProductManagement = ({
   });
 
 
-
-  // ---- Image upload helpers ----
-  const addFiles = useCallback((files: FileList | File[]) => {
-    const newItems: UploadImageItem[] = Array.from(files)
-      .filter((f) => f.type.startsWith("image/"))
-      .map((file) => ({
-        id: `${Date.now()}-${Math.random()}`,
-        file,
-        previewUrl: URL.createObjectURL(file),
-        isPrimary: false,
-      }));
-
-    setUploadImages((prev) => {
-      const merged = [...prev, ...newItems];
-      // If no primary yet, auto-set first one
-      if (merged.length > 0 && !merged.some((i) => i.isPrimary)) {
-        merged[0].isPrimary = true;
-      }
-      return merged;
-    });
-  }, []);
-
-  const removeImage = (id: string) => {
-    setUploadImages((prev) => {
-      const remaining = prev.filter((i) => i.id !== id);
-      // Re-assign primary if the removed one was primary
-      if (remaining.length > 0 && !remaining.some((i) => i.isPrimary)) {
-        remaining[0].isPrimary = true;
-      }
-      return remaining;
-    });
-  };
-
-  const setPrimaryImage = (id: string) => {
-    setUploadImages((prev) =>
-      prev.map((i) => ({ ...i, isPrimary: i.id === id }))
-    );
-  };
-
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) addFiles(e.target.files);
-    e.target.value = "";
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDraggingOver(true);
-  };
-
-  const handleDragLeave = () => setIsDraggingOver(false);
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDraggingOver(false);
-    if (e.dataTransfer.files) addFiles(e.dataTransfer.files);
-  };
-
-  const resetUploadImages = () => {
-    uploadImages.forEach((i) => URL.revokeObjectURL(i.previewUrl));
-    setUploadImages([]);
-  };
 
   // Mutation: Create product
   const createMutation = useMutation({
@@ -397,6 +343,9 @@ export const ProductManagement = ({
       </Card>
     );
   }
+
+  const isSavingProduct =
+    createMutation.isPending || updateMutation.isPending || isUploadingImages;
 
   return (
     <div className="space-y-6">
@@ -569,7 +518,7 @@ export const ProductManagement = ({
       <Dialog
         open={isCreateDialogOpen || isEditDialogOpen}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !isSavingProduct) {
             setIsCreateDialogOpen(false);
             setIsEditDialogOpen(false);
             setEditingProduct(null);
@@ -863,6 +812,7 @@ export const ProductManagement = ({
                 <Button
                   type="button"
                   variant="outline"
+                  disabled={isSavingProduct}
                   onClick={() => {
                     setIsCreateDialogOpen(false);
                     setIsEditDialogOpen(false);
@@ -875,15 +825,9 @@ export const ProductManagement = ({
                 </Button>
                 <Button
                   type="submit"
-                  disabled={
-                    createMutation.isPending ||
-                    updateMutation.isPending ||
-                    isUploadingImages
-                  }
+                  disabled={isSavingProduct}
                 >
-                  {(createMutation.isPending ||
-                    updateMutation.isPending ||
-                    isUploadingImages) && (
+                  {isSavingProduct && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   {isUploadingImages
@@ -898,163 +842,16 @@ export const ProductManagement = ({
         </DialogContent>
       </Dialog>
 
-      {/* Product Detail Dialog */}
-      <Dialog
+      <ProductDetailDialog
         open={isDetailDialogOpen}
+        product={viewingProduct}
         onOpenChange={(open) => {
           setIsDetailDialogOpen(open);
           if (!open) setViewingProduct(null);
         }}
-      >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Chi tiết sản phẩm</DialogTitle>
-            <DialogDescription>
-              Thông tin chi tiết về sản phẩm
-            </DialogDescription>
-          </DialogHeader>
-
-          {viewingProduct && (
-            <div className="space-y-6">
-              {/* Product Image */}
-              <div className="flex justify-center">
-                <div className="w-64 h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <img
-                    src={
-                      viewingProduct.primaryImageUrl ||
-                      "/placeholder.svg"
-                    }
-                    alt={viewingProduct.name}
-                    className="w-full h-full object-cover rounded-lg"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = "/placeholder.svg";
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Product Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">
-                      Tên sản phẩm
-                    </label>
-                    <p className="text-lg font-semibold">
-                      {viewingProduct.name}
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">
-                      Giá
-                    </label>
-                    <p className="text-lg font-semibold text-green-600">
-                      {viewingProduct.unitPrice?.toLocaleString("vi-VN")} VNĐ
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">
-                      Danh mục
-                    </label>
-                    <p className="text-base">
-                      {viewingProduct.categoryName || "Chưa có danh mục"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">
-                      Thương hiệu
-                    </label>
-                    <p className="text-base">
-                      {viewingProduct.brandName || "Chưa có thương hiệu"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">
-                      Số lượng tồn kho
-                    </label>
-                    <p className="text-base">
-                      <Badge
-                        variant={
-                          (viewingProduct.stockQuantity || 0) > 10
-                            ? "default"
-                            : (viewingProduct.stockQuantity || 0) > 0
-                            ? "secondary"
-                            : "destructive"
-                        }
-                      >
-                        {viewingProduct.stockQuantity || 0}
-                      </Badge>
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">
-                      ID sản phẩm
-                    </label>
-                    <p className="text-base text-gray-600">
-                      #{viewingProduct.id}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Product Description */}
-              {viewingProduct.description && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">
-                    Mô tả sản phẩm
-                  </label>
-                  <div className="mt-2 p-4 bg-gray-50 rounded-lg max-h-40 overflow-y-auto">
-                    <p className="text-base text-gray-700 whitespace-pre-wrap">
-                      {viewingProduct.description}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Action buttons */}
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsDetailDialogOpen(false);
-                    setViewingProduct(null);
-                  }}
-                >
-                  Đóng
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsDetailDialogOpen(false);
-                    handleManageImages(viewingProduct);
-                  }}
-                >
-                  <Images className="w-4 h-4 mr-2" />
-                  Quản lý hình ảnh
-                </Button>
-                <Button
-                  onClick={() => {
-                    setIsDetailDialogOpen(false);
-                    handleEdit(viewingProduct);
-                  }}
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Chỉnh sửa
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
+        onManageImages={handleManageImages}
+        onEdit={handleEdit}
+      />
       {/* Product Image Management */}
       {managingImagesProduct && (
         <ProductImageManagement

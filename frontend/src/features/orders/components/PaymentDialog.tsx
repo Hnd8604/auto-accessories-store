@@ -5,6 +5,7 @@ import { usePayOS as createPayOSCheckout } from "@payos/payos-checkout";
 import { PaymentsApi } from "@/features/orders/api";
 import type { PaymentResponse } from "@/features/orders/types";
 import { getErrorMessage } from "@/utils/errors";
+import { formatPrice } from "@/utils/formatPrice";
 import {
     Dialog,
     DialogContent,
@@ -36,13 +37,6 @@ const POLL_INTERVAL_MS = 5000;
 // idle: đang hiện trang payOS; confirming: payOS báo đã trả, chờ backend xác nhận;
 // closed: khách đã huỷ hoặc đóng trang payOS
 type CheckoutState = "idle" | "confirming" | "closed";
-
-const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-        style: "currency",
-        currency: "VND",
-    }).format(price);
-};
 
 export const PaymentDialog = ({
     isOpen,
