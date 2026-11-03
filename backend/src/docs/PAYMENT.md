@@ -224,7 +224,7 @@ Việc kiểm chữ ký giao cho SDK (`payOS.webhooks().verify(...)`). Đặc đ
 
 - SDK parse body vào lớp `WebhookData` với **danh sách field cố định** ở trên rồi ký lại từ object đó. Nếu một ngày payOS thêm field mới vào `data`, chữ ký sẽ lệch và **mọi webhook bị từ chối** (fail-closed) cho tới khi nâng SDK — trong lúc đó đơn vẫn được xác nhận nhờ đối soát qua API.
 - Mọi lỗi (sai/thiếu chữ ký, body không phải JSON) → `AppException(WEBHOOK_INVALID_SIGNATURE)` → `401`. Log chỉ ghi tên lớp exception, không ghi chữ ký hay key.
-- Chữ ký **không có timestamp** nên không có cửa sổ chống replay như SePay trước đây. Một webhook hợp lệ bị phát lại sẽ rơi vào `DUPLICATE_TRANSACTION` (mục 3.6) và không đổi được gì.
+- Chữ ký **không có timestamp** nên không có cửa sổ chống replay. Một webhook hợp lệ bị phát lại sẽ rơi vào `DUPLICATE_TRANSACTION` (mục 3.6) và không đổi được gì.
 - SDK so sánh chữ ký bằng `String.equals` (không constant-time).
 
 ### 3.6 Chống xử lý trùng

@@ -30,6 +30,10 @@ logging:
     org.hibernate.orm.jdbc.bind: trace
 
 app:
+  # Nạp dữ liệu mẫu (DevDataSeeder) khi bảng product còn trống.
+  # Tắt bằng SEED_ENABLED=false nếu muốn bắt đầu với DB trống.
+  seed:
+    enabled: ${SEED_ENABLED:true}
   cors:
     # Vite dev server (3000) và cổng mặc định của Vite (5173).
     # Ở dev frontend gọi thẳng backend :8080 nên đây là cross-origin thật,

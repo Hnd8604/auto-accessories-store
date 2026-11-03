@@ -517,7 +517,7 @@ Xem file/nhánh nào chưa được test, bổ sung. Đặt mục tiêu thực t
 - [x] **B1** — `SlugUtilTest`, `SortUtilsTest`
 - [x] **B2** — `ProductServiceTest`, `CategoryServiceTest`, `BrandServiceTest`
 - [x] **B3** — `OrderServiceTest`, `CartServiceTest`, `PostServiceTest`
-- [x] **B4** — Auth/Payment/ResetPassword/Google/Otp + 22 service còn lại, kèm `SepayWebhookVerifierTest`, `PaymentControllerTest` (toàn backend 252 test, 0 failure, 2 skip)
+- [x] **B4** — Auth/Payment/ResetPassword/Google/Otp + 22 service còn lại, kèm `PayosGatewayTest`, `PaymentControllerTest` (toàn backend 252 test, 0 failure, 2 skip)
 - [ ] **B5** — (tùy chọn) Controller slice test
 - [ ] **B6** — (tùy chọn) Repository slice test
 - [ ] **B7** — (tùy chọn) Integration test với Testcontainers

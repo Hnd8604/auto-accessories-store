@@ -77,7 +77,7 @@ dev_compose() {
 
 # Spring Boot does not read .env.dev on its own, so load it into this shell's
 # environment. Parsed line by line (not `source`) so values with spaces such as
-# SEPAY_BANK_ACCOUNT_NAME=NGUYEN VAN A work without quoting.
+# MAIL_FROM_NAME=Auto Store work without quoting.
 import_dev_env() {
     if [[ ! -f "$DEV_ENV_FILE" ]]; then
         warn "No $DEV_ENV_FILE found - backend will be missing environment variables."
