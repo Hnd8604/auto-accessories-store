@@ -26,16 +26,21 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
+@Transactional(readOnly = true)
 public class OrderService {
     private static final String MODIFY_ANY_ORDER_AUTHORITY = "ORDER_UPDATE_BY_ADMIN";
 
@@ -64,6 +69,7 @@ public class OrderService {
         return orders.stream()
                 .map(orderMapper::toOrderResponse).toList();
     }
+    @Transactional
     @PreAuthorize("hasAuthority('ORDER_CREATE')")
     public OrderResponse createOrderFromCart(OrderCreationRequest orderRequest) {
         Order order = orderMapper.createOrder(orderRequest);
@@ -83,12 +89,19 @@ public class OrderService {
         // lấy cartId theo UserId, lấy cartItem theo cartId
         Cart cart = cartRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_EXISTED));
+
+        // Khóa product trước khi đọc tồn kho (và trước khi đụng tới cartItems, vì chúng trỏ tới product)
+        Map<Long, Product> products = lockProducts(orderRequest.orderDetails().stream()
+                .map(OrderDetailRequest::productId)
+                .toList());
         List<OrderDetail> orderDetails = new ArrayList<>();
 
         BigDecimal totalPrice = new BigDecimal(0);
         for( OrderDetailRequest orderDetailRequest : orderRequest.orderDetails()) { // tao tung order detail tu request
-            Product product = productRepository.findById(orderDetailRequest.productId())
-                    .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_EXISTED));
+            Product product = products.get(orderDetailRequest.productId());
+            if (product == null) {
+                throw new AppException(ErrorCode.PRODUCT_NOT_EXISTED);
+            }
 
             if (orderDetailRequest.quantity() <= 0) {
                 throw new AppException(ErrorCode.INVALID_QUANTITY);
@@ -153,9 +166,10 @@ public class OrderService {
 
         return orderMapper.toOrderResponse(savedOrder);
     }
+    @Transactional
     @PreAuthorize("hasAuthority('ORDER_UPDATE_BY_ADMIN')")
     public OrderResponse updateOrderByAdmin(String orderId, OrderUpdateByAdminRequest request) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findForUpdateById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
 
         OrderStatus oldStatus = order.getStatus();
@@ -169,6 +183,7 @@ public class OrderService {
 
         return orderMapper.toOrderResponse(savedOrder);
     }
+    @Transactional
     @PreAuthorize("hasAuthority('ORDER_UPDATE_BY_USER')")
     public OrderResponse updateOrderByUser(String orderId, OrderUpdateByUserRequest request) {
         Order order = findModifiableOrder(orderId);
@@ -178,6 +193,7 @@ public class OrderService {
         order.setNote(request.note());
         return orderMapper.toOrderResponse(orderRepository.save(order));
     }
+    @Transactional
     @PreAuthorize("hasAuthority('ORDER_CANCEL')")
     public OrderResponse cancelOrder(String orderId) {
         Order order = findModifiableOrder(orderId);
@@ -190,16 +206,21 @@ public class OrderService {
             throw new AppException(ErrorCode.ORDER_NOT_CANCELABLE);
         }
         List<OrderDetail> orderDetails = order.getOrderDetails();
+        // product trong orderDetail là proxy LAZY chưa load nên khóa ở đây vẫn đọc được tồn kho mới nhất
+        lockProducts(orderDetails.stream()
+                .map(orderDetail -> orderDetail.getProduct().getId())
+                .toList());
         for( OrderDetail orderDetail : orderDetails ) {
             Product product = orderDetail.getProduct();
             product.setStockQuantity(product.getStockQuantity() + orderDetail.getQuantity());
         }
         Order savedOrder = orderRepository.save(order);
-        paymentService.cancelOpenPaymentLink(savedOrder);
+        paymentService.cancelOpenPaymentLink(savedOrder); // gọi payOS sau khi commit
         publishOrderStatusChangedEvent(savedOrder, oldStatus, savedOrder.getStatus());
 
         return orderMapper.toOrderResponse(savedOrder);
     }
+    @Transactional
     @PreAuthorize("hasAuthority('ORDER_DELETE')")
     public void deleteOrder(String orderId) {
         Order order = orderRepository.findById(orderId)
@@ -211,17 +232,31 @@ public class OrderService {
      * Người có quyền ORDER_UPDATE_BY_ADMIN (admin) sửa được mọi đơn; người khác chỉ sửa
      * được đơn của chính mình. Đơn của người khác trả về ORDER_NOT_EXISTED như đơn không
      * tồn tại, để không xác nhận được một orderId có tồn tại hay không.
+     * <p>
+     * Khóa dòng order (FOR UPDATE): 2 request hủy cùng lúc không thể cùng thấy PENDING
+     * rồi cùng cộng lại tồn kho 2 lần.
      */
     private Order findModifiableOrder(String orderId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         boolean canModifyAnyOrder = authentication.getAuthorities().stream()
                 .anyMatch(authority -> MODIFY_ANY_ORDER_AUTHORITY.equals(authority.getAuthority()));
 
-        Optional<Order> order = canModifyAnyOrder
-                ? orderRepository.findById(orderId)
-                : orderRepository.findByIdAndUserId(orderId, authentication.getName()); // getName() = sub = user.id
+        String userId = authentication.getName(); // getName() = sub = user.id
+        // order.getUser() là proxy LAZY, getId() không cần query thêm
+        Optional<Order> order = orderRepository.findForUpdateById(orderId)
+                .filter(found -> canModifyAnyOrder || userId.equals(found.getUser().getId()));
 
         return order.orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
+    }
+
+    // Khóa các product (SELECT ... FOR UPDATE, theo thứ tự id) cho tới hết transaction
+    private Map<Long, Product> lockProducts(List<Long> productIds) {
+        if (productIds.isEmpty()) {
+            return Map.of();
+        }
+        return productRepository.findForUpdateByIdInOrderByIdAsc(productIds.stream().distinct().toList())
+                .stream()
+                .collect(Collectors.toMap(Product::getId, Function.identity()));
     }
 
     private void publishOrderStatusChangedEvent(Order order, OrderStatus oldStatus, OrderStatus newStatus) {

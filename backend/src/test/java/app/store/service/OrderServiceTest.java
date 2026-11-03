@@ -117,7 +117,7 @@ public class OrderServiceTest {
         when(userRepository.findById(OWNER)).thenReturn(Optional.of(user));
         when(paymentService.generateOrderCode()).thenReturn("DH123");
         when(cartRepository.findByUserId("u1")).thenReturn(Optional.of(cart));
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findForUpdateByIdInOrderByIdAsc(List.of(1L))).thenReturn(List.of(product));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
         when(orderMapper.toOrderResponse(any(Order.class))).thenReturn(OrderResponse.builder().build());
 
@@ -150,7 +150,7 @@ public class OrderServiceTest {
         when(orderMapper.createOrder(request)).thenReturn(new Order());
         when(userRepository.findById(OWNER)).thenReturn(Optional.of(user));
         when(cartRepository.findByUserId("u1")).thenReturn(Optional.of(cart));
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findForUpdateByIdInOrderByIdAsc(List.of(1L))).thenReturn(List.of(product));
 
         assertThatThrownBy(() -> orderService.createOrderFromCart(request))
                 .isInstanceOfSatisfying(AppException.class,
@@ -175,7 +175,7 @@ public class OrderServiceTest {
         when(orderMapper.createOrder(request)).thenReturn(new Order());
         when(userRepository.findById(OWNER)).thenReturn(Optional.of(user));
         when(cartRepository.findByUserId("u1")).thenReturn(Optional.of(cart));
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findForUpdateByIdInOrderByIdAsc(List.of(1L))).thenReturn(List.of(product));
 
         assertThatThrownBy(() -> orderService.createOrderFromCart(request))
                 .isInstanceOfSatisfying(AppException.class,
@@ -201,12 +201,40 @@ public class OrderServiceTest {
         when(orderMapper.createOrder(request)).thenReturn(new Order());
         when(userRepository.findById(OWNER)).thenReturn(Optional.of(user));
         when(cartRepository.findByUserId("u1")).thenReturn(Optional.of(cart));
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findForUpdateByIdInOrderByIdAsc(List.of(1L))).thenReturn(List.of(product));
 
         assertThatThrownBy(() -> orderService.createOrderFromCart(request))
                 .isInstanceOf(AppException.class)
                 .extracting(e -> ((AppException) e).getErrorCode())
                 .isEqualTo(ErrorCode.CART_ITEM_NOT_EXISTED);
+    }
+
+    @Test
+    void createOrderFromCart_shouldLockEachProductOnce_andThrow_whenProductMissing() {
+        User user = buildUser();
+        Cart cart = new Cart();
+        cart.setCartItems(new ArrayList<>());
+
+        // cùng product 2 dòng + 1 product không tồn tại
+        OrderCreationRequest request = OrderCreationRequest.builder()
+                .orderDetails(List.of(
+                        OrderDetailRequest.builder().productId(2L).quantity(1).build(),
+                        OrderDetailRequest.builder().productId(2L).quantity(1).build(),
+                        OrderDetailRequest.builder().productId(9L).quantity(1).build()))
+                .build();
+
+        when(orderMapper.createOrder(request)).thenReturn(new Order());
+        when(userRepository.findById(OWNER)).thenReturn(Optional.of(user));
+        when(cartRepository.findByUserId("u1")).thenReturn(Optional.of(cart));
+        when(productRepository.findForUpdateByIdInOrderByIdAsc(List.of(2L, 9L))).thenReturn(List.of());
+
+        assertThatThrownBy(() -> orderService.createOrderFromCart(request))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.PRODUCT_NOT_EXISTED);
+
+        verify(productRepository, never()).findById(any());
+        verify(orderRepository, never()).save(any());
     }
 
     @Test
@@ -244,7 +272,7 @@ public class OrderServiceTest {
         when(orderMapper.createOrder(request)).thenReturn(new Order());
         when(userRepository.findById(OWNER)).thenReturn(Optional.of(user));
         when(cartRepository.findByUserId("u1")).thenReturn(Optional.of(cart));
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findForUpdateByIdInOrderByIdAsc(List.of(1L))).thenReturn(List.of(product));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
         when(orderMapper.toOrderResponse(any())).thenReturn(OrderResponse.builder().build());
         doThrow(new RuntimeException("Event publish failed")).when(orderEventProducer).publishOrderCreated(any());
@@ -260,7 +288,8 @@ public class OrderServiceTest {
     void cancelOrder_shouldThrow_whenStatusNotCancelable() {
         Order order = new Order();
         order.setStatus(OrderStatus.DELIVERED);
-        when(orderRepository.findByIdAndUserId("o1", OWNER)).thenReturn(Optional.of(order));
+        order.setUser(buildUser());
+        when(orderRepository.findForUpdateById("o1")).thenReturn(Optional.of(order));
 
         assertThatThrownBy(() -> orderService.cancelOrder("o1"))
                 .isInstanceOfSatisfying(AppException.class,
@@ -272,6 +301,7 @@ public class OrderServiceTest {
     @Test
     void cancelOrder_shouldRestoreStock_whenPending() {
         Product product = new Product();
+        product.setId(1L);
         product.setStockQuantity(5);
         OrderDetail detail = new OrderDetail();
         detail.setProduct(product);
@@ -284,12 +314,13 @@ public class OrderServiceTest {
         order.setUser(user);
         order.setOrderCode("DH123");
 
-        when(orderRepository.findByIdAndUserId("o1", OWNER)).thenReturn(Optional.of(order));
+        when(orderRepository.findForUpdateById("o1")).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
         when(orderMapper.toOrderResponse(any())).thenReturn(OrderResponse.builder().build());
 
         orderService.cancelOrder("o1");
 
+        verify(productRepository).findForUpdateByIdInOrderByIdAsc(List.of(1L)); // khóa product trước khi cộng tồn kho
         assertThat(product.getStockQuantity()).isEqualTo(8);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELED);
         verify(paymentService).cancelOpenPaymentLink(order);
@@ -299,14 +330,17 @@ public class OrderServiceTest {
     @Test
     void cancelOrder_shouldHideOrder_whenCallerIsNotOwner() {
         authenticateAs("mallory-id", "ORDER_CANCEL");
-        when(orderRepository.findByIdAndUserId("o1", "mallory-id")).thenReturn(Optional.empty());
+        Order order = new Order(); // đơn của u1
+        order.setStatus(OrderStatus.PENDING);
+        order.setUser(buildUser());
+        when(orderRepository.findForUpdateById("o1")).thenReturn(Optional.of(order));
 
         assertThatThrownBy(() -> orderService.cancelOrder("o1"))
                 .isInstanceOf(AppException.class)
                 .extracting(e -> ((AppException) e).getErrorCode())
                 .isEqualTo(ErrorCode.ORDER_NOT_EXISTED);
 
-        verify(orderRepository, never()).findById(any());
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
         verify(orderRepository, never()).save(any());
         verify(orderEventProducer, never()).publishOrderStatusChanged(any());
     }
@@ -320,34 +354,35 @@ public class OrderServiceTest {
         order.setUser(buildUser());
         order.setOrderCode("DH123");
 
-        when(orderRepository.findById("o1")).thenReturn(Optional.of(order));
+        when(orderRepository.findForUpdateById("o1")).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
         when(orderMapper.toOrderResponse(any())).thenReturn(OrderResponse.builder().build());
 
         orderService.cancelOrder("o1");
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELED);
-        verify(orderRepository, never()).findByIdAndUserId(any(), any());
     }
 
     @Test
     void updateOrderByUser_shouldHideOrder_whenCallerIsNotOwner() {
         authenticateAs("mallory-id", "ORDER_UPDATE_BY_USER");
-        when(orderRepository.findByIdAndUserId("o1", "mallory-id")).thenReturn(Optional.empty());
+        Order order = new Order(); // đơn của u1
+        order.setUser(buildUser());
+        when(orderRepository.findForUpdateById("o1")).thenReturn(Optional.of(order));
 
         assertThatThrownBy(() -> orderService.updateOrderByUser("o1", OrderUpdateByUserRequest.builder().build()))
                 .isInstanceOf(AppException.class)
                 .extracting(e -> ((AppException) e).getErrorCode())
                 .isEqualTo(ErrorCode.ORDER_NOT_EXISTED);
 
-        verify(orderRepository, never()).findById(any());
         verify(orderRepository, never()).save(any());
     }
 
     @Test
     void updateOrderByUser_shouldUpdateRecipient_whenCallerIsOwner() {
         Order order = new Order();
-        when(orderRepository.findByIdAndUserId("o1", OWNER)).thenReturn(Optional.of(order));
+        order.setUser(buildUser());
+        when(orderRepository.findForUpdateById("o1")).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
         when(orderMapper.toOrderResponse(any())).thenReturn(OrderResponse.builder().build());
 
