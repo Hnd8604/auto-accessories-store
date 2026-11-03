@@ -8,13 +8,19 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.text.NumberFormat;
 import java.util.Locale;
 
+/**
+ * Chỉ xử lý sự kiện sau khi transaction của đơn hàng commit (AFTER_COMMIT): đơn bị rollback thì
+ * không gửi email/thông báo, và lúc chạy thì đơn đã có trong DB. fallbackExecution = true để
+ * sự kiện publish ngoài transaction vẫn được xử lý.
+ */
 @Component
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -24,7 +30,7 @@ public class OrderNotificationConsumer {
     NotificationService notificationService;
 
     @Async
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handleOrderCreated(OrderCreatedEvent event) {
         try {
             // 1. Gửi email thông báo
@@ -54,7 +60,7 @@ public class OrderNotificationConsumer {
     }
 
     @Async
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handleOrderStatusChanged(OrderStatusChangedEvent event) {
         try {
             // 1. Gửi email thông báo

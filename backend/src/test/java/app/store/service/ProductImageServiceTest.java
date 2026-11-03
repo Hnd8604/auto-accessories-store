@@ -140,15 +140,16 @@ public class ProductImageServiceTest {
     }
 
     @Test
-    void deleteProductImage_shouldRemoveFromCloudinaryThenDb() {
+    void deleteProductImage_shouldRemoveFromDbThenCloudinary() {
         ProductImage image = buildImage(1L, buildProduct(1L));
         when(productImageRepository.findById(1L)).thenReturn(Optional.of(image));
 
         productImageService.deleteProductImage(1L);
 
-        var order = inOrder(cloudinaryService, productImageRepository);
-        order.verify(cloudinaryService).deleteImage("http://cloud/old.png");
+        // Xóa DB trước, Cloudinary sau (sau commit) để không còn record trỏ tới ảnh đã xóa
+        var order = inOrder(productImageRepository, cloudinaryService);
         order.verify(productImageRepository).delete(image);
+        order.verify(cloudinaryService).deleteImage("http://cloud/old.png");
     }
 
     // ==================== setPrimaryImage ====================

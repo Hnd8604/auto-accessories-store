@@ -14,6 +14,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -21,10 +22,12 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
+@Transactional(readOnly = true)
 public class BrandService {
     BrandRepository brandRepository;
     BrandMapper brandMapper;
     SlugUtil slugUtil;
+    @Transactional
     @PreAuthorize("hasAuthority('BRAND_CREATE')")
     public BrandResponse createBrand(BrandRequest brandRequest) {
 
@@ -54,6 +57,7 @@ public class BrandService {
         return brandMapper.toBrandResponse(brand);
 
     }
+    @Transactional
     @PreAuthorize("hasAuthority('BRAND_UPDATE')")
     public BrandResponse updateBrand(Long brandId, BrandRequest brandRequest) {
         Brand brand = brandRepository.findById(brandId)
@@ -69,6 +73,7 @@ public class BrandService {
         brandMapper.updateBrand(brand, brandRequest);
         return brandMapper.toBrandResponse(brandRepository.save(brand));
     }
+    @Transactional
     @PreAuthorize("hasAuthority('BRAND_DELETE')")
     public void deleteBrand(Long brandId) {
         Brand brand = brandRepository.findById(brandId)

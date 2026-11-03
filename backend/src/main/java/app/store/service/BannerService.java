@@ -13,6 +13,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -22,13 +23,16 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
-@Transactional
+@Transactional(readOnly = true)
 public class BannerService {
 
     BannerRepository bannerRepository;
     BannerMapper bannerMapper;
     CloudinaryService cloudinaryService;
 
+    // Upload Cloudinary chạy ngoài transaction để không giữ DB connection trong lúc upload.
+    // Chỉ có một lệnh ghi (save), lệnh đó tự chạy trong transaction riêng của repository.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @PreAuthorize("hasAuthority('BANNER_CREATE')")
     public BannerResponse createBanner(MultipartFile file, BannerRequest request) {
         Banner banner = bannerMapper.toBanner(request);
@@ -38,6 +42,9 @@ public class BannerService {
         return bannerMapper.toBannerResponse(bannerRepository.save(banner));
     }
 
+    // Upload Cloudinary chạy ngoài transaction để không giữ DB connection trong lúc upload.
+    // Chỉ có một lệnh ghi (save), lệnh đó tự chạy trong transaction riêng của repository.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @PreAuthorize("hasAuthority('BANNER_UPDATE')")
     public BannerResponse updateBanner(Long bannerId, MultipartFile file, BannerRequest request) {
         Banner banner = bannerRepository.findById(bannerId)
@@ -55,6 +62,7 @@ public class BannerService {
         return bannerMapper.toBannerResponse(bannerRepository.save(banner));
     }
 
+    @Transactional
     @PreAuthorize("hasAuthority('BANNER_DELETE')")
     public void deleteBanner(Long bannerId) {
         Banner banner = bannerRepository.findById(bannerId)
@@ -62,21 +70,18 @@ public class BannerService {
         bannerRepository.delete(banner);
     }
 
-    @Transactional(readOnly = true)
     public BannerResponse getBannerById(Long bannerId) {
         Banner banner = bannerRepository.findById(bannerId)
                 .orElseThrow(() -> new AppException(ErrorCode.BANNER_NOT_EXISTED));
         return bannerMapper.toBannerResponse(banner);
     }
 
-    @Transactional(readOnly = true)
     public List<BannerResponse> getAllBanners() {
         return bannerRepository.findAllByOrderByDisplayOrderAsc().stream()
                 .map(bannerMapper::toBannerResponse)
                 .toList();
     }
 
-    @Transactional(readOnly = true)
     public List<BannerResponse> getActiveBanners() {
         return bannerRepository.findByIsActiveTrueOrderByDisplayOrderAsc().stream()
                 .map(bannerMapper::toBannerResponse)

@@ -10,6 +10,7 @@ import app.store.mapper.NotificationMapper;
 import app.store.repository.NotificationRepository;
 import app.store.repository.UserRepository;
 import app.store.utils.SecurityUtils;
+import app.store.utils.TransactionUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -24,12 +25,14 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
+@Transactional(readOnly = true)
 public class NotificationService {
 
     NotificationRepository notificationRepository;
     NotificationMapper notificationMapper;
     UserRepository userRepository;
     SseEmitterService sseEmitterService;
+    @Transactional
     public NotificationResponse createNotification(String userId, String title, String message,
                                                    NotificationType type, String referenceId) {
         User user = userRepository.findById(userId)
@@ -47,8 +50,8 @@ public class NotificationService {
         notification = notificationRepository.save(notification);
         NotificationResponse response = notificationMapper.toNotificationResponse(notification);
 
-        // Push real-time qua SSE đến tất cả các tab/device đang mở của user
-        sseEmitterService.sendToUser(userId, response);
+        // Push real-time qua SSE đến tất cả các tab/device đang mở của user, sau khi đã commit
+        TransactionUtils.runAfterCommit(() -> sseEmitterService.sendToUser(userId, response));
         log.info("Notification created and pushed. userId={}, type={}, referenceId={}", userId, type, referenceId);
 
         return response;

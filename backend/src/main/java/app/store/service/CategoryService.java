@@ -18,6 +18,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
@@ -27,6 +28,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
+@Transactional(readOnly = true)
 public class CategoryService {
     CategoryMapper categoryMapper;
     CategoryRepository categoryRepository;
@@ -34,6 +36,7 @@ public class CategoryService {
     BrandMapper brandMapper;
     SlugUtil slugUtil;
 
+    @Transactional
     @PreAuthorize("hasAuthority('CATEGORY_CREATE')")
     public CategoryResponse createCategory(CategoryRequest request) {
         Category category = categoryMapper.toCategory(request);
@@ -74,6 +77,7 @@ public class CategoryService {
                 .toList();
     }
 
+    @Transactional
     @PreAuthorize("hasAuthority('CATEGORY_UPDATE')")
     public List<BrandResponse> updateCategoryBrands(Long categoryId, List<Long> brandIds) {
         Category category = categoryRepository.findById(categoryId)
@@ -94,6 +98,7 @@ public class CategoryService {
                         .toList();
     }
 
+    @Transactional
     @PreAuthorize("hasAuthority('CATEGORY_UPDATE')")
     public CategoryResponse updateCategory(Long categoryId, CategoryRequest request) {
         Category category = categoryRepository.findById(categoryId)
@@ -110,6 +115,7 @@ public class CategoryService {
         return categoryMapper.toCategoryResponse(categoryRepository.save(category));
     }
 
+    @Transactional
     @PreAuthorize("hasAuthority('CATEGORY_DELETE')")
     public void deleteCategory(Long categoryId) {
         Category category = categoryRepository.findById(categoryId)

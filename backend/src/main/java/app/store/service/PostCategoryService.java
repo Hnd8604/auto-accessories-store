@@ -25,13 +25,14 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional
+@Transactional(readOnly = true)
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PostCategoryService {
     
     PostCategoryRepository postCategoryRepository;
     SlugUtil slugUtil;
     PostCategoryMapper postCategoryMapper;
+    @Transactional
     @PreAuthorize("hasAuthority('POST_CATEGORY_CREATE')")
     public PostCategoryResponse createCategory(PostCategoryRequest request) {
 
@@ -49,6 +50,7 @@ public class PostCategoryService {
 
         return postCategoryMapper.toPostCategoryResponse(postCategoryRepository.save(postCategory));
     }
+    @Transactional
     @PreAuthorize("hasAuthority('POST_CATEGORY_UPDATE')")
     public PostCategoryResponse updateCategory(Long id, PostCategoryRequest request) {
 
@@ -75,6 +77,7 @@ public class PostCategoryService {
 
         return postCategoryMapper.toPostCategoryResponse(postCategoryRepository.save(category));
     }
+    @Transactional
     @PreAuthorize("hasAuthority('POST_CATEGORY_DELETE')")
     public void deleteCategory(Long id) {
         PostCategory category = postCategoryRepository.findById(id)
@@ -87,28 +90,24 @@ public class PostCategoryService {
         
         postCategoryRepository.delete(category);
     }
-    @Transactional(readOnly = true)
     public PostCategoryResponse getCategoryById(Long id) {
         PostCategory category = postCategoryRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.POST_CATEGORY_NOT_EXISTED));
         
         return postCategoryMapper.toPostCategoryResponse(category);
     }
-    @Transactional(readOnly = true)
     public PostCategoryResponse getCategoryBySlug(String slug) {
         PostCategory category = postCategoryRepository.findBySlug(slug)
                 .orElseThrow(() -> new AppException(ErrorCode.POST_CATEGORY_NOT_EXISTED));
 
         return postCategoryMapper.toPostCategoryResponse(category);
     }
-    @Transactional(readOnly = true)
     public List<PostCategoryResponse> getAllCategories() {
         return postCategoryRepository.findAll(Sort.by(Sort.Direction.ASC, "name"))
                 .stream()
                 .map(postCategoryMapper::toPostCategoryResponse)
                 .toList();
     }
-    @Transactional(readOnly = true)
 //    @PreAuthorize("hasAuthority('POST_CATEGORY_SEARCH')")
     public List<PostCategoryResponse> searchCategories(String keyword) {
 

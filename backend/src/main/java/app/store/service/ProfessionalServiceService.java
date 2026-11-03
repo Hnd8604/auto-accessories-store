@@ -20,33 +20,32 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Transactional(readOnly = true)
 public class ProfessionalServiceService {
 
     ServiceRepository serviceRepository;
     ServiceMapper serviceMapper;
     SlugUtil slugUtil;
 
-    @Transactional(readOnly = true)
     public List<ServiceResponse> getAllServices() {
         return serviceRepository.findAllWithImages().stream()
                 .map(serviceMapper::toServiceResponse)
                 .toList();
     }
 
-    @Transactional(readOnly = true)
     public ServiceResponse getServiceById(Long id) {
         ProfessionalService service = serviceRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.SERVICE_NOT_EXISTED));
         return serviceMapper.toServiceResponse(service);
     }
 
-    @Transactional(readOnly = true)
     public ServiceResponse getServiceBySlug(String slug) {
         ProfessionalService service = serviceRepository.findBySlug(slug)
                 .orElseThrow(() -> new AppException(ErrorCode.SERVICE_NOT_EXISTED));
         return serviceMapper.toServiceResponse(service);
     }
 
+    @Transactional
     @PreAuthorize("hasAuthority('SERVICE_CREATE')")
     public ServiceResponse createService(ServiceRequest request) {
         ProfessionalService service = serviceMapper.toService(request);

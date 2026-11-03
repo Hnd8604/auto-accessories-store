@@ -16,7 +16,9 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import app.store.utils.TransactionUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -25,6 +27,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
+@Transactional(readOnly = true)
 public class ServiceImageService {
 
     ServiceImageRepository serviceImageRepository;
@@ -32,6 +35,9 @@ public class ServiceImageService {
     ServiceRepository serviceRepository;
     CloudinaryService cloudinaryService;
 
+    // Upload Cloudinary chạy ngoài transaction để không giữ DB connection trong lúc upload.
+    // Chỉ có một lệnh ghi (save), lệnh đó tự chạy trong transaction riêng của repository.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @PreAuthorize("hasAuthority('SERVICE_IMAGE_CREATE')")
     public ServiceImageResponse createServiceImage(MultipartFile file, ServiceImageRequest request) {
         ProfessionalService service = serviceRepository.findById(request.serviceId())
@@ -52,6 +58,7 @@ public class ServiceImageService {
                 .toList();
     }
 
+    @Transactional
     @PreAuthorize("hasAuthority('SERVICE_IMAGE_UPDATE')")
     public ServiceImageResponse updateServiceImage(Long imageId, ServiceImageUpdateRequest request) {
         ServiceImage serviceImage = serviceImageRepository.findById(imageId)
@@ -67,8 +74,11 @@ public class ServiceImageService {
         ServiceImage serviceImage = serviceImageRepository.findById(imageId)
                 .orElseThrow(() -> new AppException(ErrorCode.SERVICE_IMAGE_NOT_EXISTED));
 
-        cloudinaryService.deleteImage(serviceImage.getImageUrl());
         serviceImageRepository.delete(serviceImage);
+
+        // Xóa ảnh trên Cloudinary sau khi commit (xem ProductImageService.deleteProductImage)
+        String imageUrl = serviceImage.getImageUrl();
+        TransactionUtils.runAfterCommit(() -> cloudinaryService.deleteImage(imageUrl));
     }
 
     @Transactional

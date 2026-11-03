@@ -29,12 +29,14 @@ import org.springframework.data.domain.Pageable;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
+@Transactional(readOnly = true)
 public class ProductService {
     ProductMapper productMapper;
     ProductRepository productRepository;
     CategoryRepository categoryRepository;
     BrandRepository brandRepository;
     SlugUtil slugUtil;
+    @Transactional
     @PreAuthorize("hasAuthority('PRODUCT_CREATE')")
     public ProductResponse createProduct(ProductRequest request) {
         Product product = productMapper.toProduct(request);
@@ -98,7 +100,6 @@ public class ProductService {
         productRepository.delete(product);
 
     }
-    @Transactional
     public ProductResponse getProductById(Long productId) {
         Product product = productRepository.findById(productId).
                 orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_EXISTED));
@@ -106,7 +107,6 @@ public class ProductService {
         return productMapper.toProductResponse(product);
     }
 
-    @Transactional
     public ProductResponse getProductBySlug(String slug) {
         Product product = productRepository.findBySlug(slug).
                 orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_EXISTED));
@@ -121,7 +121,6 @@ public class ProductService {
         return productRepository.findProductsByBrandId(brandId, pageable)
                 .map(productMapper::toProductResponse);
     }
-    @Transactional(readOnly = true)
     public Page<ProductResponse> getAllProducts(Pageable pageable) {
         return productRepository.findAllWithImages(pageable)
                 .map(product -> {

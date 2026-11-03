@@ -5,6 +5,7 @@ import app.store.dto.response.ChatMessageResponse;
 import app.store.entity.ChatMessage;
 import app.store.enums.SenderType;
 import app.store.repository.ChatMessageRepository;
+import app.store.utils.TransactionUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Transactional(readOnly = true)
 public class ChatMessageService {
 
     ChatMessageRepository chatMessageRepository;
@@ -36,20 +38,23 @@ public class ChatMessageService {
 
         ChatMessageResponse response = toResponse(message);
 
-        // Broadcast to conversation topic
-        messagingTemplate.convertAndSend(
-                "/topic/conversation/" + request.conversationId(),
-                response
-        );
-
         // If message from customer, increment unread for admin
         if (senderType == SenderType.CUSTOMER) {
             conversationService.incrementUnread(request.conversationId(), request.content());
-            // Notify admin panel of new message
-            messagingTemplate.convertAndSend("/topic/admin/new-message", response);
         } else {
             conversationService.updateLastMessage(request.conversationId(), request.content());
         }
+
+        // Broadcast qua WebSocket sau khi commit: client nhận tin rồi tải lại lịch sử sẽ thấy tin đó,
+        // và tin bị rollback thì không broadcast
+        TransactionUtils.runAfterCommit(() -> {
+            // Broadcast to conversation topic
+            messagingTemplate.convertAndSend("/topic/conversation/" + request.conversationId(), response);
+            if (senderType == SenderType.CUSTOMER) {
+                // Notify admin panel of new message
+                messagingTemplate.convertAndSend("/topic/admin/new-message", response);
+            }
+        });
 
         return response;
     }

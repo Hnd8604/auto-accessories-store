@@ -19,7 +19,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import app.store.utils.TransactionUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -27,11 +29,15 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
+@Transactional(readOnly = true)
 public class ProductImageService {
     ProductImageRepository productImageRepository;
     ProductImageMapper productImageMapper;
     ProductRepository productRepository;
     CloudinaryService CloudinaryService;
+    // Upload Cloudinary chạy ngoài transaction để không giữ DB connection trong lúc upload.
+    // Chỉ có một lệnh ghi (save), lệnh đó tự chạy trong transaction riêng của repository.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @PreAuthorize("hasAuthority('PRODUCT_IMAGE_CREATE')")
     public ProductImageResponse createProductImage(MultipartFile file, ProductImageRequest request) {
 
@@ -63,6 +69,7 @@ public class ProductImageService {
         return productImageRepository.getProductImageByProductId(productId).stream()
                 .map(productImageMapper::toProductImageResponse).toList();
     }
+    @Transactional
     @PreAuthorize("hasAuthority('PRODUCT_IMAGE_UPDATE')")
     public ProductImageResponse updateProductImage(Long imageId, ProductImageUpdateRequest request) {
         // Tìm ProductImage cũ
@@ -79,11 +86,13 @@ public class ProductImageService {
         ProductImage productImage = productImageRepository.findById(imageId)
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_IMAGE_NOT_EXISTED));
 
-        // Xóa ảnh trên Cloudinary
-        CloudinaryService.deleteImage(productImage.getImageUrl());
-
         // Xóa record trong database
         productImageRepository.delete(productImage);
+
+        // Xóa ảnh trên Cloudinary sau khi commit: DB lỗi thì ảnh vẫn còn, không để lại record trỏ tới
+        // ảnh đã mất. Cloudinary lỗi thì chỉ còn một file thừa, ghi log.
+        String imageUrl = productImage.getImageUrl();
+        TransactionUtils.runAfterCommit(() -> CloudinaryService.deleteImage(imageUrl));
     }
     @Transactional
     @PreAuthorize("hasAuthority('PRODUCT_IMAGE_SET_PRIMARY')")

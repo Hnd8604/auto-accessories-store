@@ -38,6 +38,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.text.ParseException;
 import java.time.Instant;
@@ -48,6 +49,7 @@ import java.util.*;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
+@Transactional(readOnly = true)
 public class AuthenticationService {
     UserRepository userRepository;
     InvalidatedRepository invalidatedRepository;
@@ -67,6 +69,7 @@ public class AuthenticationService {
     @Value("${jwt.refresh-duration}")
     protected long REFRESH_DURATION;
 
+    @Transactional
     public UserResponse register(UserCreationRequest request) {
         User user = userMapper.toUser(request);
 
@@ -106,6 +109,9 @@ public class AuthenticationService {
                 .build();
     }
 
+    // Read-write vì cartSyncService.syncSessionCart ghi DB và sẽ chạy chung transaction này:
+    // để readOnly thì Postgres từ chối lệnh ghi khi gộp giỏ.
+    @Transactional
     public AuthenticationResponse authenticate(AuthenticationRequest request, HttpSession session) {
         var user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
@@ -150,6 +156,7 @@ public class AuthenticationService {
      * Đổi mật khẩu cho user đang đăng nhập.
      * Kiểm tra: mật khẩu cũ đúng, mật khẩu mới không trùng cũ, confirm khớp.
      */
+    @Transactional
     public void changePassword(ChangePasswordRequest request) {
         String userId = SecurityUtils.currentUserId();
 
@@ -178,6 +185,7 @@ public class AuthenticationService {
         log.info("Password changed successfully for userId: {}", userId);
     }
 
+    @Transactional
     public void logout(LogoutRequest request) throws ParseException, JOSEException {
         invalidateToken(request.accessToken(), TokenType.ACCESS);
         invalidateToken(request.refreshToken(), TokenType.REFRESH);

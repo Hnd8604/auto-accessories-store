@@ -115,15 +115,16 @@ public class ServiceImageServiceTest {
     }
 
     @Test
-    void deleteServiceImage_shouldRemoveFromCloudinaryThenDb() {
+    void deleteServiceImage_shouldRemoveFromDbThenCloudinary() {
         ServiceImage image = buildImage(1L, buildService(1L));
         when(serviceImageRepository.findById(1L)).thenReturn(Optional.of(image));
 
         serviceImageService.deleteServiceImage(1L);
 
-        var order = inOrder(cloudinaryService, serviceImageRepository);
-        order.verify(cloudinaryService).deleteImage("http://cloud/old.png");
+        // Xóa DB trước, Cloudinary sau (sau commit) để không còn record trỏ tới ảnh đã xóa
+        var order = inOrder(serviceImageRepository, cloudinaryService);
         order.verify(serviceImageRepository).delete(image);
+        order.verify(cloudinaryService).deleteImage("http://cloud/old.png");
     }
 
     @Test

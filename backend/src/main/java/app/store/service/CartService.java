@@ -22,6 +22,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.text.ParseException;
 
@@ -29,6 +30,7 @@ import java.text.ParseException;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
+@Transactional(readOnly = true)
 public class CartService {
     CartMapper cartMapper;
     CartRepository cartRepository;
@@ -50,6 +52,7 @@ public class CartService {
     }
 
     // Luôn thêm vào giỏ của user trong JWT, không nhận cartId từ client
+    @Transactional
     public CartItemResponse addItemToCart(CartItemRequest request) {
         Cart cart = cartRepository.findByUserId(SecurityUtils.currentUserId())
                 .orElseThrow(() -> new AppException(ErrorCode.CART_NOT_EXISTED));
@@ -59,6 +62,7 @@ public class CartService {
     // Dùng khi đã xác định được cart phía server (vd. gộp giỏ session lúc đăng
     // nhập,
     // khi SecurityContext chưa có user)
+    @Transactional
     public CartItemResponse addItem(Cart cart, Long productId, int quantity) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_EXISTED));
@@ -97,6 +101,10 @@ public class CartService {
      *
      * @return true nếu gộp được ít nhất 1 đơn vị, false nếu bỏ qua item này
      */
+    // noRollbackFor: chạy chung transaction với CartSyncService.syncSessionCart, nơi bắt lỗi rồi bỏ
+    // qua item. Nếu để mặc định, lỗi ném ra đây sẽ đánh dấu rollback cả transaction và làm hỏng
+    // request đăng nhập (UnexpectedRollbackException) dù lỗi đã được bắt.
+    @Transactional(noRollbackFor = RuntimeException.class)
     public boolean mergeItem(Cart cart, Long productId, int quantity) {
         if (quantity <= 0) {
             return false;
@@ -133,6 +141,7 @@ public class CartService {
         return true;
     }
 
+    @Transactional
     @PreAuthorize("hasAuthority('CART_REMOVE_ITEM')")
     public void removeItemFromCart(Long cartId, Long itemId) {
         CartItem item = findMyCartItem(itemId);
@@ -143,6 +152,7 @@ public class CartService {
         cartItemRepository.delete(item);
     }
 
+    @Transactional
     @PreAuthorize("hasAuthority('CART_UPDATE_ITEM')")
     public CartItemResponse updateItemInCart(Long itemId, CartItemUpdateRequest request) {
         CartItem cartItem = findMyCartItem(itemId);

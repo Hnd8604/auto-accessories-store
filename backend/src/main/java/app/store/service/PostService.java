@@ -23,6 +23,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -34,7 +35,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional
+@Transactional(readOnly = true)
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PostService {
 
@@ -44,6 +45,9 @@ public class PostService {
     SlugUtil slugUtil;
     PostMapper postMapper;
     CloudinaryService CloudinaryService;
+    // Upload Cloudinary chạy ngoài transaction để không giữ DB connection trong lúc upload.
+    // Chỉ có một lệnh ghi (save), lệnh đó tự chạy trong transaction riêng của repository.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @PreAuthorize("hasAuthority('POST_CREATE')")
     public PostResponse createPost(MultipartFile file, PostRequest request) {
 
@@ -74,6 +78,9 @@ public class PostService {
 
         return postMapper.toPostResponse(postRepository.save(post));
     }
+    // Upload Cloudinary chạy ngoài transaction để không giữ DB connection trong lúc upload.
+    // Chỉ có một lệnh ghi (save), lệnh đó tự chạy trong transaction riêng của repository.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @PreAuthorize("hasAuthority('POST_UPDATE')")
     public PostResponse updatePost(MultipartFile file ,Long id, PostRequest request) {
         Post post = postRepository.findById(id)
@@ -109,6 +116,7 @@ public class PostService {
 
         return postMapper.toPostResponse(postRepository.save(post));
     }
+    @Transactional
     @PreAuthorize("hasAuthority('POST_DELETE')")
     public void deletePost(Long id) {
 
@@ -118,14 +126,12 @@ public class PostService {
         postRepository.delete(post);
 
     }
-    @Transactional(readOnly = true)
     public PostResponse getPostById(Long id) {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_EXISTED));
 
         return postMapper.toPostResponse(post);
     }
-    @Transactional(readOnly = true)
     public PostResponse getPostBySlug(String slug) {
         Post post = postRepository.findBySlug(slug)
                 .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_EXISTED));
@@ -145,16 +151,13 @@ public class PostService {
 
         return postMapper.toPostResponse(post);
     }
-    @Transactional(readOnly = true)
     public Page<PostResponse> getAllPosts(Pageable pageable) {
         return postRepository.findAll(pageable).map(postMapper::toPostResponse);
     }
-    @Transactional(readOnly = true)
     public Page<PostResponse> getPublishedPosts(Pageable pageable) {
 
         return postRepository.findPublishedPosts(pageable).map(postMapper::toPostResponse);
     }
-    @Transactional(readOnly = true)
     public Page<PostResponse> searchPublishedPosts(String keyword, Pageable pageable) {
 
         if (keyword == null || keyword.trim().isEmpty()) {
@@ -164,7 +167,6 @@ public class PostService {
         return postRepository.findPublishedPostsByKeyword(keyword.trim(), pageable)
                 .map(postMapper::toPostResponse);
     }
-    @Transactional(readOnly = true)
     public Page<PostResponse> getPostsByCategory(Long categoryId, Pageable pageable) {
         PostCategory category = postCategoryRepository.findById(categoryId)
                 .orElseThrow(() -> new AppException(ErrorCode.POST_CATEGORY_NOT_EXISTED));
@@ -172,7 +174,6 @@ public class PostService {
         return postRepository.findPublishedPostsByCategory(category, pageable)
                 .map(postMapper::toPostResponse);
     }
-    @Transactional(readOnly = true)
     public Page<PostResponse> getRelatedPosts(Long postId, Pageable pageable) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new AppException(ErrorCode.POST_NOT_EXISTED));
@@ -184,11 +185,11 @@ public class PostService {
         return postRepository.findRelatedPosts(post.getCategory(), postId,pageable)
                 .map(postMapper::toPostResponse);
     }
-    @Transactional(readOnly = true)
     public Page<PostResponse> getMostViewedPosts(Pageable pageable) {
         return postRepository.findMostViewedPosts(pageable)
                 .map(postMapper::toPostResponse);
     }
+    @Transactional
     @PreAuthorize("hasAuthority('POST_TOGGLE_PUBLISH')")
     public void togglePublishStatus(Long id) {
 
