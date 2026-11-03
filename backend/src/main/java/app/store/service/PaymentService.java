@@ -2,18 +2,17 @@ package app.store.service;
 
 import app.store.dto.response.PaymentResponse;
 import app.store.entity.Order;
-import app.store.entity.Payment;
 import app.store.entity.PayosPaymentLink;
 import app.store.enums.OrderStatus;
 import app.store.enums.PaymentMethod;
-import app.store.enums.PaymentGateway;
 import app.store.enums.PaymentStatus;
 import app.store.enums.WebhookOutcome;
 import app.store.exception.AppException;
 import app.store.exception.ErrorCode;
 import app.store.repository.OrderRepository;
-import app.store.repository.PaymentRepository;
 import app.store.repository.PayosPaymentLinkRepository;
+import app.store.service.PaymentRecorder.IncomingTransaction;
+import app.store.utils.TransactionUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -44,6 +43,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Không đặt @Transactional ở class: createPayment / checkPaymentStatus gọi payOS qua HTTP nên chạy
+ * ngoài transaction để không giữ DB connection lúc chờ payOS. Phần ghi DB khi có tiền vào nằm ở
+ * {@link PaymentRecorder} với transaction riêng.
+ */
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -68,9 +72,9 @@ public class PaymentService {
     private static final int DESCRIPTION_DIGITS = 7;
 
     OrderRepository orderRepository;
-    PaymentRepository paymentRepository;
     PayosPaymentLinkRepository payosPaymentLinkRepository;
     PayosGateway payosGateway;
+    PaymentRecorder paymentRecorder;
 
     @NonFinal
     @Value("${payos.return-url}")
@@ -179,12 +183,15 @@ public class PaymentService {
             return WebhookOutcome.ORDER_NOT_FOUND;
         }
 
-        return applyTransaction(link.getOrder(), new IncomingTransaction(
+        return paymentRecorder.apply(link.getOrder(), new IncomingTransaction(
                 data.getAmount(), data.getReference(), data.getPaymentLinkId(), data.getDescription(),
                 data.getAccountNumber(), data.getTransactionDateTime()));
     }
 
-    /** Huỷ link còn hiệu lực của đơn chuyển khoản chưa thanh toán. Lỗi chỉ ghi log. */
+    /**
+     * Huỷ link còn hiệu lực của đơn chuyển khoản chưa thanh toán. Lỗi chỉ ghi log.
+     * Gọi trong transaction hủy đơn thì chỉ gọi payOS sau khi transaction đó commit.
+     */
     public void cancelOpenPaymentLink(Order order) {
         if (order.getPaymentMethod() != PaymentMethod.BANK_TRANSFER
                 || order.getPaymentStatus() == PaymentStatus.PAID) {
@@ -193,7 +200,8 @@ public class PaymentService {
 
         payosPaymentLinkRepository.findFirstByOrderIdOrderByIdDesc(order.getId())
                 .filter(link -> link.getExpiresAt().isAfter(LocalDateTime.now()))
-                .ifPresent(link -> cancelQuietly(link, ORDER_CANCELED_REASON));
+                .ifPresent(link -> TransactionUtils.runAfterCommit(
+                        () -> cancelQuietly(link, ORDER_CANCELED_REASON)));
     }
 
     private PayosPaymentLink openPaymentLink(Order order) {
@@ -227,7 +235,7 @@ public class PaymentService {
         }
 
         for (Transaction tx : remote.getTransactions()) {
-            WebhookOutcome outcome = applyTransaction(order, new IncomingTransaction(
+            WebhookOutcome outcome = paymentRecorder.apply(order, new IncomingTransaction(
                     tx.getAmount(), tx.getReference(), link.getPaymentLinkId(), tx.getDescription(),
                     tx.getAccountNumber(), tx.getTransactionDateTime()));
             if (outcome != WebhookOutcome.DUPLICATE_TRANSACTION) {
@@ -235,40 +243,6 @@ public class PaymentService {
                         tx.getReference(), order.getOrderCode(), outcome);
             }
         }
-    }
-
-    private WebhookOutcome applyTransaction(Order order, IncomingTransaction tx) {
-        // Chống xử lý trùng: cùng một giao dịch đến từ cả webhook lẫn đối soát qua API, và một
-        // webhook hợp lệ có thể bị gửi lại. Chữ ký payOS không kèm timestamp để chặn replay
-        // nên đây là lớp chặn chính.
-        if (paymentRepository.existsByReferenceCode(tx.reference())) {
-            return WebhookOutcome.DUPLICATE_TRANSACTION;
-        }
-
-        BigDecimal amount = BigDecimal.valueOf(tx.amount());
-
-        // Đơn đã PAID mà vẫn có tiền vào -> vẫn ghi lại để thấy được mà hoàn tiền
-        if (order.getPaymentStatus() == PaymentStatus.PAID) {
-            log.warn("Order {} is already PAID but received another transfer of {}: reference={}",
-                    order.getOrderCode(), amount, tx.reference());
-            savePaymentRecord(order, tx, PaymentStatus.PAID);
-            return WebhookOutcome.ORDER_ALREADY_PAID;
-        }
-
-        if (amount.compareTo(order.getTotalPrice()) < 0) {
-            log.warn("Transfer amount {} is less than order total {}, orderCode: {}",
-                    amount, order.getTotalPrice(), order.getOrderCode());
-            // Vẫn lưu giao dịch để đối soát nhưng không update trạng thái đơn
-            savePaymentRecord(order, tx, PaymentStatus.UNPAID);
-            return WebhookOutcome.UNDERPAID;
-        }
-
-        order.setPaymentStatus(PaymentStatus.PAID);
-        orderRepository.save(order);
-        savePaymentRecord(order, tx, PaymentStatus.PAID);
-
-        log.info("Order {} has been marked as PAID, amount={}", order.getOrderCode(), amount);
-        return WebhookOutcome.PAID;
     }
 
     private void cancelQuietly(PayosPaymentLink link, String reason) {
@@ -289,21 +263,6 @@ public class PaymentService {
                 : orderRepository.findByIdAndUserId(orderId, authentication.getName()); // getName() = sub = user.id
 
         return order.orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
-    }
-
-    private void savePaymentRecord(Order order, IncomingTransaction tx, PaymentStatus status) {
-        Payment payment = Payment.builder()
-                .order(order)
-                .amount(BigDecimal.valueOf(tx.amount()))
-                .gateway(PaymentGateway.PAYOS)
-                .transactionCode(tx.paymentLinkId())
-                .referenceCode(tx.reference())
-                .transferContent(tx.description())
-                .accountNumber(tx.accountNumber())
-                .transactionDate(tx.transactionDateTime())
-                .status(status)
-                .build();
-        paymentRepository.save(payment);
     }
 
     private PaymentResponse toResponse(Order order, PayosPaymentLink link) {
@@ -337,10 +296,5 @@ public class PaymentService {
             digits = digits.substring(digits.length() - DESCRIPTION_DIGITS);
         }
         return "DH" + digits;
-    }
-
-    /** Một giao dịch tiền vào, từ webhook hoặc từ API tra cứu link của payOS. */
-    private record IncomingTransaction(Long amount, String reference, String paymentLinkId,
-            String description, String accountNumber, String transactionDateTime) {
     }
 }

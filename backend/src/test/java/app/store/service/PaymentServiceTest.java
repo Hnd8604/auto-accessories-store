@@ -23,7 +23,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.TestingAuthenticationToken;
@@ -61,7 +60,6 @@ public class PaymentServiceTest {
     PayosPaymentLinkRepository payosPaymentLinkRepository;
     @Mock
     PayosGateway payosGateway;
-    @InjectMocks
     PaymentService paymentService;
 
     private static final String ORDER_CODE = "DH20240115A1B2C3D4";
@@ -74,6 +72,9 @@ public class PaymentServiceTest {
 
     @BeforeEach
     void setUp() {
+        // PaymentRecorder thật (dùng chung repository mock) để test vẫn kiểm tra cả bước ghi giao dịch
+        paymentService = new PaymentService(orderRepository, payosPaymentLinkRepository, payosGateway,
+                new PaymentRecorder(orderRepository, paymentRepository));
         ReflectionTestUtils.setField(paymentService, "returnUrl", RETURN_URL);
         ReflectionTestUtils.setField(paymentService, "cancelUrl", RETURN_URL);
         ReflectionTestUtils.setField(paymentService, "linkExpiryMinutes", 15L);
