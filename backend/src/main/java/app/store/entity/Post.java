@@ -13,34 +13,35 @@ import lombok.experimental.FieldDefaults;
 @Entity
 @Table(name = "posts")
 public class Post extends BaseEntityLong {
-    
+
     @Column(nullable = false, length = 500)
     String title;
-    
+
     @Column(unique = true, nullable = false, length = 500)
     String slug;
-    
+
     @Column(length = 1000)
     String shortDescription;
-    
+
+    @Column(nullable = false)
     String thumbnailUrl;
-    
-    @Column(columnDefinition = "TEXT")
+
+    @Column(nullable = false, columnDefinition = "TEXT")
     String content;
-    
+
     @Column(nullable = false)
     @Builder.Default
     Boolean published = false;
-    
-    @Column
+
+    @Column(nullable = false)
     @Builder.Default
     Long viewCount = 0L;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     PostCategory category;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "author_id")
+    @JoinColumn(name = "author_id", nullable = false)
     User author;
 }

@@ -19,15 +19,15 @@ public class OrderEventProducer {
     public void publishOrderCreated(OrderCreatedEvent event) {
         eventPublisher.publishEvent(event);
         log.info("Published order-created event. orderId={}, orderCode={}",
-                event.getOrderId(), event.getOrderCode());
+                event.orderId(), event.orderCode());
     }
 
     public void publishOrderStatusChanged(OrderStatusChangedEvent event) {
         eventPublisher.publishEvent(event);
         log.info("Published order-status-changed event. orderId={}, orderCode={}, oldStatus={}, newStatus={}",
-                event.getOrderId(),
-                event.getOrderCode(),
-                event.getOldStatus(),
-                event.getNewStatus());
+                event.orderId(),
+                event.orderCode(),
+                event.oldStatus(),
+                event.newStatus());
     }
 }

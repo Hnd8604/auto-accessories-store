@@ -1,14 +1,11 @@
 package app.store.dto.request.auth;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import jakarta.validation.constraints.NotBlank;
+import lombok.Builder;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class IntrospectRequest {
-    String token;
+public record IntrospectRequest(
+        @NotBlank(message = "Token is required")
+        String token
+) {
 }

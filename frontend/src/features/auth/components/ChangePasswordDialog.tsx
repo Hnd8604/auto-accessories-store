@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Eye, EyeOff, Lock, ShieldCheck } from "lucide-react";
-import type { ChangePasswordRequest } from "@/features/users/types";
+import type { ChangePasswordRequest } from "@/features/auth/types";
 
 interface ChangePasswordDialogProps {
     open: boolean;

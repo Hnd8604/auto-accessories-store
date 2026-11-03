@@ -1,5 +1,6 @@
 package app.store.service;
 
+import app.store.enums.OrderStatus;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
@@ -9,15 +10,16 @@ import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.util.Properties;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.javamail.JavaMailSender;
 
 import jakarta.mail.Multipart;
 import jakarta.mail.Session;
+import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,8 +27,12 @@ public class MailServiceTest {
 
     @Mock
     JavaMailSender mailSender;
-    @InjectMocks
     MailService mailService;
+
+    @BeforeEach
+    void setUp() {
+        mailService = new MailService(mailSender, "no-reply@autolux.vn", "AutoLux Store");
+    }
 
     /** MimeMessageHelper cần một MimeMessage thật, không mock được nội dung bên trong. */
     private MimeMessage realMimeMessage() {
@@ -63,6 +69,9 @@ public class MailServiceTest {
         verify(mailSender).send(message);
         assertThat(message.getSubject()).isEqualTo("Xác nhận đơn hàng #DH123");
         assertThat(message.getAllRecipients()[0].toString()).isEqualTo("john@mail.com");
+        InternetAddress from = (InternetAddress) message.getFrom()[0];
+        assertThat(from.getAddress()).isEqualTo("no-reply@autolux.vn");
+        assertThat(from.getPersonal()).isEqualTo("AutoLux Store");
         String body = htmlBodyOf(message);
         assertThat(body).contains("John").contains("DH123").contains("200.000");
     }
@@ -72,12 +81,13 @@ public class MailServiceTest {
         MimeMessage message = realMimeMessage();
         when(mailSender.createMimeMessage()).thenReturn(message);
 
-        mailService.sendOrderStatusChangedEmail("john@mail.com", "John", "DH123", "PENDING", "SHIPPING");
+        mailService.sendOrderStatusChangedEmail(
+                "john@mail.com", "John", "DH123", OrderStatus.PENDING, OrderStatus.SHIPPED);
 
         assertThat(message.getSubject()).isEqualTo("Cập nhật đơn hàng #DH123");
         String body = htmlBodyOf(message);
-        assertThat(body).contains("PENDING").contains("SHIPPING")
-                .contains("#F39C12"); // màu riêng của trạng thái SHIPPING
+        assertThat(body).contains("PENDING").contains("SHIPPED")
+                .contains("#F39C12"); // màu riêng của trạng thái SHIPPED
     }
 
     @Test

@@ -1,17 +1,12 @@
 package app.store.dto.request;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import lombok.Builder;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class ServiceImageRequest {
-    Long serviceId;
-    String altText;
-    Boolean isPrimary;
-    Integer sortOrder;
+public record ServiceImageRequest(
+        Long serviceId,
+        String altText,
+        Boolean isPrimary,
+        Integer sortOrder
+) {
 }

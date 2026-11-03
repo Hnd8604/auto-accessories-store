@@ -48,15 +48,16 @@ public class CategoryServiceTest {
     @Test
     void createCategory_shouldSetSlug_happyPath() {
         // Arrange
-        CategoryRequest request = new CategoryRequest();
-        request.setName("Đèn xe");
+        CategoryRequest request = CategoryRequest.builder()
+                .name("Đèn xe")
+                .build();
         Category mappedCategory = new Category();
 
         when(categoryMapper.toCategory(request)).thenReturn(mappedCategory);
         when(slugUtil.toSlug("Đèn xe")).thenReturn("den-xe");
         when(slugUtil.createUniqueSlug(eq("den-xe"), any())).thenReturn("den-xe");
         when(categoryRepository.save(any(Category.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(categoryMapper.toCategoryResponse(any(Category.class))).thenReturn(new CategoryResponse());
+        when(categoryMapper.toCategoryResponse(any(Category.class))).thenReturn(CategoryResponse.builder().build());
 
         // Act
         categoryService.createCategory(request);
@@ -84,7 +85,7 @@ public class CategoryServiceTest {
         // Arrange
         Category category = new Category();
         category.setId(1L);
-        CategoryResponse response = new CategoryResponse();
+        CategoryResponse response = CategoryResponse.builder().build();
 
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
         when(categoryMapper.toCategoryResponse(category)).thenReturn(response);

@@ -1,15 +1,12 @@
 package app.store.dto.request.auth;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import jakarta.validation.constraints.NotBlank;
+import lombok.Builder;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class LogoutRequest {
-    String accessToken;
-    String refreshToken;
+public record LogoutRequest(
+        @NotBlank(message = "Access token is required")
+        String accessToken,
+        String refreshToken
+) {
 }

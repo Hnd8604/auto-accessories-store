@@ -1,10 +1,10 @@
 import React from "react";
-import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/context/auth-context";
-import { isAdmin } from "@/features/auth/hooks/useAuth";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { isAdmin } from "@/features/auth/lib/roles";
 
 interface ProtectedRouteProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   requireAuth?: boolean;
   requireAdmin?: boolean;
   redirectTo?: string;
@@ -38,7 +38,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to={redirectTo || "/"} replace />;
   }
 
-  return <>{children}</>;
+  return children ? <>{children}</> : <Outlet />;
 };
 
 export default ProtectedRoute;

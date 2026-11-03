@@ -1,11 +1,12 @@
-import { http } from "@/features/auth/api/auth";
+import { http } from "@/services/http";
 import type { ApiResponse, PageResponse, PaginationParams } from "@/types";
 import type { ProductRequest, ProductResponse, ProductSearchRequest } from "../types";
 
 export const ProductsApi = {
   getAll: (params?: PaginationParams) =>
     http.request<ApiResponse<PageResponse<ProductResponse>>>(
-      `/products${buildQuery(params)}`
+      "/products",
+      { params }
     ),
   getById: (id: number) =>
     http.request<ApiResponse<ProductResponse>>(`/products/id/${id}`),
@@ -27,29 +28,21 @@ export const ProductsApi = {
     }),
   byCategory: (categoryId: number, params?: PaginationParams) =>
     http.request<ApiResponse<PageResponse<ProductResponse>>>(
-      `/products/categories/${categoryId}${buildQuery(params)}`
+      `/products/categories/${categoryId}`,
+      { params }
     ),
   byBrand: (brandId: number, params?: PaginationParams) =>
     http.request<ApiResponse<PageResponse<ProductResponse>>>(
-      `/products/brands/${brandId}${buildQuery(params)}`
+      `/products/brands/${brandId}`,
+      { params }
     ),
   search: (searchRequest: ProductSearchRequest, params?: PaginationParams) =>
     http.request<ApiResponse<PageResponse<ProductResponse>>>(
-      `/products/search${buildQuery(params)}`,
+      "/products/search",
       {
         method: "POST",
         body: searchRequest,
+        params,
       }
     ),
 };
-
-function buildQuery(params?: Record<string, any>): string {
-  if (!params) return "";
-  const usp = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v === undefined || v === null || v === "") return;
-    usp.append(k, String(v));
-  });
-  const qs = usp.toString();
-  return qs ? `?${qs}` : "";
-}

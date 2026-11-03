@@ -1,149 +1,49 @@
-import { Routes, Route } from "react-router-dom";
+import { lazy, Suspense } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "@/features/auth/components/ProtectedRoute";
 
-// Pages
-import Index from "@/pages/Index";
-import BlogPage from "@/pages/BlogPage";
-import AdminPage from "@/pages/AdminPage";
-import CartPage from "@/pages/CartPage";
-import NotFound from "@/pages/NotFound";
+const HomePage = lazy(() => import("@/app/pages/HomePage"));
+const NotFoundPage = lazy(() => import("@/app/pages/NotFoundPage"));
+const ProductCatalogPage = lazy(() => import("@/features/products/pages/ProductCatalogPage"));
+const ProductDetailPage = lazy(() => import("@/features/products/pages/ProductDetailPage"));
+const CartPage = lazy(() => import("@/features/cart/pages/CartPage"));
+const MyOrdersPage = lazy(() => import("@/features/orders/pages/MyOrdersPage"));
+const BlogPage = lazy(() => import("@/features/posts/pages/BlogPage"));
+const PostDetailPage = lazy(() => import("@/features/posts/pages/PostDetailPage"));
+const ServiceDetailPage = lazy(() => import("@/features/services/pages/ServiceDetailPage"));
+const AuthPage = lazy(() => import("@/features/auth/pages/AuthPage"));
+const GoogleCallback = lazy(() => import("@/features/auth/pages/GoogleCallback"));
+const AdminPage = lazy(() => import("@/features/admin/pages/AdminPage"));
+const PostEditorPage = lazy(() => import("@/features/posts/pages/PostEditorPage"));
 
-// Feature Pages
-import AuthPage from "@/features/auth/pages/AuthPage";
-import GoogleCallback from "@/features/auth/pages/GoogleCallback";
-import ProductDetailPage from "@/features/products/pages/ProductDetailPage";
-import OrderPage from "@/features/orders/pages/OrderPage";
-import MyOrdersPage from "@/features/orders/pages/MyOrdersPage";
-import PostDetailPage from "@/features/posts/pages/PostDetailPage";
-import PostEditorPage from "@/features/posts/pages/PostEditorPage";
-import ServiceDetailPage from "@/features/services/pages/ServiceDetailPage";
-
-export const AppRoutes = () => {
+export function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/" element={<Index />} />
-      <Route path="/products/:slug" element={<ProductDetailPage />} />
-      <Route path="/cart" element={<CartPage />} />
-      <Route path="/order" element={<OrderPage />} />
-      <Route
-        path="/my-orders"
-        element={
-          <ProtectedRoute requireAuth>
-            <MyOrdersPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/blog" element={<BlogPage />} />
-      <Route path="/blog/:slug" element={<PostDetailPage />} />
-      <Route path="/services/:slug" element={<ServiceDetailPage />} />
-      <Route path="/auth" element={<AuthPage />} />
-      <Route path="/auth/google/callback" element={<GoogleCallback />} />
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute requireAuth requireAdmin>
-            <AdminPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/orders"
-        element={
-          <ProtectedRoute requireAuth requireAdmin>
-            <AdminPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/products"
-        element={
-          <ProtectedRoute requireAuth requireAdmin>
-            <AdminPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/categories"
-        element={
-          <ProtectedRoute requireAuth requireAdmin>
-            <AdminPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/brands"
-        element={
-          <ProtectedRoute requireAuth requireAdmin>
-            <AdminPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/banners"
-        element={
-          <ProtectedRoute requireAuth requireAdmin>
-            <AdminPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/posts"
-        element={
-          <ProtectedRoute requireAuth requireAdmin>
-            <AdminPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/post-categories"
-        element={
-          <ProtectedRoute requireAuth requireAdmin>
-            <AdminPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/users"
-        element={
-          <ProtectedRoute requireAuth requireAdmin>
-            <AdminPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/services"
-        element={
-          <ProtectedRoute requireAuth requireAdmin>
-            <AdminPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/inbox"
-        element={
-          <ProtectedRoute requireAuth requireAdmin>
-            <AdminPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/posts/new"
-        element={
-          <ProtectedRoute requireAuth requireAdmin>
-            <PostEditorPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/posts/edit/:id"
-        element={
-          <ProtectedRoute requireAuth requireAdmin>
-            <PostEditorPage />
-          </ProtectedRoute>
-        }
-      />
-      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <Suspense fallback={<div role="status" className="min-h-screen flex items-center justify-center">Đang tải...</div>}>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/products" element={<ProductCatalogPage />} />
+        <Route path="/products/:slug" element={<ProductDetailPage />} />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/order" element={<Navigate to="/cart" replace />} />
+        <Route path="/blog" element={<BlogPage />} />
+        <Route path="/blog/:slug" element={<PostDetailPage />} />
+        <Route path="/services/:slug" element={<ServiceDetailPage />} />
+        <Route path="/auth" element={<AuthPage />} />
+        <Route path="/auth/google/callback" element={<GoogleCallback />} />
+
+        <Route element={<ProtectedRoute requireAuth />}>
+          <Route path="/my-orders" element={<MyOrdersPage />} />
+        </Route>
+
+        <Route element={<ProtectedRoute requireAuth requireAdmin />}>
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin/:section" element={<AdminPage />} />
+          <Route path="/admin/posts/new" element={<PostEditorPage />} />
+          <Route path="/admin/posts/edit/:id" element={<PostEditorPage />} />
+        </Route>
+
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </Suspense>
   );
-};
+}

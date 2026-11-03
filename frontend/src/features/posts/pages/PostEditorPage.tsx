@@ -120,7 +120,7 @@ export const PostEditorPage = () => {
       });
       navigate("/admin");
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Lỗi",
@@ -142,7 +142,7 @@ export const PostEditorPage = () => {
       });
       navigate("/admin");
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Lỗi",

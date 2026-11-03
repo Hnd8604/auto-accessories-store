@@ -21,6 +21,8 @@ import org.springframework.web.multipart.MultipartFile;
 import app.store.dto.request.BannerRequest;
 import app.store.dto.response.BannerResponse;
 import app.store.entity.Banner;
+import app.store.exception.AppException;
+import app.store.exception.ErrorCode;
 import app.store.mapper.BannerMapper;
 import app.store.repository.BannerRepository;
 
@@ -40,20 +42,20 @@ public class BannerServiceTest {
             new MockMultipartFile("file", "banner.png", "image/png", "bytes".getBytes());
 
     @Test
-    void createBanner_shouldUploadImage_andDefaultIsActiveToTrue() {
+    // Giá trị mặc định của isActive/displayOrder do Banner.applyDefaults() (@PrePersist)
+    // lo, repository ở đây là mock nên callback JPA không chạy — xem BannerTest.
+    void createBanner_shouldUploadImage() {
         BannerRequest request = BannerRequest.builder().title("Khuyến mãi").build();
         Banner mapped = new Banner();
-        mapped.setIsActive(null); // mapper không set -> service phải tự bật
 
         when(bannerMapper.toBanner(request)).thenReturn(mapped);
         when(cloudinaryService.uploadImage(file, "store/banners")).thenReturn("http://cloud/banner.png");
         when(bannerRepository.save(mapped)).thenReturn(mapped);
-        when(bannerMapper.toBannerResponse(mapped)).thenReturn(new BannerResponse());
+        when(bannerMapper.toBannerResponse(mapped)).thenReturn(BannerResponse.builder().build());
 
         bannerService.createBanner(file, request);
 
         assertThat(mapped.getImageUrl()).isEqualTo("http://cloud/banner.png");
-        assertThat(mapped.getIsActive()).isTrue();
     }
 
     @Test
@@ -65,7 +67,7 @@ public class BannerServiceTest {
         when(bannerMapper.toBanner(request)).thenReturn(mapped);
         when(cloudinaryService.uploadImage(file, "store/banners")).thenReturn("http://cloud/banner.png");
         when(bannerRepository.save(mapped)).thenReturn(mapped);
-        when(bannerMapper.toBannerResponse(mapped)).thenReturn(new BannerResponse());
+        when(bannerMapper.toBannerResponse(mapped)).thenReturn(BannerResponse.builder().build());
 
         bannerService.createBanner(file, request);
 
@@ -81,7 +83,7 @@ public class BannerServiceTest {
         when(bannerRepository.findById(1L)).thenReturn(Optional.of(banner));
         when(cloudinaryService.uploadImage(file, "store/banners")).thenReturn("http://cloud/new.png");
         when(bannerRepository.save(banner)).thenReturn(banner);
-        when(bannerMapper.toBannerResponse(banner)).thenReturn(new BannerResponse());
+        when(bannerMapper.toBannerResponse(banner)).thenReturn(BannerResponse.builder().build());
 
         bannerService.updateBanner(1L, file, request);
 
@@ -97,7 +99,7 @@ public class BannerServiceTest {
 
         when(bannerRepository.findById(1L)).thenReturn(Optional.of(banner));
         when(bannerRepository.save(banner)).thenReturn(banner);
-        when(bannerMapper.toBannerResponse(banner)).thenReturn(new BannerResponse());
+        when(bannerMapper.toBannerResponse(banner)).thenReturn(BannerResponse.builder().build());
 
         bannerService.updateBanner(1L, null, request);
 
@@ -113,7 +115,7 @@ public class BannerServiceTest {
 
         when(bannerRepository.findById(1L)).thenReturn(Optional.of(banner));
         when(bannerRepository.save(banner)).thenReturn(banner);
-        when(bannerMapper.toBannerResponse(banner)).thenReturn(new BannerResponse());
+        when(bannerMapper.toBannerResponse(banner)).thenReturn(BannerResponse.builder().build());
 
         bannerService.updateBanner(1L, emptyFile, BannerRequest.builder().build());
 
@@ -125,8 +127,8 @@ public class BannerServiceTest {
         when(bannerRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> bannerService.updateBanner(99L, file, BannerRequest.builder().build()))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Không tìm thấy banner");
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.BANNER_NOT_EXISTED));
     }
 
     @Test
@@ -144,7 +146,8 @@ public class BannerServiceTest {
         when(bannerRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> bannerService.deleteBanner(99L))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.BANNER_NOT_EXISTED));
 
         verify(bannerRepository, never()).delete(any());
     }
@@ -154,7 +157,8 @@ public class BannerServiceTest {
         when(bannerRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> bannerService.getBannerById(99L))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.BANNER_NOT_EXISTED));
     }
 
     @Test
@@ -162,7 +166,7 @@ public class BannerServiceTest {
         Banner banner = new Banner();
 
         when(bannerRepository.findAllByOrderByDisplayOrderAsc()).thenReturn(List.of(banner));
-        when(bannerMapper.toBannerResponse(banner)).thenReturn(new BannerResponse());
+        when(bannerMapper.toBannerResponse(banner)).thenReturn(BannerResponse.builder().build());
 
         assertThat(bannerService.getAllBanners()).hasSize(1);
     }
@@ -172,7 +176,7 @@ public class BannerServiceTest {
         Banner banner = new Banner();
 
         when(bannerRepository.findByIsActiveTrueOrderByDisplayOrderAsc()).thenReturn(List.of(banner));
-        when(bannerMapper.toBannerResponse(banner)).thenReturn(new BannerResponse());
+        when(bannerMapper.toBannerResponse(banner)).thenReturn(BannerResponse.builder().build());
 
         assertThat(bannerService.getActiveBanners()).hasSize(1);
     }

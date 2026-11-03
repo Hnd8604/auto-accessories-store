@@ -10,8 +10,6 @@ export const renderContent = (content: string): string => {
   marked.setOptions({
     breaks: true,
     gfm: true,
-    mangle: false,
-    headerIds: true,
     pedantic: false,
   });
 

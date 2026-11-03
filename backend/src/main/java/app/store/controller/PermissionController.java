@@ -1,6 +1,7 @@
 package app.store.controller;
 
 
+import jakarta.validation.Valid;
 import app.store.constant.ResponseMessage;
 import app.store.dto.request.PermissionRequest;
 import app.store.dto.response.auth.ApiResponse;
@@ -30,7 +31,7 @@ public class PermissionController {
         summary = "Create a new permission",
         description = "Creates a new permission. Only accessible by admin users. Permissions define what actions users can perform."
     )
-    ApiResponse<PermissionResponse> createPermission(@RequestBody PermissionRequest request) {
+    ApiResponse<PermissionResponse> createPermission(@Valid @RequestBody PermissionRequest request) {
         return ApiResponse.<PermissionResponse>builder()
                 .message(ResponseMessage.CREATE_PERMISSION_SUCCESS)
                 .result(PermissionService.createPermission(request))
@@ -44,7 +45,7 @@ public class PermissionController {
         description = "Updates an existing permission by ID. Only accessible by admin users."
     )
     ApiResponse<PermissionResponse> updatePermission(@PathVariable String permissionId,
-                                                      @RequestBody PermissionRequest request) {
+                                                      @Valid @RequestBody PermissionRequest request) {
         return ApiResponse.<PermissionResponse>builder()
                 .message(ResponseMessage.UPDATE_PERMISSION_SUCCESS)
                 .result(PermissionService.updatePermission(permissionId, request))

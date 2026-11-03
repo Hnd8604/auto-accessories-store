@@ -12,10 +12,9 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -23,16 +22,18 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
+@Transactional(readOnly = true)
 public class BrandService {
     BrandRepository brandRepository;
     BrandMapper brandMapper;
     SlugUtil slugUtil;
+    @Transactional
     @PreAuthorize("hasAuthority('BRAND_CREATE')")
     public BrandResponse createBrand(BrandRequest brandRequest) {
 
         Brand brand = brandMapper.toBrand(brandRequest);
         // Tạo slug từ tên danh mục
-        String baseSlug = slugUtil.toSlug(brandRequest.getName());
+        String baseSlug = slugUtil.toSlug(brandRequest.name());
         String uniqueSlug = slugUtil.createUniqueSlug(baseSlug, brandRepository::existsBySlug);
 
         brand.setSlug(uniqueSlug);
@@ -56,14 +57,15 @@ public class BrandService {
         return brandMapper.toBrandResponse(brand);
 
     }
+    @Transactional
     @PreAuthorize("hasAuthority('BRAND_UPDATE')")
     public BrandResponse updateBrand(Long brandId, BrandRequest brandRequest) {
         Brand brand = brandRepository.findById(brandId)
                 .orElseThrow(() -> new AppException(ErrorCode.BRAND_NOT_EXISTED));
 
         // Cập nhật slug nếu tên thay đổi
-        if (!brand.getName().equals(brandRequest.getName())) {
-            String baseSlug = slugUtil.toSlug(brandRequest.getName());
+        if (!brand.getName().equals(brandRequest.name())) {
+            String baseSlug = slugUtil.toSlug(brandRequest.name());
             String uniqueSlug = slugUtil.createUniqueSlug(baseSlug, slug ->
                     !slug.equals(brand.getSlug()) && brandRepository.existsBySlug(slug));
             brand.setSlug(uniqueSlug);
@@ -71,6 +73,7 @@ public class BrandService {
         brandMapper.updateBrand(brand, brandRequest);
         return brandMapper.toBrandResponse(brandRepository.save(brand));
     }
+    @Transactional
     @PreAuthorize("hasAuthority('BRAND_DELETE')")
     public void deleteBrand(Long brandId) {
         Brand brand = brandRepository.findById(brandId)

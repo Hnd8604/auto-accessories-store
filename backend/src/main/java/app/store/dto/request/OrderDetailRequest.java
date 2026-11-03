@@ -1,17 +1,15 @@
 package app.store.dto.request;
 
-import app.store.enums.OrderStatus;
-import app.store.enums.PaymentStatus;
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import lombok.Builder;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class OrderDetailRequest {
-    Long productId;
-    Integer quantity;
+public record OrderDetailRequest(
+        @NotNull(message = "Product ID is required")
+        Long productId,
+        @NotNull(message = "Quantity is required")
+        @Positive(message = "Quantity must be greater than 0")
+        Integer quantity
+) {
 }

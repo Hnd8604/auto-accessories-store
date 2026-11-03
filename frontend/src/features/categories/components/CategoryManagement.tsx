@@ -135,7 +135,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({
         description: "Danh mục đã được tạo thành công",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: "Lỗi",
         description: error.message || "Có lỗi xảy ra khi tạo danh mục",
@@ -171,7 +171,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({
         description: "Danh mục đã được cập nhật thành công",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: "Lỗi",
         description: error.message || "Có lỗi xảy ra khi cập nhật danh mục",
@@ -190,7 +190,7 @@ export const CategoryManagement: React.FC<CategoryManagementProps> = ({
         description: "Danh mục đã được xóa thành công",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: "Lỗi",
         description: error.message || "Có lỗi xảy ra khi xóa danh mục",

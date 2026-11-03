@@ -23,17 +23,15 @@ export interface PaymentResponse {
   orderId: string;
   orderCode: string;
   amount: number;
-  qrCodeUrl: string;
-  bankName: string;
-  bankAccountNumber: string;
-  bankAccountName: string;
-  paymentContent: string;
   paymentStatus: PaymentStatus;
+  // Chỉ có khi đơn chưa thanh toán
+  checkoutUrl?: string;
+  paymentLinkId?: string;
+  expiredAt?: string;
 }
 
 // Order Request Types
 export interface OrderCreationRequest {
-  userId: string;
   nameRecipient?: string;
   phoneRecipient?: string;
   addressRecipient?: string;

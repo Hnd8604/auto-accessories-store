@@ -17,28 +17,52 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
+  # CHỈ dùng cho health check sau deploy. Domain thật mà ứng dụng chạy do
+  # APP_DOMAIN trong .env.prod trên VPS quyết định (nginx cert, CORS, Google
+  # redirect URI đều suy ra từ đó) — biến này lệch thì chỉ health check báo
+  # sai địa chỉ, không ảnh hưởng tới ứng dụng đang chạy.
+  APP_DOMAIN: ${{ vars.APP_DOMAIN }}
 
 jobs:
-  # ---------------------------------------------------------------
-  # Build & push image lên GitHub Container Registry (ghcr.io)
-  # Không cần secret: dùng GITHUB_TOKEN có sẵn
-  # ---------------------------------------------------------------
   build-push:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # cần để push lên ghcr.io
+      packages: write 
     strategy:
       matrix:
         include:
           - name: backend
             context: ./backend
+            build_args: ''
+          # Biến VITE_* bị nhúng cứng vào bundle lúc build nên phải truyền ở
+          # đây, không thể set lúc chạy container.
+          #
+          # KHÔNG có VITE_GOOGLE_REDIRECT_URI: src/constants/config.ts suy ra
+          # `${window.location.origin}/auth/google/callback`, nên bundle không
+          # biết gì về domain -> đổi tên miền không cần build lại frontend, và
+          # cùng một image chạy được trên staging lẫn production.
+          #
+          # Đặt tên khoá là build_args chứ KHÔNG phải build-args: trong
+          # expression của Actions, `matrix.build-args` bị parse thành phép trừ.
           - name: frontend
             context: ./frontend
+            build_args: |
+              VITE_API_BASE_URL=/api/v1
+              VITE_GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: docker/setup-buildx-action@v3
+
+      # Thiếu client ID thì build vẫn xanh và image vẫn push, chỉ có người dùng
+      # bấm "Đăng nhập Google" là gặp lỗi (config.ts chỉ console.error được).
+      # Chặn ngay tại đây.
+      - name: Kiểm tra biến bắt buộc cho frontend
+        if: matrix.name == 'frontend' && vars.GOOGLE_CLIENT_ID == ''
+        run: |
+          echo "::error::Chua dat repository variable GOOGLE_CLIENT_ID (Settings -> Secrets and variables -> Actions -> Variables)."
+          exit 1
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -58,27 +82,11 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
-      # Biến VITE_* bị nhúng cứng vào bundle lúc build nên phải truyền ở đây,
-      # không thể set lúc chạy container. Chỉnh domain tại Settings → Variables
-      # (APP_DOMAIN) thay vì sửa Dockerfile.
-      - name: Build args cho frontend
-        id: buildargs
-        if: matrix.name == 'frontend'
-        run: |
-          domain="${{ vars.APP_DOMAIN || 'trungduongauto.store' }}"
-          {
-            echo 'args<<EOF'
-            echo "VITE_API_BASE_URL=/api/v1"
-            echo "VITE_GOOGLE_REDIRECT_URI=https://${domain}/auth/google/callback"
-            echo "VITE_GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}"
-            echo EOF
-          } >> "$GITHUB_OUTPUT"
-
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
-          build-args: ${{ steps.buildargs.outputs.args }}
+          build-args: ${{ matrix.build_args }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -100,38 +108,67 @@ jobs:
       packages: read # để server `docker pull` được bằng GITHUB_TOKEN
     environment: production # bật "required reviewers" ở Settings để cần approve trước khi deploy
     steps:
+      # Push tag v1.2.3 KHÔNG sinh ra tag `latest`: metadata-action chỉ gắn
+      # latest cho default branch (type=raw,enable={{is_default_branch}}).
+      # Nếu để server tự đọc IMAGE_TAG=latest từ .env.prod thì deploy một tag
+      # sẽ dựng lên đúng bản main gần nhất — KHÔNG phải bản vừa tag. Chốt tag
+      # cụ thể ở đây, khớp chính xác với tag mà job build-push đã đẩy lên.
+      - name: Xác định image tag cần deploy
+        id: tag
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            # khớp type=semver,pattern={{version}} — metadata-action bỏ tiền tố v
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            # khớp type=sha,prefix=,format=short — 7 ký tự đầu
+            echo "value=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script_stop: true # dừng ngay khi một lệnh fail
+          envs: IMAGE_TAG # export sang shell của server; biến shell đè --env-file
           script: |
             set -e
             cd ${{ vars.DEPLOY_PATH || '/opt/auto_accessories_store' }}
-            # Chốt chặn cho lần đổi tên .env -> .env.prod. Thiếu file này thì
-            # mọi ${...} trong compose phân giải thành chuỗi rỗng và container
-            # dựng lên với mật khẩu trống — hỏng im lặng. Thà dừng deploy, giữ
-            # nguyên container đang chạy, còn hơn.
-            if [ ! -f .env.prod ]; then
-              echo "Khong tim thay .env.prod trong $(pwd)"
-              if [ -f .env ]; then
-                echo "Van con file .env cu. Chay MOT LAN tren server:  mv .env .env.prod"
-              fi
-              exit 1
+
+            PREV_TAG="$(sed -n 's/^IMAGE_TAG=//p' .env.prod | head -1)"
+            echo "Dang chay: ${PREV_TAG:-<chua ghi nhan>}  ->  Deploy: ${IMAGE_TAG}"
+
+            # Ghi tag vừa deploy vào .env.prod để trạng thái trên server tự nhất
+            # quán. Không ghi thì `docker compose up -d` chạy tay lần sau đọc lại
+            # IMAGE_TAG cũ trong file và âm thầm hạ cấp về bản đó.
+            if grep -q '^IMAGE_TAG=' .env.prod; then
+              sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|" .env.prod
+            else
+              echo "IMAGE_TAG=${IMAGE_TAG}" >> .env.prod
             fi
+
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker compose --env-file .env.prod -f docker-compose.prod.yml pull
-            docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --remove-orphans
-            docker image prune -f
+            # --wait: chờ healthcheck của từng service pass rồi mới trả về, thay
+            # vì trả về ngay lúc container vừa start.
+            docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --remove-orphans --wait --wait-timeout 180
+            # Chỉ xoá image dangling quá 1 tuần — giữ vài bản gần đây để rollback
+            # được ngay bằng `IMAGE_TAG=<tag-cu> docker compose ... up -d`.
+            docker image prune -f --filter "until=168h"
             docker compose --env-file .env.prod -f docker-compose.prod.yml ps
 
       - name: Health check
         run: |
+          if [ -z "$APP_DOMAIN" ]; then
+            echo "::error::Chua dat repository variable APP_DOMAIN — khong biet goi vao dau de health check."
+            exit 1
+          fi
           for i in $(seq 1 20); do
-            if curl -fsS "https://${{ vars.APP_DOMAIN || 'trungduongauto.store' }}/api/v1/actuator/health" | grep -q '"status":"UP"'; then
+            if curl -fsS "https://$APP_DOMAIN/api/v1/actuator/health" | grep -q '"status":"UP"'; then
               echo "Backend UP"; exit 0
             fi
             echo "Chờ backend khởi động... ($i/20)"; sleep 10

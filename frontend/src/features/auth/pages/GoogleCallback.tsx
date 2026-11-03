@@ -2,9 +2,11 @@ import { useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { AuthService } from "@/features/auth/api/auth";
-import { useAuth } from "@/context/auth-context";
-import { isAdmin } from "@/features/auth/hooks/useAuth";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { isAdmin } from "@/features/auth/lib/roles";
+import { takeRememberedReturnPath } from "@/features/auth/lib/returnPath";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/utils/errors";
 import { Loader2 } from "lucide-react";
 
 /**
@@ -60,18 +62,14 @@ const GoogleCallback = () => {
                 });
 
                 // Redirect based on role
-                if (isAdmin(data.user)) {
-                    navigate("/admin");
-                } else {
-                    navigate("/");
-                }
+                navigate(takeRememberedReturnPath() || (isAdmin(data.user) ? "/admin" : "/"), { replace: true });
             })
-            .catch((err: any) => {
+            .catch((err: unknown) => {
                 console.error("Google login failed:", err);
                 toast({
                     variant: "destructive",
                     title: "Đăng nhập Google thất bại",
-                    description: err.message || "Đã có lỗi xảy ra. Vui lòng thử lại.",
+                    description: getErrorMessage(err, "Đã có lỗi xảy ra. Vui lòng thử lại."),
                 });
                 navigate("/auth");
             });

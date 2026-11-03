@@ -1,6 +1,5 @@
 package app.store.service;
 
-
 import app.store.dto.request.ChangePasswordRequest;
 import app.store.dto.request.auth.AuthenticationRequest;
 import app.store.dto.request.auth.IntrospectRequest;
@@ -15,12 +14,14 @@ import app.store.entity.Cart;
 import app.store.entity.InvalidatedToken;
 import app.store.entity.Role;
 import app.store.entity.User;
+import app.store.enums.TokenType;
 import app.store.exception.AppException;
 import app.store.exception.ErrorCode;
 import app.store.mapper.UserMapper;
 import app.store.repository.InvalidatedRepository;
 import app.store.repository.RoleRepository;
 import app.store.repository.UserRepository;
+import app.store.utils.SecurityUtils;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
@@ -37,6 +38,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.text.ParseException;
 import java.time.Instant;
@@ -47,6 +49,7 @@ import java.util.*;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
+@Transactional(readOnly = true)
 public class AuthenticationService {
     UserRepository userRepository;
     InvalidatedRepository invalidatedRepository;
@@ -65,20 +68,22 @@ public class AuthenticationService {
     @NonFinal
     @Value("${jwt.refresh-duration}")
     protected long REFRESH_DURATION;
+
+    @Transactional
     public UserResponse register(UserCreationRequest request) {
         User user = userMapper.toUser(request);
 
-        if( userRepository.existsByUsername(user.getUsername())) {
+        if (userRepository.existsByUsername(user.getUsername())) {
             throw new AppException(ErrorCode.USER_EXISTED);
         }
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new AppException(ErrorCode.EMAIL_EXISTED);
         }
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setPassword(passwordEncoder.encode(request.password()));
         Set<Role> roles = new HashSet<>();
         var roleDefault = roleRepository.findById("USER")
-                .orElseThrow(()-> new AppException(ErrorCode.ROLE_NOT_EXISTED));
-        roles.add(roleDefault) ;
+                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_EXISTED));
+        roles.add(roleDefault);
         user.setRoles(roles);
 
         // create cart when creating user
@@ -88,28 +93,33 @@ public class AuthenticationService {
 
         return userMapper.toUserResponse(userRepository.save(user));
     }
+
     public IntrospectResponse introspect(IntrospectRequest request) throws JOSEException, ParseException {
-        var token = request.getToken();
+        var token = request.token();
         boolean isValid = true;
         try {
-            verifyToken(token);
-        } catch(AppException e) {
+            verifyToken(token, TokenType.ACCESS);
+        } catch (AppException e) {
             isValid = false;
-            System.out.println(e.getMessage());
+            log.debug("Token introspection failed: {}", e.getMessage());
         }
 
         return IntrospectResponse.builder()
                 .valid(isValid)
                 .build();
     }
+
+    // Read-write vì cartSyncService.syncSessionCart ghi DB và sẽ chạy chung transaction này:
+    // để readOnly thì Postgres từ chối lệnh ghi khi gộp giỏ.
+    @Transactional
     public AuthenticationResponse authenticate(AuthenticationRequest request, HttpSession session) {
-        var user = userRepository.findByEmail(request.getEmail())
+        var user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
-//        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
-        boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
+        // PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
+        boolean authenticated = passwordEncoder.matches(request.password(), user.getPassword());
 
-        if (!authenticated){
+        if (!authenticated) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
@@ -146,51 +156,51 @@ public class AuthenticationService {
      * Đổi mật khẩu cho user đang đăng nhập.
      * Kiểm tra: mật khẩu cũ đúng, mật khẩu mới không trùng cũ, confirm khớp.
      */
+    @Transactional
     public void changePassword(ChangePasswordRequest request) {
-        // Lấy username từ SecurityContext (user đang đăng nhập)
-        var context = org.springframework.security.core.context.SecurityContextHolder.getContext();
-        String username = context.getAuthentication().getName();
+        String userId = SecurityUtils.currentUserId();
 
-        User user = userRepository.findByUsername(username)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         // Kiểm tra mật khẩu hiện tại
-        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
             throw new AppException(ErrorCode.WRONG_CURRENT_PASSWORD);
         }
 
         // Kiểm tra mật khẩu mới != mật khẩu cũ
-        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+        if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
             throw new AppException(ErrorCode.NEW_PASSWORD_SAME_AS_CURRENT);
         }
 
         // Kiểm tra xác nhận mật khẩu
-        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+        if (!request.newPassword().equals(request.confirmPassword())) {
             throw new AppException(ErrorCode.PASSWORD_CONFIRMATION_MISMATCH);
         }
 
         // Lưu mật khẩu mới
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
 
-        log.info("Password changed successfully for user: {}", username);
+        log.info("Password changed successfully for userId: {}", userId);
     }
+
+    @Transactional
     public void logout(LogoutRequest request) throws ParseException, JOSEException {
-        invalidateToken(request.getAccessToken(), "accessToken");
-        invalidateToken(request.getRefreshToken(), "refreshToken");
+        invalidateToken(request.accessToken(), TokenType.ACCESS);
+        invalidateToken(request.refreshToken(), TokenType.REFRESH);
     }
 
-
-    private void invalidateToken(String token, String type)throws ParseException, JOSEException{
+    private void invalidateToken(String token, TokenType type) throws ParseException, JOSEException {
         try {
-            SignedJWT signToken = verifyToken(token);
+            SignedJWT signToken = verifyToken(token, type);
             String jti = signToken.getJWTClaimsSet().getJWTID();
             Date expiryTime = signToken.getJWTClaimsSet().getExpirationTime();
 
             InvalidatedToken invalidatedToken = InvalidatedToken.builder()
                     .id(jti)
                     .expiryTime(expiryTime)
-                    .type(type) // add type to the token
+                    .type(type)
                     .build();
 
             invalidatedRepository.save(invalidatedToken); // save logout token to database
@@ -199,7 +209,7 @@ public class AuthenticationService {
         }
     }
 
-    private SignedJWT verifyToken(String token) throws JOSEException, ParseException {
+    private SignedJWT verifyToken(String token, TokenType expectedType) throws JOSEException, ParseException {
         JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
 
         SignedJWT signedJWT = SignedJWT.parse(token);
@@ -208,27 +218,23 @@ public class AuthenticationService {
 
         var verifiered = signedJWT.verify(verifier);
 
-        if(!(verifiered && expirationTime.after(new Date())))
+        if (!(verifiered && expirationTime.after(new Date())))
             throw new AppException(ErrorCode.UNAUTHENTICATED);
 
-       if(invalidatedRepository.existsById(signedJWT.getJWTClaimsSet().getJWTID()))
-           throw new AppException(ErrorCode.UNAUTHENTICATED);
+        if (!expectedType.name().equals(signedJWT.getJWTClaimsSet().getClaim("type")))
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+
+        if (invalidatedRepository.existsById(signedJWT.getJWTClaimsSet().getJWTID()))
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
         return signedJWT;
     }
+
     public RefreshResponse refreshToken(RefreshRequest request) throws ParseException, JOSEException {
-        var signJWT = verifyToken(request.getRefreshToken());
+        var signJWT = verifyToken(request.refreshToken(), TokenType.REFRESH);
 
-        var jti = signJWT.getJWTClaimsSet().getJWTID();
-        var expiryTime = signJWT.getJWTClaimsSet().getExpirationTime();
-        var type = signJWT.getJWTClaimsSet().getClaim("type");
+        var userId = signJWT.getJWTClaimsSet().getSubject();
 
-        var username = signJWT.getJWTClaimsSet().getSubject();
-
-        if (!"refreshToken".equals(type)) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
-        }
-
-        var user = userRepository.findByUsername(username)
+        var user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         var newToken = generateAccessToken(user);
         return RefreshResponse.builder()
@@ -237,18 +243,25 @@ public class AuthenticationService {
                 .build();
     }
 
-
     private String generateAccessToken(User user) {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
 
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
-                .subject(user.getUsername())
+                // sub = user.id (UUID) — bất biến và không bao giờ cấp lại, khác với
+                // username (đổi được, và dùng lại được sau khi user bị xoá).
+                .subject(user.getId())
                 .issuer("app.store")
                 .issueTime(new Date()) // Current time
-                .expirationTime(new Date(Instant.now().plus(ACCESS_DURATION, ChronoUnit.SECONDS).toEpochMilli())) // Token expiration time (1 hour from now)
-                .jwtID(UUID.randomUUID().toString()) //  add UUID to the token
+                .expirationTime(new Date(Instant.now().plus(ACCESS_DURATION, ChronoUnit.SECONDS).toEpochMilli())) // Token
+                                                                                                                  // expiration
+                                                                                                                  // time
+                                                                                                                  // (1
+                                                                                                                  // hour
+                                                                                                                  // from
+                                                                                                                  // now)
+                .jwtID(UUID.randomUUID().toString()) // add UUID to the token
                 .claim("scope", buildScope(user))
-                .claim("type", "accessToken") // add type to the token
+                .claim("type", TokenType.ACCESS.name())
                 .build();
 
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());
@@ -264,17 +277,22 @@ public class AuthenticationService {
         }
     }
 
-
     private String generateRefreshToken(User user) {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
 
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
-                .subject(user.getUsername())
+                .subject(user.getId()) // cùng lý do như access token
                 .issuer("app.store")
                 .issueTime(new Date()) // Current time
-                .expirationTime(new Date(Instant.now().plus(REFRESH_DURATION, ChronoUnit.SECONDS).toEpochMilli())) // Token expiration time (1 hour from now)
-                .jwtID(UUID.randomUUID().toString()) //  add UUID to the token
-                .claim("type", "refreshToken") // add type to the token
+                .expirationTime(new Date(Instant.now().plus(REFRESH_DURATION, ChronoUnit.SECONDS).toEpochMilli())) // Token
+                                                                                                                   // expiration
+                                                                                                                   // time
+                                                                                                                   // (1
+                                                                                                                   // hour
+                                                                                                                   // from
+                                                                                                                   // now)
+                .jwtID(UUID.randomUUID().toString()) // add UUID to the token
+                .claim("type", TokenType.REFRESH.name())
                 .build();
 
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());
@@ -300,4 +318,3 @@ public class AuthenticationService {
         return stringJoiner.toString();
     }
 }
-

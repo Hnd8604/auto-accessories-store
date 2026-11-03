@@ -1,8 +1,7 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
+import { StoreLayout } from "@/app/components/StoreLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,8 +16,9 @@ import {
   Loader2
 } from "lucide-react";
 import { ProductsApi, ProductImagesApi } from "@/features/products/api";
-import { useCart } from "@/context/cart-context";
+import { useCart } from "@/features/cart/hooks/useCart";
 import { useToast } from "@/hooks/use-toast";
+import { formatPrice } from "@/utils/formatPrice";
 
 export const ProductDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -59,13 +59,6 @@ export const ProductDetailPage = () => {
   const displayImages = sortedImages.length > 0
     ? sortedImages
     : [{ imageUrl: "https://placehold.co/800x800?text=No+Image", isPrimary: true }];
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(price);
-  };
 
   const handleAddToCart = async () => {
     if (!product) return;
@@ -118,33 +111,28 @@ export const ProductDetailPage = () => {
 
   if (productLoading || imagesLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
+      <StoreLayout>
         <div className="pt-20 flex items-center justify-center min-h-[60vh]">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
-        <Footer />
-      </div>
+      </StoreLayout>
     );
   }
 
   if (!product) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
+      <StoreLayout>
         <div className="pt-20 container mx-auto px-4 py-12">
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Không tìm thấy sản phẩm</h1>
           </div>
         </div>
-        <Footer />
-      </div>
+      </StoreLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <StoreLayout>
       <div className="pt-20">
         <div className="container mx-auto px-4 py-8">
           <div className="mb-4">
@@ -364,8 +352,7 @@ export const ProductDetailPage = () => {
           </div>
         </div>
       </div>
-      <Footer />
-    </div>
+    </StoreLayout>
   );
 };
 

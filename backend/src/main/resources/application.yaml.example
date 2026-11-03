@@ -54,10 +54,10 @@ spring:
           min-idle: 0
           max-wait: 2s
   mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
+    host: ${MAIL_HOST:smtp-relay.brevo.com}
     port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}          # Google App Password (16 ký tự)
+    password: ${MAIL_PASSWORD}          # Brevo SMTP key (không phải API key)
     properties:
       mail:
         smtp:
@@ -66,7 +66,7 @@ spring:
             enable: true
             required: true
           ssl:
-            trust: smtp.gmail.com
+            trust: ${MAIL_HOST:smtp-relay.brevo.com}
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
@@ -99,13 +99,17 @@ management:
       exposure:
         include: health,info
 
-# SePay Payment Gateway Configuration
-sepay:
-  api-key: ${SEPAY_API_KEY}
-  bank-code: ${SEPAY_BANK_CODE:MBBank}
-  bank-account-number: ${SEPAY_BANK_ACCOUNT_NUMBER}
-  bank-account-name: ${SEPAY_BANK_ACCOUNT_NAME}
-  bank-name: ${SEPAY_BANK_NAME:MB Bank}
+# payOS Payment Gateway Configuration
+# Lấy từ my.payos.vn → Kênh thanh toán → Thông tin tích hợp.
+payos:
+  client-id: ${PAYOS_CLIENT_ID}
+  api-key: ${PAYOS_API_KEY}
+  # Dùng để ký request và xác thực chữ ký webhook.
+  checksum-key: ${PAYOS_CHECKSUM_KEY}
+  # payOS bắt buộc gửi kèm khi tạo link; frontend dùng checkout nhúng nên ít khi chuyển hướng tới.
+  return-url: ${PAYOS_RETURN_URL:http://localhost:3000/}
+  cancel-url: ${PAYOS_CANCEL_URL:http://localhost:3000/}
+  link-expiry-minutes: ${PAYOS_LINK_EXPIRY_MINUTES:15}
 
 # Google OAuth2 Configuration
 # Lấy từ Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs
@@ -115,10 +119,11 @@ google:
   redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:3000/auth/google/callback}
 
 app:
+  mail:
+    # Phải là sender/domain đã được xác minh trên Brevo.
+    from-email: ${MAIL_FROM_EMAIL}
+    from-name: ${MAIL_FROM_NAME:AutoLux Store}
   admin:
-    # Tài khoản quản trị khởi tạo, CHỈ dùng khi database chưa có admin nào.
-    # Bỏ trống ADMIN_PASSWORD ở profile dev thì dùng mặc định "admin";
-    # ở profile khác (prod) app sẽ không khởi động cho tới khi set biến này.
     username: ${ADMIN_USERNAME:admin}
     password: ${ADMIN_PASSWORD:}
     email: ${ADMIN_EMAIL:admin@gmail.com}

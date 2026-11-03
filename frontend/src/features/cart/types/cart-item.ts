@@ -10,8 +10,8 @@ export interface CartItemResponse {
 }
 
 // Cart Item Request Types
+// Backend luôn thêm vào giỏ của user đang đăng nhập, không nhận cartId
 export interface CartItemRequest {
-  cartId: number;
   productId: number;
   quantity: number;
 }

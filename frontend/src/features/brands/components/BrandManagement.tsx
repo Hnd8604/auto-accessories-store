@@ -103,7 +103,7 @@ export const BrandManagement: React.FC<BrandManagementProps> = ({
         description: "Thương hiệu đã được tạo thành công",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: "Lỗi",
         description: error.message || "Có lỗi xảy ra khi tạo thương hiệu",
@@ -126,7 +126,7 @@ export const BrandManagement: React.FC<BrandManagementProps> = ({
         description: "Thương hiệu đã được cập nhật thành công",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: "Lỗi",
         description: error.message || "Có lỗi xảy ra khi cập nhật thương hiệu",
@@ -145,7 +145,7 @@ export const BrandManagement: React.FC<BrandManagementProps> = ({
         description: "Thương hiệu đã được xóa thành công",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: "Lỗi",
         description: error.message || "Có lỗi xảy ra khi xóa thương hiệu",

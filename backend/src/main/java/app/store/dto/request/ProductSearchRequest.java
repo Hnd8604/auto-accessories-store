@@ -1,19 +1,19 @@
 package app.store.dto.request;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import jakarta.validation.constraints.PositiveOrZero;
+import lombok.Builder;
 
-@Getter
-@Setter
+import java.math.BigDecimal;
+
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class ProductSearchRequest {
-    String keyword;
-    String category;      // hoặc categoryId
-    Double minPrice;
-    Double maxPrice;
-    Boolean inStock;
-    String brand;         // thêm brand
+public record ProductSearchRequest(
+        String keyword,
+        String category,
+        @PositiveOrZero(message = "Minimum price must not be negative")
+        BigDecimal minPrice,
+        @PositiveOrZero(message = "Maximum price must not be negative")
+        BigDecimal maxPrice,
+        Boolean inStock,
+        String brand
+) {
 }

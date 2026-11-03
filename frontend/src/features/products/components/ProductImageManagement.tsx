@@ -212,7 +212,7 @@ export const ProductImageManagement = ({
       setSelectedFile(null);
       form.reset();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Lỗi thêm hình ảnh",
@@ -243,7 +243,7 @@ export const ProductImageManagement = ({
       setEditingImage(null);
       form.reset();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Lỗi cập nhật hình ảnh",
@@ -262,7 +262,7 @@ export const ProductImageManagement = ({
       });
       queryClient.invalidateQueries({ queryKey: ["productImages", productId] });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Lỗi xóa hình ảnh",
@@ -284,7 +284,7 @@ export const ProductImageManagement = ({
       });
       queryClient.invalidateQueries({ queryKey: ["productImages", productId] });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Lỗi đặt hình ảnh chính",
@@ -296,8 +296,6 @@ export const ProductImageManagement = ({
 
   // Handle form submission
   const onSubmit = async (data: ImageFormData) => {
-    console.log("Form data before submit:", data); // Debug log
-
     if (!editingImage && !selectedFile) {
       toast({
         variant: "destructive",

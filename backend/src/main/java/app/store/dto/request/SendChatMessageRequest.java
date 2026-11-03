@@ -1,22 +1,16 @@
 package app.store.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import jakarta.validation.constraints.Size;
+import lombok.Builder;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class SendChatMessageRequest {
 
-    @NotBlank
-    String conversationId;
-
-    @NotBlank
-    String content;
-
-    @NotBlank
-    String senderType; // CUSTOMER | ADMIN
+@Builder
+public record SendChatMessageRequest(
+        @NotBlank(message = "Conversation ID is required")
+        String conversationId,
+        @NotBlank(message = "Message content is required")
+        @Size(max = 2000, message = "Message content must not exceed {max} characters")
+        String content
+) {
 }

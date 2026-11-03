@@ -9,6 +9,8 @@ import app.store.exception.ErrorCode;
 import app.store.mapper.NotificationMapper;
 import app.store.repository.NotificationRepository;
 import app.store.repository.UserRepository;
+import app.store.utils.SecurityUtils;
+import app.store.utils.TransactionUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -16,7 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,12 +25,14 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
+@Transactional(readOnly = true)
 public class NotificationService {
 
     NotificationRepository notificationRepository;
     NotificationMapper notificationMapper;
     UserRepository userRepository;
     SseEmitterService sseEmitterService;
+    @Transactional
     public NotificationResponse createNotification(String userId, String title, String message,
                                                    NotificationType type, String referenceId) {
         User user = userRepository.findById(userId)
@@ -47,8 +50,8 @@ public class NotificationService {
         notification = notificationRepository.save(notification);
         NotificationResponse response = notificationMapper.toNotificationResponse(notification);
 
-        // Push real-time qua SSE đến tất cả các tab/device đang mở của user
-        sseEmitterService.sendToUser(userId, response);
+        // Push real-time qua SSE đến tất cả các tab/device đang mở của user, sau khi đã commit
+        TransactionUtils.runAfterCommit(() -> sseEmitterService.sendToUser(userId, response));
         log.info("Notification created and pushed. userId={}, type={}, referenceId={}", userId, type, referenceId);
 
         return response;
@@ -81,10 +84,13 @@ public class NotificationService {
         log.info("Marked {} notifications as read for userId={}", count, userId);
     }
 
+    // Vẫn kiểm tra user còn tồn tại: access token của user đã bị xoá vẫn hợp lệ
+    // tới khi hết hạn, giữ nguyên lỗi USER_NOT_EXISTED như trước.
     private String getCurrentUserId() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-        return user.getId();
+        String userId = SecurityUtils.currentUserId();
+        if (!userRepository.existsById(userId)) {
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
+        }
+        return userId;
     }
 }

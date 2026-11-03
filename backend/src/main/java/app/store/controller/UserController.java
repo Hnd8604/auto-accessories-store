@@ -45,7 +45,7 @@ public class UserController {
         summary = "Update user",
         description = "Updates an existing user by ID. Only accessible by admin users."
     )
-    ApiResponse<UserResponse> updateUser(@PathVariable String userId, @RequestBody UserUpdateRequest request) {
+    ApiResponse<UserResponse> updateUser(@PathVariable String userId, @Valid @RequestBody UserUpdateRequest request) {
         return ApiResponse.<UserResponse>builder()
                 .result(UserService.updateUser(userId, request))
                 .message(ResponseMessage.UPDATE_USER_SUCCESS)

@@ -1,20 +1,14 @@
 package app.store.dto.response;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-
 import java.util.List;
+import lombok.Builder;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class BrandResponse {
-    Long id;
-    String name;
-    String description;
-    String slug;
-    Long productCount;
+public record BrandResponse(
+        Long id,
+        String name,
+        String description,
+        String slug,
+        Long productCount
+) {
 }

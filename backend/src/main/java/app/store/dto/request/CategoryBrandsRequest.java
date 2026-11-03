@@ -1,16 +1,13 @@
 package app.store.dto.request;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
 
 import java.util.List;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class CategoryBrandsRequest {
-    List<Long> brandIds;
+public record CategoryBrandsRequest(
+        @NotNull(message = "Brand IDs are required")
+        List<@NotNull(message = "Brand ID must not be null") Long> brandIds
+) {
 }

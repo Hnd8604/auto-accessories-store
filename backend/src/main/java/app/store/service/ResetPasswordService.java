@@ -1,6 +1,6 @@
 package app.store.service;
 
-import app.store.dto.ResetPasswordSession;
+import app.store.entity.redis.ResetPasswordSession;
 import app.store.dto.request.ConfirmResetPasswordRequest;
 import app.store.dto.request.InitResetPasswordRequest;
 import app.store.dto.request.ResendOtpRequest;
@@ -9,6 +9,7 @@ import app.store.dto.response.InitResetPasswordResponse;
 import app.store.dto.response.ResendOtpResponse;
 import app.store.dto.response.VerifyOtpResponse;
 import app.store.entity.User;
+import app.store.enums.PasswordResetStep;
 import app.store.exception.AppException;
 import app.store.exception.ErrorCode;
 import app.store.repository.UserRepository;
@@ -41,7 +42,7 @@ public class ResetPasswordService {
     private static final long SESSION_TTL_MINUTES = 5;
 
     public InitResetPasswordResponse initResetPassword(InitResetPasswordRequest request) {
-        String email = request.getEmail().trim().toLowerCase();
+        String email = request.email().trim().toLowerCase();
         
         // Verify email exists
         User user = userRepository.findByEmail(email)
@@ -59,7 +60,7 @@ public class ResetPasswordService {
         ResetPasswordSession session = ResetPasswordSession.builder()
                 .userId(user.getId())
                 .email(email)
-                .step(ResetPasswordSession.STEP_EMAIL_VERIFIED)
+                .step(PasswordResetStep.EMAIL_VERIFIED)
                 .otpHash(passwordEncoder.encode(otp))
                 .otpAttempt(0)
                 .otpExpireAt(now + ResetPasswordSession.OTP_TTL_MILLIS)
@@ -82,8 +83,8 @@ public class ResetPasswordService {
     }
 
     public VerifyOtpResponse verifyOtp(VerifyOtpRequest request) {
-        String sessionId = request.getSessionId();
-        String inputOtp = request.getOtp();
+        String sessionId = request.sessionId();
+        String inputOtp = request.otp();
         
         ResetPasswordSession session = getSession(sessionId);
         
@@ -92,7 +93,7 @@ public class ResetPasswordService {
         }
         
         // Check if session is at correct step
-        if (!ResetPasswordSession.STEP_EMAIL_VERIFIED.equals(session.getStep())) {
+        if (session.getStep() != PasswordResetStep.EMAIL_VERIFIED) {
             throw new AppException(ErrorCode.RESET_INVALID_STEP);
         }
         
@@ -122,7 +123,7 @@ public class ResetPasswordService {
         }
         
         // OTP verified, update step
-        session.setStep(ResetPasswordSession.STEP_OTP_VERIFIED);
+        session.setStep(PasswordResetStep.OTP_VERIFIED);
         saveSession(sessionId, session);
         
         log.info("OTP verified successfully for session: {}", sessionId);
@@ -135,8 +136,8 @@ public class ResetPasswordService {
     }
 
     public void confirmResetPassword(ConfirmResetPasswordRequest request) {
-        String sessionId = request.getSessionId();
-        String newPassword = request.getNewPassword();
+        String sessionId = request.sessionId();
+        String newPassword = request.newPassword();
         
         ResetPasswordSession session = getSession(sessionId);
         
@@ -145,7 +146,7 @@ public class ResetPasswordService {
         }
         
         // Check if session is at correct step
-        if (!ResetPasswordSession.STEP_OTP_VERIFIED.equals(session.getStep())) {
+        if (session.getStep() != PasswordResetStep.OTP_VERIFIED) {
             throw new AppException(ErrorCode.RESET_INVALID_STEP);
         }
         
@@ -163,7 +164,7 @@ public class ResetPasswordService {
     }
 
     public ResendOtpResponse resendOtp(ResendOtpRequest request) {
-        String sessionId = request.getSessionId();
+        String sessionId = request.sessionId();
         
         ResetPasswordSession session = getSession(sessionId);
         
@@ -172,7 +173,7 @@ public class ResetPasswordService {
         }
         
         // Only allow resend if at EMAIL_VERIFIED step
-        if (!ResetPasswordSession.STEP_EMAIL_VERIFIED.equals(session.getStep())) {
+        if (session.getStep() != PasswordResetStep.EMAIL_VERIFIED) {
             throw new AppException(ErrorCode.RESET_INVALID_STEP);
         }
         

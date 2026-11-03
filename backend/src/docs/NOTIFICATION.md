@@ -56,7 +56,7 @@ Tách phần thông báo ra **xử lý bất đồng bộ qua Kafka**:
         │  @KafkaListener (group: store-notification-group)
         ▼
    OrderNotificationConsumer
-        ├── MailService.sendOrder...Email()        → Gmail SMTP
+        ├── MailService.sendOrder...Email()        → Brevo SMTP
         └── NotificationService.createNotification()
                 ├── lưu Notification vào MySQL
                 └── SseEmitterService.sendToUser()  ──► FE (EventSource /notifications/stream)
@@ -73,7 +73,7 @@ Tách phần thông báo ra **xử lý bất đồng bộ qua Kafka**:
 | **Bất đồng bộ** | Đặt hàng không phải chờ gửi mail/SSE — phản hồi nhanh |
 | **Tách rời (decoupling)** | `OrderService` không biết gì về mail/SSE; chỉ phát event |
 | **Bền bỉ (durability)** | Event nằm trong Kafka log; consumer chết rồi bật lại vẫn đọc tiếp (`auto-offset-reset: earliest`) |
-| **Mở rộng** | Thêm consumer mới (SMS, Zalo, thống kê...) chỉ cần subscribe topic, không sửa producer |
+| **Mở rộng** | Thêm consumer mới (SMS, thống kê...) chỉ cần subscribe topic, không sửa producer |
 | **Phân phối theo key** | Dùng `orderId` làm key → các event cùng đơn vào cùng partition, giữ đúng thứ tự |
 
 ---
@@ -273,7 +273,7 @@ docker compose up -d kafka
 
 # Backend
 cd auto_accessories_store-be
-mvn spring-boot:run        # http://localhost:8080/api/v1
+mvn spring-boot:run        # http://localhost:8082/api/v1
 ```
 
 Khi khởi động, `KafkaConfig` tự tạo 2 topic `order.created`, `order.status.changed` (nếu broker cho phép auto-create / qua `NewTopic` bean).
@@ -310,7 +310,7 @@ SELECT * FROM notifications WHERE user_id = 'your-user-id' ORDER BY created_at D
 
 - **SSE chỉ hoạt động trên 1 instance:** emitter lưu trong RAM. Khi scale nhiều instance, consumer xử lý ở instance A nhưng user kết nối SSE ở instance B sẽ không nhận được push. Giải pháp: dùng Redis Pub/Sub (project đã có Redis) hoặc topic Kafka "fan-out" để mọi instance đẩy SSE.
 - **Chưa có Dead Letter Topic (DLT):** consumer lỗi sẽ retry theo mặc định; nên cấu hình DLT + retry/back-off để không kẹt message lỗi.
-- **`PAYMENT_RECEIVED` đã khai báo nhưng chưa dùng:** có thể nối webhook SePay (xem [PAYMENT.md](PAYMENT.md)) phát thông báo "Đã nhận thanh toán" qua cùng cơ chế này.
+- **`PAYMENT_RECEIVED` đã khai báo nhưng chưa dùng:** có thể nối webhook payOS (xem [PAYMENT.md](PAYMENT.md)) phát thông báo "Đã nhận thanh toán" qua cùng cơ chế này.
 - **Email đồng bộ trong consumer:** nếu SMTP chậm, consumer xử lý chậm theo. Có thể tách email thành consumer/topic riêng.
 - **Thiếu thông báo cho admin:** hiện chỉ thông báo cho user đặt hàng; có thể thêm topic/consumer thông báo cho admin khi có đơn mới.
 

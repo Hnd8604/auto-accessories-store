@@ -71,7 +71,7 @@ public class ServiceImageServiceTest {
         when(cloudinaryService.uploadImage(file, "store/services")).thenReturn("http://cloud/new.png");
         when(serviceImageMapper.toServiceImage(request)).thenReturn(mapped);
         when(serviceImageRepository.save(mapped)).thenReturn(mapped);
-        when(serviceImageMapper.toServiceImageResponse(mapped)).thenReturn(new ServiceImageResponse());
+        when(serviceImageMapper.toServiceImageResponse(mapped)).thenReturn(ServiceImageResponse.builder().build());
 
         serviceImageService.createServiceImage(file, request);
 
@@ -98,7 +98,7 @@ public class ServiceImageServiceTest {
         ServiceImage image = buildImage(1L, buildService(1L));
 
         when(serviceImageRepository.findByServiceId(1L)).thenReturn(List.of(image));
-        when(serviceImageMapper.toServiceImageResponse(image)).thenReturn(new ServiceImageResponse());
+        when(serviceImageMapper.toServiceImageResponse(image)).thenReturn(ServiceImageResponse.builder().build());
 
         assertThat(serviceImageService.getImagesByServiceId(1L)).hasSize(1);
     }
@@ -115,15 +115,16 @@ public class ServiceImageServiceTest {
     }
 
     @Test
-    void deleteServiceImage_shouldRemoveFromCloudinaryThenDb() {
+    void deleteServiceImage_shouldRemoveFromDbThenCloudinary() {
         ServiceImage image = buildImage(1L, buildService(1L));
         when(serviceImageRepository.findById(1L)).thenReturn(Optional.of(image));
 
         serviceImageService.deleteServiceImage(1L);
 
-        var order = inOrder(cloudinaryService, serviceImageRepository);
-        order.verify(cloudinaryService).deleteImage("http://cloud/old.png");
+        // Xóa DB trước, Cloudinary sau (sau commit) để không còn record trỏ tới ảnh đã xóa
+        var order = inOrder(serviceImageRepository, cloudinaryService);
         order.verify(serviceImageRepository).delete(image);
+        order.verify(cloudinaryService).deleteImage("http://cloud/old.png");
     }
 
     @Test
@@ -158,8 +159,8 @@ public class ServiceImageServiceTest {
         when(serviceImageRepository.findById(1L)).thenReturn(Optional.of(image));
 
         assertThatThrownBy(() -> serviceImageService.setPrimaryImage(10L, 1L))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("does not belong");
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.IMAGE_NOT_IN_SERVICE));
 
         verify(serviceImageRepository, never()).setNewPrimaryImage(any(), any());
     }

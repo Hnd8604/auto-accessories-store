@@ -43,9 +43,17 @@ export const GOOGLE_REDIRECT_URI: string =
 
 export type HttpHeaders = Record<string, string>;
 
+// Query param cuối cùng đều được axios serialize thành chuỗi. Key mang giá trị
+// undefined/null bị axios bỏ qua sẵn nên không cần lọc thủ công.
+export type QueryParams = Record<
+  string,
+  string | number | boolean | undefined | null
+>;
+
 export interface RequestOptions {
   method?: string;
   headers?: HttpHeaders;
-  body?: any;
+  body?: unknown;
+  params?: QueryParams;
   signal?: AbortSignal;
 }

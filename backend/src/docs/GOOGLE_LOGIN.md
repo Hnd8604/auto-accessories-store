@@ -134,7 +134,7 @@ Step 4. authenticationService.generateAuthResponse(user)
         → cấp JWT access + refresh token (xem 3.5)
 ```
 
-Mọi lỗi gọi Google (đổi token / lấy user info thất bại) đều ném `AppException(ErrorCode.GOOGLE_AUTH_FAILED)` → HTTP `401` (code nghiệp vụ `5001`). Dùng `RestTemplate` để backend gọi sang API Google.
+Mọi lỗi gọi Google (đổi token / lấy user info thất bại) đều ném `AppException(ErrorCode.GOOGLE_AUTH_FAILED)` → HTTP `401` (code nghiệp vụ `1601`). Dùng `RestTemplate` để backend gọi sang API Google.
 
 ### 3.4 Tìm hoặc tạo user
 
@@ -267,7 +267,7 @@ window.location.href = url;
 ### Khởi động
 ```bash
 # Backend
-cd auto_accessories_store-be && mvn spring-boot:run     # http://localhost:8080/api/v1
+cd auto_accessories_store-be && mvn spring-boot:run     # http://localhost:8082/api/v1
 
 # Frontend
 cd store-fe && npm run dev                              # http://localhost:3000

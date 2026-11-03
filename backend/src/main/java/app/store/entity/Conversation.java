@@ -1,5 +1,7 @@
 package app.store.entity;
 
+import app.store.enums.ConversationChannel;
+import app.store.enums.ConversationStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -29,11 +31,13 @@ public class Conversation {
 
     @Column(nullable = false)
     @Builder.Default
-    String channel = "WEB";
+    @Enumerated(EnumType.STRING)
+    ConversationChannel channel = ConversationChannel.WEB;
 
     @Column(nullable = false)
     @Builder.Default
-    String status = "OPEN";
+    @Enumerated(EnumType.STRING)
+    ConversationStatus status = ConversationStatus.OPEN;
 
     @Column(nullable = false)
     @Builder.Default
@@ -42,9 +46,10 @@ public class Conversation {
     LocalDateTime lastMessageAt;
 
     @CreatedDate
-    @Column(updatable = false)
+    @Column(nullable = false, updatable = false)
     LocalDateTime createdAt;
 
     @LastModifiedDate
+    @Column(nullable = false)
     LocalDateTime updatedAt;
 }

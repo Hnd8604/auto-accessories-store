@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { ServicesApi } from "@/features/services/api/services";
@@ -20,7 +20,7 @@ import {
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
-import { Plus, MoreHorizontal, Edit, Trash2, Loader2, Images, X, ImageIcon } from "lucide-react";
+import { Plus, MoreHorizontal, Edit, Trash2, Loader2, Images, ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ServiceImageManagement } from "./ServiceImageManagement";
 import type { ServiceRequest, ServiceResponse } from "../types";
@@ -29,7 +29,6 @@ const serviceSchema = z.object({
   name: z.string().min(1, "Tên dịch vụ không được để trống."),
   shortDescription: z.string().optional(),
   fullDescription: z.string().optional(),
-  features: z.array(z.object({ value: z.string() })),
   displayOrder: z.number().min(0).optional().nullable(),
 });
 
@@ -50,12 +49,9 @@ export const ServiceManagement = () => {
       name: "",
       shortDescription: "",
       fullDescription: "",
-      features: [],
       displayOrder: null,
     },
   });
-
-  const { fields, append, remove } = useFieldArray({ control: form.control, name: "features" });
 
   const { data, isLoading } = useQuery({
     queryKey: ["services"],
@@ -70,7 +66,7 @@ export const ServiceManagement = () => {
       setIsCreateOpen(false);
       form.reset();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể tạo dịch vụ." });
     },
   });
@@ -85,7 +81,7 @@ export const ServiceManagement = () => {
       setSelectedService(null);
       form.reset();
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể cập nhật dịch vụ." });
     },
   });
@@ -96,7 +92,7 @@ export const ServiceManagement = () => {
       toast({ title: "Thành công!", description: "Dịch vụ đã được xóa." });
       queryClient.invalidateQueries({ queryKey: ["services"] });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({ variant: "destructive", title: "Lỗi", description: error.message || "Không thể xóa dịch vụ." });
     },
   });
@@ -105,7 +101,6 @@ export const ServiceManagement = () => {
     name: data.name,
     shortDescription: data.shortDescription || undefined,
     fullDescription: data.fullDescription || undefined,
-    features: data.features.map((f) => f.value).filter(Boolean),
     displayOrder: data.displayOrder ?? undefined,
   });
 
@@ -124,7 +119,6 @@ export const ServiceManagement = () => {
       name: service.name,
       shortDescription: service.shortDescription || "",
       fullDescription: service.fullDescription || "",
-      features: (service.features || []).map((v) => ({ value: v })),
       displayOrder: service.displayOrder ?? null,
     });
     setIsEditOpen(true);
@@ -143,7 +137,7 @@ export const ServiceManagement = () => {
 
   const handleOpenCreate = () => {
     setSelectedService(null);
-    form.reset({ name: "", shortDescription: "", fullDescription: "", features: [], displayOrder: null });
+    form.reset({ name: "", shortDescription: "", fullDescription: "", displayOrder: null });
     setIsCreateOpen(true);
   };
 
@@ -175,30 +169,6 @@ export const ServiceManagement = () => {
             <FormMessage />
           </FormItem>
         )} />
-
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <FormLabel>Điểm nổi bật</FormLabel>
-            <Button type="button" variant="outline" size="sm" onClick={() => append({ value: "" })}>
-              <Plus className="h-3 w-3 mr-1" />Thêm
-            </Button>
-          </div>
-          <div className="space-y-2">
-            {fields.map((field, index) => (
-              <div key={field.id} className="flex gap-2">
-                <FormField control={form.control} name={`features.${index}.value`} render={({ field }) => (
-                  <FormItem className="flex-1">
-                    <FormControl><Input placeholder={`Tính năng ${index + 1}`} {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
 
         <FormField control={form.control} name="displayOrder" render={({ field }) => (
           <FormItem>

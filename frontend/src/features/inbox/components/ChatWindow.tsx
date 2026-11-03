@@ -6,6 +6,7 @@ import { Send, X } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { InboxApi } from "../api/InboxApi";
 import { useStompChat } from "../hooks/useStompChat";
+import { useToast } from "@/hooks/use-toast";
 import type { Conversation, ChatMessage } from "../types";
 
 interface Props {
@@ -20,9 +21,14 @@ export function ChatWindow({ conversation, onClose, onMarkRead, onConversationCl
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const onMarkReadRef = useRef(onMarkRead);
+  onMarkReadRef.current = onMarkRead;
+
+  const { toast } = useToast();
 
   const { send } = useStompChat({
     conversationId: conversation.id,
+    authenticated: true,
     onMessage: (msg) => {
       setMessages((prev) => {
         if (prev.find((m) => m.id === msg.id)) return prev;
@@ -30,15 +36,33 @@ export function ChatWindow({ conversation, onClose, onMarkRead, onConversationCl
       });
       scrollToBottom();
     },
+    onError: (err) => {
+      toast({
+        title: "Không gửi được tin nhắn",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
   });
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     setMessages([]);
     InboxApi.getMessages(conversation.id)
-      .then((res) => setMessages(res.result.content))
-      .finally(() => setLoading(false));
-    InboxApi.markAsRead(conversation.id).then(onMarkRead).catch(() => {});
+      .then((res) => {
+        if (!cancelled) setMessages(res.result.content);
+      })
+      .catch((error) => console.error("Failed to load messages:", error))
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    InboxApi.markAsRead(conversation.id)
+      .then(() => {
+        if (!cancelled) onMarkReadRef.current();
+      })
+      .catch((error) => console.error("Failed to mark conversation as read:", error));
+    return () => { cancelled = true; };
   }, [conversation.id]);
 
   useEffect(() => {
@@ -56,7 +80,7 @@ export function ChatWindow({ conversation, onClose, onMarkRead, onConversationCl
   function handleSend() {
     const text = input.trim();
     if (!text) return;
-    send({ conversationId: conversation.id, content: text, senderType: "ADMIN" });
+    send({ conversationId: conversation.id, content: text });
     setInput("");
   }
 

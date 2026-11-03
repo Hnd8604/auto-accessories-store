@@ -1,18 +1,18 @@
 package app.store.dto.request;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Builder;
 
 import java.util.Set;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class RoleRequest {
-    String name;
-    String description;
-    Set<String> permissions; // Set of permission names so we only use strings instead of full objects
+public record RoleRequest(
+        @NotBlank(message = "Role name is required")
+        @Size(max = 255, message = "Role name must not exceed {max} characters")
+        String name,
+        @Size(max = 255, message = "Description must not exceed {max} characters")
+        String description,
+        Set<String> permissions // tên permission, không phải object
+) {
 }

@@ -3,7 +3,9 @@ package app.store.service;
 import app.store.dto.request.SendChatMessageRequest;
 import app.store.dto.response.ChatMessageResponse;
 import app.store.entity.ChatMessage;
+import app.store.enums.SenderType;
 import app.store.repository.ChatMessageRepository;
+import app.store.utils.TransactionUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Transactional(readOnly = true)
 public class ChatMessageService {
 
     ChatMessageRepository chatMessageRepository;
@@ -23,30 +26,35 @@ public class ChatMessageService {
     SimpMessagingTemplate messagingTemplate;
 
     @Transactional
-    public ChatMessageResponse send(SendChatMessageRequest request) {
+    public ChatMessageResponse send(SendChatMessageRequest request, SenderType senderType) {
+        conversationService.getOpenConversation(request.conversationId());
+
         ChatMessage message = ChatMessage.builder()
-                .conversationId(request.getConversationId())
-                .senderType(request.getSenderType())
-                .content(request.getContent())
+                .conversationId(request.conversationId())
+                .senderType(senderType)
+                .content(request.content())
                 .build();
         message = chatMessageRepository.save(message);
 
         ChatMessageResponse response = toResponse(message);
 
-        // Broadcast to conversation topic
-        messagingTemplate.convertAndSend(
-                "/topic/conversation/" + request.getConversationId(),
-                response
-        );
-
         // If message from customer, increment unread for admin
-        if ("CUSTOMER".equals(request.getSenderType())) {
-            conversationService.incrementUnread(request.getConversationId(), request.getContent());
-            // Notify admin panel of new message
-            messagingTemplate.convertAndSend("/topic/admin/new-message", response);
+        if (senderType == SenderType.CUSTOMER) {
+            conversationService.incrementUnread(request.conversationId(), request.content());
         } else {
-            conversationService.updateLastMessage(request.getConversationId(), request.getContent());
+            conversationService.updateLastMessage(request.conversationId(), request.content());
         }
+
+        // Broadcast qua WebSocket sau khi commit: client nhận tin rồi tải lại lịch sử sẽ thấy tin đó,
+        // và tin bị rollback thì không broadcast
+        TransactionUtils.runAfterCommit(() -> {
+            // Broadcast to conversation topic
+            messagingTemplate.convertAndSend("/topic/conversation/" + request.conversationId(), response);
+            if (senderType == SenderType.CUSTOMER) {
+                // Notify admin panel of new message
+                messagingTemplate.convertAndSend("/topic/admin/new-message", response);
+            }
+        });
 
         return response;
     }

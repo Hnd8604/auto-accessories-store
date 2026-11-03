@@ -77,7 +77,7 @@ import {
 // Validation schemas
 const userCreateSchema = z.object({
   username: z.string().min(3, "Tên đăng nhập phải có ít nhất 3 ký tự"),
-  password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
+  password: z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự"),
   email: z
     .string()
     .refine((val) => val === "" || z.string().email().safeParse(val).success, {
@@ -171,19 +171,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         description: "Người dùng đã được tạo thành công",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       console.error("Error creating user:", error);
-      let errorMessage = "Có lỗi xảy ra khi tạo người dùng";
-
-      if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-
       toast({
         title: "Lỗi",
-        description: errorMessage,
+        description: error.message || "Có lỗi xảy ra khi tạo người dùng",
         variant: "destructive",
       });
     },
@@ -203,29 +195,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         description: "Người dùng đã được cập nhật thành công",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       console.error("Error updating user:", error);
-      console.error("Error details:", {
-        response: error?.response,
-        data: error?.response?.data,
-        status: error?.response?.status,
-        message: error?.message,
-        stack: error?.stack,
-      });
-
-      let errorMessage = "Có lỗi xảy ra khi cập nhật người dùng";
-
-      if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error?.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-
       toast({
         title: "Lỗi",
-        description: errorMessage,
+        description: error.message || "Có lỗi xảy ra khi cập nhật người dùng",
         variant: "destructive",
       });
     },
@@ -241,19 +215,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         description: "Người dùng đã được xóa thành công",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       console.error("Error deleting user:", error);
-      let errorMessage = "Có lỗi xảy ra khi xóa người dùng";
-
-      if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-
       toast({
         title: "Lỗi",
-        description: errorMessage,
+        description: error.message || "Có lỗi xảy ra khi xóa người dùng",
         variant: "destructive",
       });
     },
@@ -298,10 +264,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         delete userRequest[key as keyof UserUpdateRequest];
       }
     });
-
-    console.log("Final request payload:", userRequest);
-    console.log("User ID:", editingUser.id);
-    console.log("=== END UPDATE DEBUG ===");
 
     updateMutation.mutate({ id: editingUser.id, data: userRequest });
   };

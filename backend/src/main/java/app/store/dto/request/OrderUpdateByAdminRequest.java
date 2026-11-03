@@ -2,16 +2,14 @@ package app.store.dto.request;
 
 import app.store.enums.OrderStatus;
 import app.store.enums.PaymentStatus;
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-@Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
+import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
 
-public class OrderUpdateByAdminRequest {
-    PaymentStatus paymentStatus;
-    OrderStatus orderStatus;
+@Builder
+public record OrderUpdateByAdminRequest(
+        @NotNull(message = "Payment status is required")
+        PaymentStatus paymentStatus,
+        @NotNull(message = "Order status is required")
+        OrderStatus orderStatus
+) {
 }

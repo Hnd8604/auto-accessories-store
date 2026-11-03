@@ -13,6 +13,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import app.store.dto.event.OrderCreatedEvent;
 import app.store.dto.event.OrderStatusChangedEvent;
+import app.store.enums.OrderStatus;
 
 @ExtendWith(MockitoExtension.class)
 public class OrderEventProducerTest {
@@ -37,7 +38,7 @@ public class OrderEventProducerTest {
     void publishOrderStatusChanged_shouldPublishEvent() {
         OrderStatusChangedEvent event = OrderStatusChangedEvent.builder()
                 .orderId("o1").orderCode("DH123")
-                .oldStatus("PENDING").newStatus("SHIPPING").build();
+                .oldStatus(OrderStatus.PENDING).newStatus(OrderStatus.SHIPPED).build();
 
         orderEventProducer.publishOrderStatusChanged(event);
 

@@ -26,6 +26,8 @@ import app.store.dto.response.PostResponse;
 import app.store.entity.Post;
 import app.store.entity.PostCategory;
 import app.store.entity.User;
+import app.store.exception.AppException;
+import app.store.exception.ErrorCode;
 import app.store.mapper.PostMapper;
 import app.store.repository.PostCategoryRepository;
 import app.store.repository.PostRepository;
@@ -61,13 +63,14 @@ public class PostServiceTest {
     @Test
     void createPost_happyPath_setsSlugAuthorAndCategory() {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("john", null));
+                new UsernamePasswordAuthenticationToken("u1", null));
 
-        PostRequest request = new PostRequest();
-        request.setTitle("Đèn LED");
-        request.setContent("nội dung");
-        request.setPublished(true);
-        request.setCategoryId(1L);
+        PostRequest request = PostRequest.builder()
+                .title("Đèn LED")
+                .content("nội dung")
+                .published(true)
+                .categoryId(1L)
+                .build();
 
         User author = new User();
         author.setUsername("john");
@@ -77,14 +80,14 @@ public class PostServiceTest {
 
         Post mappedPost = new Post();
 
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(author));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(author));
         when(postCategoryRepository.findById(1L)).thenReturn(Optional.of(category));
         when(postMapper.toPost(request)).thenReturn(mappedPost);
         when(cloudinaryService.uploadImage(any(), any())).thenReturn("http://img.url/x.png");
         when(slugUtil.toSlug("Đèn LED")).thenReturn("den-led");
         when(slugUtil.createUniqueSlug(any(), any())).thenReturn("den-led");
         when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(postMapper.toPostResponse(any(Post.class))).thenReturn(new PostResponse());
+        when(postMapper.toPostResponse(any(Post.class))).thenReturn(PostResponse.builder().build());
 
         postService.createPost(emptyFile(), request);
 
@@ -98,18 +101,21 @@ public class PostServiceTest {
     @Test
     void createPost_shouldThrow_whenCategoryNotFound() {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("john", null));
+                new UsernamePasswordAuthenticationToken("u1", null));
 
-        PostRequest request = new PostRequest();
-        request.setTitle("Đèn LED");
-        request.setCategoryId(99L);
+        PostRequest request = PostRequest.builder()
+                .title("Đèn LED")
+                .categoryId(99L)
+                .build();
 
         User author = new User();
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(author));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(author));
         when(postCategoryRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> postService.createPost(emptyFile(), request))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.POST_CATEGORY_NOT_EXISTED));
 
         verify(postRepository, never()).save(any());
     }
@@ -121,16 +127,17 @@ public class PostServiceTest {
         existing.setTitle("Tiêu đề cũ");
         existing.setSlug("tieu-de-cu");
 
-        PostRequest request = new PostRequest();
-        request.setTitle("Tiêu đề mới");
-        request.setContent("nội dung mới");
-        request.setPublished(true);
+        PostRequest request = PostRequest.builder()
+                .title("Tiêu đề mới")
+                .content("nội dung mới")
+                .published(true)
+                .build();
 
         when(postRepository.findById(1L)).thenReturn(Optional.of(existing));
         when(slugUtil.toSlug("Tiêu đề mới")).thenReturn("tieu-de-moi");
         when(slugUtil.createUniqueSlug(any(), any())).thenReturn("tieu-de-moi");
         when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(postMapper.toPostResponse(any(Post.class))).thenReturn(new PostResponse());
+        when(postMapper.toPostResponse(any(Post.class))).thenReturn(PostResponse.builder().build());
 
         postService.updatePost(null, 1L, request);
 
@@ -145,14 +152,15 @@ public class PostServiceTest {
         existing.setTitle("Tiêu đề");
         existing.setSlug("tieu-de");
 
-        PostRequest request = new PostRequest();
-        request.setTitle("Tiêu đề");
-        request.setContent("nội dung mới");
-        request.setPublished(true);
+        PostRequest request = PostRequest.builder()
+                .title("Tiêu đề")
+                .content("nội dung mới")
+                .published(true)
+                .build();
 
         when(postRepository.findById(1L)).thenReturn(Optional.of(existing));
         when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(postMapper.toPostResponse(any(Post.class))).thenReturn(new PostResponse());
+        when(postMapper.toPostResponse(any(Post.class))).thenReturn(PostResponse.builder().build());
 
         postService.updatePost(null, 1L, request);
 
@@ -163,11 +171,13 @@ public class PostServiceTest {
     @Test
     void updatePost_shouldThrow_whenNotFound() {
         when(postRepository.findById(99L)).thenReturn(Optional.empty());
-        PostRequest request = new PostRequest();
-        request.setTitle("x");
+        PostRequest request = PostRequest.builder()
+                .title("x")
+                .build();
 
         assertThatThrownBy(() -> postService.updatePost(null, 99L, request))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.POST_NOT_EXISTED));
     }
 
     @Test
@@ -175,7 +185,8 @@ public class PostServiceTest {
         when(postRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> postService.getPostById(99L))
-                .isInstanceOf(RuntimeException.class);
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.POST_NOT_EXISTED));
     }
 
     @Test
@@ -187,7 +198,7 @@ public class PostServiceTest {
         post.setViewCount(5L);
 
         when(postRepository.findBySlug("den-led")).thenReturn(Optional.of(post));
-        when(postMapper.toPostResponse(post)).thenReturn(new PostResponse());
+        when(postMapper.toPostResponse(post)).thenReturn(PostResponse.builder().build());
 
         postService.getPostBySlugAndIncrementView("den-led");
 
@@ -204,7 +215,7 @@ public class PostServiceTest {
         post.setViewCount(5L);
 
         when(postRepository.findBySlug("den-led")).thenReturn(Optional.of(post));
-        when(postMapper.toPostResponse(post)).thenReturn(new PostResponse());
+        when(postMapper.toPostResponse(post)).thenReturn(PostResponse.builder().build());
 
         postService.getPostBySlugAndIncrementView("den-led");
 

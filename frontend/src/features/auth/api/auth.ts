@@ -1,37 +1,45 @@
-import axios from "axios";
-import AuthHttpClient, { simpleHttp } from "@/services/axios";
-import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, API_BASE_URL } from "@/constants/config";
+import { simpleHttp } from "@/services/axios";
+import { http } from "@/services/http";
+import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from "@/constants/config";
 import { UsersApi } from "@/features/users/api/users";
+import type { ApiResponse } from "@/types";
 import type {
   UserCreationRequest,
   UserResponse,
+} from "@/features/users/types";
+import type {
   AuthenticationRequest,
   AuthenticationResponse,
-  RefreshRequest,
-  RefreshResponse,
   ChangePasswordRequest,
-} from "@/features/users/types";
+} from "@/features/auth/types";
 
-export const refreshCall = async (
-  refreshToken: string
-): Promise<{ accessToken: string; refreshToken?: string } | null> => {
-  try {
-    // Dùng axios trực tiếp (không qua AuthHttpClient) để tránh circular dependency
-    const res = await axios.post<{ code?: number; result?: RefreshResponse } | RefreshResponse>(
-      `${API_BASE_URL}/auth/refresh`,
-      { refreshToken } satisfies RefreshRequest,
-      { headers: { "Content-Type": "application/json" } }
-    );
-    const data = res.data;
-    const payload = (data && "result" in data ? data.result : data) as RefreshResponse;
-    if (!payload?.accessToken) return null;
-    return { accessToken: payload.accessToken };
-  } catch {
-    return null;
+/**
+ * Backend khi thì bọc payload trong { result }, khi thì trả thẳng. Helper này
+ * gỡ lớp bọc đó mà không cần cast `any`.
+ */
+function unwrapResult<T>(data: { result?: T } | T): T {
+  return (
+    data && typeof data === "object" && "result" in data
+      ? (data as { result?: T }).result
+      : data
+  ) as T;
+}
+
+async function completeLogin(response: AuthenticationResponse) {
+  if (typeof window !== "undefined" && response.accessToken) {
+    localStorage.setItem(ACCESS_TOKEN_KEY, response.accessToken);
+    localStorage.setItem(REFRESH_TOKEN_KEY, response.refreshToken || "");
   }
-};
 
-export const http = new AuthHttpClient(refreshCall);
+  try {
+    const userResponse = await UsersApi.getMyInfo();
+    const user = unwrapResult<UserResponse>(userResponse);
+    return { ...response, user: user ?? response.user };
+  } catch (error) {
+    console.error("Failed to fetch user roles:", error);
+    return response;
+  }
+}
 
 export const AuthService = {
   async login(payload: AuthenticationRequest) {
@@ -40,46 +48,16 @@ export const AuthService = {
     const data = await simpleHttp.request<
       { result?: AuthenticationResponse } | AuthenticationResponse
     >("/auth/login", { method: "POST", body: payload });
-    const response: AuthenticationResponse =
-      (data as any).result ?? (data as AuthenticationResponse);
+    const response = unwrapResult<AuthenticationResponse>(data);
 
-    // Step 2: Save tokens to localStorage
-    if (typeof window !== "undefined" && response.accessToken) {
-      localStorage.setItem(ACCESS_TOKEN_KEY, response.accessToken);
-      localStorage.setItem(REFRESH_TOKEN_KEY, response.refreshToken || "");
-    }
-
-    // Step 3: Fetch complete user info with roles from /users/my-info
-    try {
-      console.log("Fetching user info with roles from /users/my-info...");
-
-      // Dùng axios trực tiếp với access token vừa nhận
-      const myInfoRes = await axios.get(`${API_BASE_URL}/users/my-info`, {
-        headers: {
-          "Authorization": `Bearer ${response.accessToken}`,
-          "Content-Type": "application/json"
-        }
-      });
-
-      const myInfoData = myInfoRes.data;
-      const userWithRoles = (myInfoData as any).result ?? (myInfoData as UserResponse);
-      console.log("User with roles from my-info:", userWithRoles);
-      console.log("Roles:", userWithRoles?.roles);
-
-      // Return response with complete user data including roles
-      return {
-        ...response,
-        user: userWithRoles
-      };
-    } catch (error) {
-      console.error("Failed to fetch user roles:", error);
-      return response;
-    }
+    return completeLogin(response);
   },
 
   async register(payload: UserCreationRequest) {
-    // Use public API for user registration
-    return UsersApi.create(payload);
+    return simpleHttp.request<ApiResponse<UserResponse>>("/auth/register", {
+      method: "POST",
+      body: payload,
+    });
   },
 
   async logout() {
@@ -116,29 +94,8 @@ export const AuthService = {
     const data = await simpleHttp.request<
       { result?: AuthenticationResponse } | AuthenticationResponse
     >("/auth/google", { method: "POST", body: { code } });
-    const response: AuthenticationResponse =
-      (data as any).result ?? (data as AuthenticationResponse);
+    const response = unwrapResult<AuthenticationResponse>(data);
 
-    // Step 2: Save tokens
-    if (typeof window !== "undefined" && response.accessToken) {
-      localStorage.setItem(ACCESS_TOKEN_KEY, response.accessToken);
-      localStorage.setItem(REFRESH_TOKEN_KEY, response.refreshToken || "");
-    }
-
-    // Step 3: Fetch complete user info with roles
-    try {
-      const myInfoRes = await axios.get(`${API_BASE_URL}/users/my-info`, {
-        headers: {
-          Authorization: `Bearer ${response.accessToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-      const myInfoData = myInfoRes.data;
-      const userWithRoles = (myInfoData as any).result ?? myInfoData;
-      return { ...response, user: userWithRoles };
-    } catch (error) {
-      console.error("Failed to fetch user roles after Google login:", error);
-      return response;
-    }
+    return completeLogin(response);
   },
 };

@@ -1,14 +1,13 @@
 package app.store.dto.request;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import lombok.Builder;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class CartItemUpdateRequest {
-    Integer quantity;
+public record CartItemUpdateRequest(
+        @NotNull(message = "Quantity is required")
+        @Positive(message = "Quantity must be greater than 0")
+        Integer quantity
+) {
 }

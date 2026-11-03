@@ -3,6 +3,10 @@ package app.store.service;
 import app.store.dto.request.CreateConversationRequest;
 import app.store.dto.response.ConversationResponse;
 import app.store.entity.Conversation;
+import app.store.enums.ConversationChannel;
+import app.store.enums.ConversationStatus;
+import app.store.exception.AppException;
+import app.store.exception.ErrorCode;
 import app.store.repository.ConversationRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Transactional(readOnly = true)
 public class ConversationService {
 
     ConversationRepository conversationRepository;
@@ -23,9 +28,9 @@ public class ConversationService {
     @Transactional
     public ConversationResponse create(CreateConversationRequest request) {
         Conversation conversation = Conversation.builder()
-                .guestName(request.getGuestName())
-                .channel("WEB")
-                .status("OPEN")
+                .guestName(request.guestName())
+                .channel(ConversationChannel.WEB)
+                .status(ConversationStatus.OPEN)
                 .unreadCount(0)
                 .build();
         conversation = conversationRepository.save(conversation);
@@ -40,8 +45,17 @@ public class ConversationService {
 
     public ConversationResponse getById(String id) {
         Conversation c = conversationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Conversation not found: " + id));
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_EXISTED));
         return toResponse(c, null);
+    }
+
+    public Conversation getOpenConversation(String id) {
+        Conversation c = conversationRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_EXISTED));
+        if (c.getStatus() == ConversationStatus.CLOSED) {
+            throw new AppException(ErrorCode.CONVERSATION_CLOSED);
+        }
+        return c;
     }
 
     @Transactional
@@ -55,7 +69,7 @@ public class ConversationService {
     @Transactional
     public void close(String id) {
         conversationRepository.findById(id).ifPresent(c -> {
-            c.setStatus("CLOSED");
+            c.setStatus(ConversationStatus.CLOSED);
             conversationRepository.save(c);
         });
     }
@@ -78,7 +92,7 @@ public class ConversationService {
     }
 
     public long getTotalUnread() {
-        return conversationRepository.sumTotalUnread();
+        return conversationRepository.sumTotalUnread(ConversationStatus.OPEN);
     }
 
     private ConversationResponse toResponse(Conversation c, String lastMessage) {

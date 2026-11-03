@@ -80,7 +80,7 @@ public class UserServiceTest {
         when(passwordEncoder.encode("secret123")).thenReturn("hashed");
         when(roleRepository.findById("USER")).thenReturn(Optional.of(roleUser));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userMapper.toUserResponse(any(User.class))).thenReturn(new UserResponse());
+        when(userMapper.toUserResponse(any(User.class))).thenReturn(UserResponse.builder().build());
 
         userService.createUser(request);
 
@@ -127,10 +127,10 @@ public class UserServiceTest {
     void getMyInfo_shouldReadUsernameFromSecurityContext() {
         User user = buildUser();
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("john", null, List.of()));
-        UserResponse expected = new UserResponse();
+                new UsernamePasswordAuthenticationToken("u1", null, List.of()));
+        UserResponse expected = UserResponse.builder().build();
 
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
         when(userMapper.toUserResponse(user)).thenReturn(expected);
 
         assertThat(userService.getMyInfo()).isSameAs(expected);
@@ -139,9 +139,9 @@ public class UserServiceTest {
     @Test
     void getMyInfo_shouldThrow_whenUserNotFound() {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("ghost", null, List.of()));
+                new UsernamePasswordAuthenticationToken("ghost-id", null, List.of()));
 
-        when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
+        when(userRepository.findById("ghost-id")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.getMyInfo())
                 .isInstanceOf(AppException.class)
@@ -162,7 +162,7 @@ public class UserServiceTest {
         when(passwordEncoder.encode("new-password")).thenReturn("new-hash");
         when(roleRepository.findAllById(List.of("ADMIN"))).thenReturn(List.of(admin));
         when(userRepository.save(user)).thenReturn(user);
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
 
         userService.updateUser("u1", request);
 
@@ -180,7 +180,7 @@ public class UserServiceTest {
 
         when(userRepository.findById("u1")).thenReturn(Optional.of(user));
         when(userRepository.save(user)).thenReturn(user);
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
 
         userService.updateUser("u1", request);
 
@@ -239,7 +239,7 @@ public class UserServiceTest {
         var pageable = PageRequest.of(0, 10);
 
         when(userRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(user)));
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
 
         var page = userService.getAllUsers(pageable);
 

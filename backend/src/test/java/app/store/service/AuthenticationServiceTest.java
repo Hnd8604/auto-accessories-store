@@ -35,6 +35,8 @@ import app.store.dto.request.auth.RefreshRequest;
 import app.store.dto.request.user.UserCreationRequest;
 import app.store.entity.Role;
 import app.store.entity.User;
+import app.store.entity.InvalidatedToken;
+import app.store.enums.TokenType;
 import app.store.exception.AppException;
 import app.store.exception.ErrorCode;
 import app.store.mapper.UserMapper;
@@ -108,7 +110,7 @@ public class AuthenticationServiceTest {
         when(userRepository.existsByEmail("john@mail.com")).thenReturn(false);
         when(roleRepository.findById("USER")).thenReturn(Optional.of(roleUser));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userMapper.toUserResponse(any(User.class))).thenReturn(new UserResponse());
+        when(userMapper.toUserResponse(any(User.class))).thenReturn(UserResponse.builder().build());
 
         authenticationService.register(request);
 
@@ -176,18 +178,18 @@ public class AuthenticationServiceTest {
                 .email("john@mail.com").password("secret123").build();
 
         when(userRepository.findByEmail("john@mail.com")).thenReturn(Optional.of(user));
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
 
         var response = authenticationService.authenticate(request, session);
 
-        assertThat(response.isAuthenticated()).isTrue();
+        assertThat(response.authenticated()).isTrue();
         // Token thật -> parse ra để kiểm claim
-        var claims = SignedJWT.parse(response.getAccessToken()).getJWTClaimsSet();
-        assertThat(claims.getSubject()).isEqualTo("john");
-        assertThat(claims.getClaim("type")).isEqualTo("accessToken");
+        var claims = SignedJWT.parse(response.accessToken()).getJWTClaimsSet();
+        assertThat(claims.getSubject()).isEqualTo("u1"); // sub = user.id, không phải username
+        assertThat(claims.getClaim("type")).isEqualTo(TokenType.ACCESS.name());
         assertThat(claims.getStringClaim("scope")).contains("ROLE_USER");
-        assertThat(SignedJWT.parse(response.getRefreshToken()).getJWTClaimsSet().getClaim("type"))
-                .isEqualTo("refreshToken");
+        assertThat(SignedJWT.parse(response.refreshToken()).getJWTClaimsSet().getClaim("type"))
+                .isEqualTo(TokenType.REFRESH.name());
         verify(cartSyncService).syncSessionCart(user, session);
     }
 
@@ -225,27 +227,43 @@ public class AuthenticationServiceTest {
     @Test
     void refreshToken_shouldIssueNewAccessToken() throws Exception {
         User user = buildUser("secret123");
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
-        String refreshToken = authenticationService.generateAuthResponse(user).getRefreshToken();
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
+        String refreshToken = authenticationService.generateAuthResponse(user).refreshToken();
 
         when(invalidatedRepository.existsById(any())).thenReturn(false);
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
 
         var response = authenticationService.refreshToken(
                 RefreshRequest.builder().refreshToken(refreshToken).build());
 
-        assertThat(response.isAuthenticated()).isTrue();
-        assertThat(SignedJWT.parse(response.getAccessToken()).getJWTClaimsSet().getClaim("type"))
-                .isEqualTo("accessToken");
+        assertThat(response.authenticated()).isTrue();
+        assertThat(SignedJWT.parse(response.accessToken()).getJWTClaimsSet().getClaim("type"))
+                .isEqualTo(TokenType.ACCESS.name());
+    }
+
+    @Test
+    void refreshToken_shouldNotResolveToAnotherUser_whenOwnerDeletedAndUsernameReused() throws Exception {
+        // User "john" (id u1) đăng nhập rồi bị xoá; người khác đăng ký lại username "john".
+        User deleted = buildUser("secret123");
+        when(userMapper.toUserResponse(deleted)).thenReturn(UserResponse.builder().build());
+        String refreshToken = authenticationService.generateAuthResponse(deleted).refreshToken();
+
+        when(invalidatedRepository.existsById(any())).thenReturn(false);
+        when(userRepository.findById("u1")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authenticationService.refreshToken(
+                RefreshRequest.builder().refreshToken(refreshToken).build()))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.USER_NOT_EXISTED);
+        verify(userRepository, never()).findByUsername(any());
     }
 
     @Test
     void refreshToken_shouldThrow_whenAccessTokenUsedInstead() {
         User user = buildUser("secret123");
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
-        String accessToken = authenticationService.generateAuthResponse(user).getAccessToken();
-
-        when(invalidatedRepository.existsById(any())).thenReturn(false);
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
+        String accessToken = authenticationService.generateAuthResponse(user).accessToken();
 
         assertThatThrownBy(() -> authenticationService.refreshToken(
                 RefreshRequest.builder().refreshToken(accessToken).build()))
@@ -257,8 +275,8 @@ public class AuthenticationServiceTest {
     @Test
     void refreshToken_shouldThrow_whenTokenAlreadyInvalidated() {
         User user = buildUser("secret123");
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
-        String refreshToken = authenticationService.generateAuthResponse(user).getRefreshToken();
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
+        String refreshToken = authenticationService.generateAuthResponse(user).refreshToken();
 
         when(invalidatedRepository.existsById(any())).thenReturn(true); // đã logout
 
@@ -274,59 +292,75 @@ public class AuthenticationServiceTest {
     @Test
     void introspect_shouldReturnValidTrue_forFreshToken() throws Exception {
         User user = buildUser("secret123");
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
-        String accessToken = authenticationService.generateAuthResponse(user).getAccessToken();
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
+        String accessToken = authenticationService.generateAuthResponse(user).accessToken();
 
         when(invalidatedRepository.existsById(any())).thenReturn(false);
 
         var response = authenticationService.introspect(
                 IntrospectRequest.builder().token(accessToken).build());
 
-        assertThat(response.isValid()).isTrue();
+        assertThat(response.valid()).isTrue();
     }
 
     @Test
     void introspect_shouldReturnValidFalse_whenTokenInvalidated() throws Exception {
         User user = buildUser("secret123");
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
-        String accessToken = authenticationService.generateAuthResponse(user).getAccessToken();
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
+        String accessToken = authenticationService.generateAuthResponse(user).accessToken();
 
         when(invalidatedRepository.existsById(any())).thenReturn(true);
 
         var response = authenticationService.introspect(
                 IntrospectRequest.builder().token(accessToken).build());
 
-        assertThat(response.isValid()).isFalse();
+        assertThat(response.valid()).isFalse();
+    }
+
+    @Test
+    void introspect_shouldRejectRefreshToken() throws Exception {
+        User user = buildUser("secret123");
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
+        String refreshToken = authenticationService.generateAuthResponse(user).refreshToken();
+
+        var response = authenticationService.introspect(
+                IntrospectRequest.builder().token(refreshToken).build());
+
+        assertThat(response.valid()).isFalse();
     }
 
     @Test
     void logout_shouldSaveBothTokensToBlacklist() throws Exception {
         User user = buildUser("secret123");
-        when(userMapper.toUserResponse(user)).thenReturn(new UserResponse());
+        when(userMapper.toUserResponse(user)).thenReturn(UserResponse.builder().build());
         var tokens = authenticationService.generateAuthResponse(user);
 
         when(invalidatedRepository.existsById(any())).thenReturn(false);
 
         authenticationService.logout(LogoutRequest.builder()
-                .accessToken(tokens.getAccessToken())
-                .refreshToken(tokens.getRefreshToken())
+                .accessToken(tokens.accessToken())
+                .refreshToken(tokens.refreshToken())
                 .build());
 
-        verify(invalidatedRepository, times(2)).save(any());
+        ArgumentCaptor<InvalidatedToken> captor = ArgumentCaptor.forClass(InvalidatedToken.class);
+        verify(invalidatedRepository, times(2)).save(captor.capture());
+        assertThat(captor.getAllValues())
+                .extracting(InvalidatedToken::getType)
+                .containsExactly(TokenType.ACCESS, TokenType.REFRESH);
     }
 
     // ==================== changePassword ====================
 
-    private void loginAs(String username) {
+    private void loginAs(String userId) {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(username, null, java.util.List.of()));
+                new UsernamePasswordAuthenticationToken(userId, null, java.util.List.of())); // principal name = sub = user.id
     }
 
     @Test
     void changePassword_shouldSaveNewHashedPassword() {
-        loginAs("john");
+        loginAs("u1");
         User user = buildUser("old-password");
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
 
         authenticationService.changePassword(ChangePasswordRequest.builder()
                 .currentPassword("old-password")
@@ -340,9 +374,9 @@ public class AuthenticationServiceTest {
 
     @Test
     void changePassword_shouldThrow_whenCurrentPasswordWrong() {
-        loginAs("john");
+        loginAs("u1");
         User user = buildUser("old-password");
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authenticationService.changePassword(ChangePasswordRequest.builder()
                 .currentPassword("sai-mat-khau")
@@ -358,9 +392,9 @@ public class AuthenticationServiceTest {
 
     @Test
     void changePassword_shouldThrow_whenNewPasswordSameAsCurrent() {
-        loginAs("john");
+        loginAs("u1");
         User user = buildUser("old-password");
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authenticationService.changePassword(ChangePasswordRequest.builder()
                 .currentPassword("old-password")
@@ -374,9 +408,9 @@ public class AuthenticationServiceTest {
 
     @Test
     void changePassword_shouldThrow_whenConfirmationMismatch() {
-        loginAs("john");
+        loginAs("u1");
         User user = buildUser("old-password");
-        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+        when(userRepository.findById("u1")).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authenticationService.changePassword(ChangePasswordRequest.builder()
                 .currentPassword("old-password")
@@ -392,8 +426,8 @@ public class AuthenticationServiceTest {
 
     @Test
     void changePassword_shouldThrow_whenUserNotFound() {
-        loginAs("ghost");
-        when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
+        loginAs("ghost-id");
+        when(userRepository.findById("ghost-id")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authenticationService.changePassword(ChangePasswordRequest.builder()
                 .currentPassword("a").newPassword("b").confirmPassword("b").build()))

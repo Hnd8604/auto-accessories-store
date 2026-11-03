@@ -15,6 +15,7 @@ import java.util.Set;
 @Entity
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Category extends BaseEntityLong {
+    @Column(nullable = false)
     String name;
     @Column(columnDefinition = "TEXT")
     String description;

@@ -1,20 +1,18 @@
 package app.store.dto.request;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
+import lombok.Builder;
 
-import java.util.List;
-
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class ServiceRequest {
-    String name;
-    String shortDescription;
-    String fullDescription;
-    List<String> features;
-    Integer displayOrder;
+public record ServiceRequest(
+        @NotBlank(message = "Service name is required")
+        @Size(max = 255, message = "Service name must not exceed {max} characters")
+        String name,
+        String shortDescription,
+        String fullDescription,
+        @PositiveOrZero(message = "Display order must not be negative")
+        Integer displayOrder
+) {
 }

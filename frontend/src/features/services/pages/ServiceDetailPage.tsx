@@ -1,8 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect, useCallback } from "react";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
+import { StoreLayout } from "@/app/components/StoreLayout";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -79,42 +78,34 @@ const ServiceDetailPage = () => {
   const lightboxNext = () => setLightboxIndex((i) => (i + 1) % displayImages.length);
 
   const handleContactClick = () => {
-    navigate("/");
-    setTimeout(() => {
-      document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
+    navigate("/#contact");
   };
 
   if (serviceLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
+      <StoreLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </div>
-        <Footer />
-      </div>
+      </StoreLayout>
     );
   }
 
   if (!service) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
+      <StoreLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
           <p className="text-xl text-muted-foreground">Không tìm thấy dịch vụ.</p>
           <Button onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4 mr-2" />Quay lại
           </Button>
         </div>
-        <Footer />
-      </div>
+      </StoreLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <StoreLayout>
 
       <main className="container mx-auto px-4 py-10">
         {/* Back button */}
@@ -222,8 +213,6 @@ const ServiceDetailPage = () => {
         )}
       </main>
 
-      <Footer />
-
       {/* Lightbox */}
       {displayImages.length > 0 && (
         <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
@@ -272,7 +261,7 @@ const ServiceDetailPage = () => {
           </DialogContent>
         </Dialog>
       )}
-    </div>
+    </StoreLayout>
   );
 };
 

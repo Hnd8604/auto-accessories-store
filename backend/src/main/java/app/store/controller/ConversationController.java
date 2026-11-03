@@ -39,8 +39,7 @@ public class ConversationController {
     @Operation(summary = "Get all conversations (admin)")
     public ApiResponse<Page<ConversationResponse>> getAll(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
-    ) {
+            @RequestParam(defaultValue = "20") int size) {
         return ApiResponse.<Page<ConversationResponse>>builder()
                 .result(conversationService.getAll(page, size))
                 .build();
@@ -51,8 +50,7 @@ public class ConversationController {
     public ApiResponse<Page<ChatMessageResponse>> getMessages(
             @PathVariable String id,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size
-    ) {
+            @RequestParam(defaultValue = "50") int size) {
         return ApiResponse.<Page<ChatMessageResponse>>builder()
                 .result(chatMessageService.getMessages(id, page, size))
                 .build();

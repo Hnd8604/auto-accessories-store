@@ -1,16 +1,16 @@
 package app.store.dto.request;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import lombok.Builder;
 
-@Getter
-@Setter
+// Không có cartId: luôn thêm vào giỏ của user trong JWT.
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class CartItemRequest {
-    Long cartId;
-    Long productId;
-    Integer quantity;
+public record CartItemRequest(
+        @NotNull(message = "Product ID is required")
+        Long productId,
+        @NotNull(message = "Quantity is required")
+        @Positive(message = "Quantity must be greater than 0")
+        Integer quantity
+) {
 }

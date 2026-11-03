@@ -1,5 +1,6 @@
 package app.store.controller;
 
+import jakarta.validation.Valid;
 import app.store.constant.ResponseMessage;
 import app.store.dto.request.CartItemRequest;
 import app.store.dto.request.CartItemUpdateRequest;
@@ -55,7 +56,7 @@ public class CartController {
         summary = "Add item to cart",
         description = "Adds a product item to the shopping cart. Accessible by authenticated users."
     )
-    ApiResponse<CartItemResponse> addItemToCart(@RequestBody CartItemRequest cartItemRequest) {
+    ApiResponse<CartItemResponse> addItemToCart(@Valid @RequestBody CartItemRequest cartItemRequest) {
         return ApiResponse.<CartItemResponse>builder()
                 .result(CartService.addItemToCart(cartItemRequest))
                 .message(ResponseMessage.ADD_ITEM_SUCCESS)
@@ -78,7 +79,7 @@ public class CartController {
         summary = "Update cart item",
         description = "Updates quantity of a cart item. Accessible by cart owner."
     )
-    ApiResponse<CartItemResponse> updateItemInCart(@PathVariable Long itemId, @RequestBody CartItemUpdateRequest request) {
+    ApiResponse<CartItemResponse> updateItemInCart(@PathVariable Long itemId, @Valid @RequestBody CartItemUpdateRequest request) {
         return ApiResponse.<CartItemResponse>builder()
                 .result(CartService.updateItemInCart(itemId, request))
                 .message(ResponseMessage.UPDATE_ITEM_SUCCESS)

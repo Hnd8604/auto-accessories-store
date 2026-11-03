@@ -8,12 +8,13 @@ import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.Mapping;
 
-
-@Mapper(componentModel = "spring",uses = {RoleMapper.class})
+@Mapper(componentModel = "spring", uses = { RoleMapper.class })
 public interface UserMapper {
 
     User toUser(UserCreationRequest request);
-    // When mapping User to UserResponse, use the custom mapping for roles to exclude permissions
+
+    // When mapping User to UserResponse, use the custom mapping for roles to
+    // exclude permissions
     @Mapping(source = "roles", target = "roles", qualifiedByName = "toRoleResponseWithoutPermissions")
     UserResponse toUserResponse(User user);
 

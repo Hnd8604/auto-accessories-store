@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatPrice } from "@/utils/formatPrice";
 import {
   ChevronLeft,
   ChevronRight,
@@ -28,7 +29,18 @@ import type {
   OrderResponse,
   OrderUpdateByAdminRequest,
 } from "@/features/orders/types";
-import type { OrderStatus, PaymentStatus, PaymentMethod } from "@/features/orders/types";
+import {
+  getOrderStatusLabel,
+  getOrderStatusIcon,
+  getOrderStatusColor,
+  getPaymentStatusLabel,
+  getPaymentStatusColor,
+  getPaymentMethodLabel,
+  getPaymentMethodColor,
+  formatDate,
+  STATUS_TABS,
+  PAYMENT_TABS,
+} from "../lib/orderPresentation";
 
 import {
   Card,
@@ -96,106 +108,6 @@ type OrderUpdateFormData = z.infer<typeof orderUpdateSchema>;
 interface OrderManagementProps {
   className?: string;
 }
-
-// Helper functions
-const getOrderStatusLabel = (status?: OrderStatus) => {
-  const labels: Record<OrderStatus, string> = {
-    PENDING: "Chờ xử lý",
-    PROCESSING: "Đang xử lý",
-    SHIPPED: "Đã gửi hàng",
-    DELIVERED: "Đã giao hàng",
-    CANCELED: "Đã hủy",
-  };
-  return status ? labels[status] : "-";
-};
-
-const getOrderStatusIcon = (status?: OrderStatus) => {
-  switch (status) {
-    case "PENDING": return <Clock className="h-3.5 w-3.5" />;
-    case "PROCESSING": return <RefreshCw className="h-3.5 w-3.5" />;
-    case "SHIPPED": return <Truck className="h-3.5 w-3.5" />;
-    case "DELIVERED": return <CheckCircle2 className="h-3.5 w-3.5" />;
-    case "CANCELED": return <XCircle className="h-3.5 w-3.5" />;
-    default: return <Package className="h-3.5 w-3.5" />;
-  }
-};
-
-const getOrderStatusColor = (status?: OrderStatus) => {
-  switch (status) {
-    case "PENDING": return "bg-amber-50 text-amber-700 border-amber-200";
-    case "PROCESSING": return "bg-blue-50 text-blue-700 border-blue-200";
-    case "SHIPPED": return "bg-indigo-50 text-indigo-700 border-indigo-200";
-    case "DELIVERED": return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    case "CANCELED": return "bg-red-50 text-red-700 border-red-200";
-    default: return "bg-gray-50 text-gray-700 border-gray-200";
-  }
-};
-
-const getPaymentStatusLabel = (status?: PaymentStatus) => {
-  const labels: Record<PaymentStatus, string> = {
-    UNPAID: "Chưa thanh toán",
-    PAID: "Đã thanh toán",
-    REFUNDED: "Đã hoàn tiền",
-  };
-  return status ? labels[status] : "-";
-};
-
-const getPaymentStatusColor = (status?: PaymentStatus) => {
-  switch (status) {
-    case "UNPAID": return "bg-orange-50 text-orange-700 border-orange-200";
-    case "PAID": return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    case "REFUNDED": return "bg-purple-50 text-purple-700 border-purple-200";
-    default: return "bg-gray-50 text-gray-700 border-gray-200";
-  }
-};
-
-const getPaymentMethodLabel = (method?: PaymentMethod) => {
-  const labels: Record<PaymentMethod, string> = {
-    COD: "Thanh toán khi nhận hàng",
-    BANK_TRANSFER: "Chuyển khoản",
-  };
-  return method ? labels[method] : "-";
-};
-
-const getPaymentMethodColor = (method?: PaymentMethod) => {
-  switch (method) {
-    case "COD": return "bg-slate-50 text-slate-700 border-slate-200";
-    case "BANK_TRANSFER": return "bg-sky-50 text-sky-700 border-sky-200";
-    default: return "bg-gray-50 text-gray-700 border-gray-200";
-  }
-};
-
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return "-";
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
-const formatPrice = (price: number) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
-
-// Status filter tabs config
-const STATUS_TABS = [
-  { key: "ALL", label: "Tất cả", icon: Package },
-  { key: "PENDING", label: "Chờ xử lý", icon: Clock },
-  { key: "PROCESSING", label: "Đang xử lý", icon: RefreshCw },
-  { key: "SHIPPED", label: "Đã gửi", icon: Truck },
-  { key: "DELIVERED", label: "Đã giao", icon: CheckCircle2 },
-  { key: "CANCELED", label: "Đã hủy", icon: XCircle },
-];
-
-const PAYMENT_TABS = [
-  { key: "ALL", label: "Tất cả" },
-  { key: "UNPAID", label: "Chưa TT" },
-  { key: "PAID", label: "Đã TT" },
-  { key: "REFUNDED", label: "Hoàn tiền" },
-];
 
 export const OrderManagement: React.FC<OrderManagementProps> = ({
   className,
@@ -366,6 +278,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
       </div>
 
       {/* Status Filter Tabs */}
+      <p className="text-sm text-muted-foreground mb-2">Lọc đơn hàng trong trang đang xem</p>
       <div className="flex flex-wrap items-center gap-2 mb-4">
         {STATUS_TABS.map((tab) => {
           const Icon = tab.icon;
@@ -374,7 +287,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
           return (
             <button
               key={tab.key}
-              onClick={() => { setStatusFilter(tab.key); setCurrentPage(0); }}
+              onClick={() => setStatusFilter(tab.key)}
               className={`
                 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
                 transition-all duration-200 border
@@ -409,7 +322,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
           return (
             <button
               key={tab.key}
-              onClick={() => { setPaymentFilter(tab.key); setCurrentPage(0); }}
+              onClick={() => setPaymentFilter(tab.key)}
               className={`
                 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 border
                 ${isActive
@@ -435,8 +348,8 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
           ) : filteredOrders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Package className="h-12 w-12 text-muted-foreground/50" />
-              <p className="text-muted-foreground font-medium">Không có đơn hàng nào</p>
-              <p className="text-sm text-muted-foreground">Thử thay đổi bộ lọc để xem thêm</p>
+              <p className="text-muted-foreground font-medium">Không có đơn hàng phù hợp trên trang này</p>
+              <p className="text-sm text-muted-foreground">Thử trang khác hoặc thay đổi bộ lọc</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -550,7 +463,7 @@ export const OrderManagement: React.FC<OrderManagementProps> = ({
           {(totalPages > 1 || totalElements > 0) && (
             <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/20">
               <p className="text-sm text-muted-foreground">
-                Hiển thị <span className="font-medium text-foreground">{filteredOrders.length}</span> / <span className="font-medium text-foreground">{totalElements}</span> đơn hàng
+                Hiển thị <span className="font-medium text-foreground">{filteredOrders.length}</span> đơn hàng trên trang này; tổng cộng <span className="font-medium text-foreground">{totalElements}</span> đơn hàng
                 {totalPages > 1 && <> — Trang <span className="font-medium text-foreground">{currentPage + 1}</span> / {totalPages}</>}
               </p>
               {totalPages > 1 && (

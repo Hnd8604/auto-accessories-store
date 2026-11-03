@@ -1,5 +1,6 @@
 package app.store.controller;
 
+import jakarta.validation.Valid;
 import app.store.constant.ResponseMessage;
 import app.store.dto.request.OrderCreationRequest;
 import app.store.dto.request.OrderUpdateByAdminRequest;
@@ -76,7 +77,7 @@ public class OrderController {
         summary = "Create order from cart",
         description = "Creates a new order from the user's shopping cart. Accessible by authenticated users."
     )
-    ApiResponse<OrderResponse> createOrderFromCart(@RequestBody OrderCreationRequest request) {
+    ApiResponse<OrderResponse> createOrderFromCart(@Valid @RequestBody OrderCreationRequest request) {
         return ApiResponse.<OrderResponse>builder()
                 .result(OrderService.createOrderFromCart(request))
                 .message(ResponseMessage.CREATE_ORDER_SUCCESS)
@@ -88,7 +89,7 @@ public class OrderController {
         summary = "Update order by user",
         description = "Updates order information by the user. Users can update delivery address and contact information."
     )
-    ApiResponse<OrderResponse> updateOrderByUser(@PathVariable String orderId, @RequestBody OrderUpdateByUserRequest request) {
+    ApiResponse<OrderResponse> updateOrderByUser(@PathVariable String orderId, @Valid @RequestBody OrderUpdateByUserRequest request) {
         return ApiResponse.<OrderResponse>builder()
                 .result(OrderService.updateOrderByUser(orderId, request))
                 .message(ResponseMessage.UPDATE_ORDER_BY_USER_SUCCESS)
@@ -100,7 +101,7 @@ public class OrderController {
         summary = "Update order by admin",
         description = "Updates order information by admin. Admin can update order status, payment status, and shipping information."
     )
-    ApiResponse<OrderResponse> updateOrderByAdmin(@PathVariable String orderId, @RequestBody OrderUpdateByAdminRequest request) {
+    ApiResponse<OrderResponse> updateOrderByAdmin(@PathVariable String orderId, @Valid @RequestBody OrderUpdateByAdminRequest request) {
         return ApiResponse.<OrderResponse>builder()
                 .result(OrderService.updateOrderByAdmin(orderId, request))
                 .message(ResponseMessage.UPDATE_ORDER_BY_ADMIN_SUCCESS)

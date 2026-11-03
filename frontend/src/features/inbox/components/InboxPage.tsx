@@ -24,6 +24,7 @@ export function InboxPage() {
   // Listen for new messages from any conversation to update the list
   useStompChat({
     conversationId: null,
+    authenticated: true,
     onMessage: () => {},
     onAdminNewMessage: (_msg: ChatMessage) => {
       loadConversations();

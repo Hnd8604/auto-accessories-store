@@ -1,16 +1,13 @@
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
+import { StoreLayout } from "@/app/components/StoreLayout";
 import { MyOrders } from "@/features/orders/components/MyOrders";
 
 const MyOrdersPage = () => {
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <StoreLayout>
       <div className="pt-20">
         <MyOrders />
       </div>
-      <Footer />
-    </div>
+    </StoreLayout>
   );
 };
 

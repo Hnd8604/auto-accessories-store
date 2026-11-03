@@ -1,6 +1,10 @@
 package app.store.entity;
 
+import app.store.enums.TokenType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -17,6 +21,10 @@ import java.util.Date;
 public class InvalidatedToken {
     @Id
     String id;
+    @Column(nullable = false)
     Date expiryTime;
-    String type;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    TokenType type;
 }

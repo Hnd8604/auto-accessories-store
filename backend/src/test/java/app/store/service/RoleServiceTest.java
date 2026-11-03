@@ -59,7 +59,7 @@ public class RoleServiceTest {
         when(roleMapper.toRole(request)).thenReturn(mapped);
         when(permissionRepository.findByNameIn(permNames)).thenReturn(List.of(p1, p2));
         when(roleRepository.save(mapped)).thenReturn(mapped);
-        when(roleMapper.toRoleResponse(mapped)).thenReturn(new RoleResponse());
+        when(roleMapper.toRoleResponse(mapped)).thenReturn(RoleResponse.builder().build());
 
         roleService.createRole(request);
 
@@ -81,7 +81,7 @@ public class RoleServiceTest {
         when(roleRepository.findById("ADMIN")).thenReturn(Optional.of(role));
         when(permissionRepository.findByNameIn(permNames)).thenReturn(List.of(newPerm));
         when(roleRepository.save(role)).thenReturn(role);
-        when(roleMapper.toRoleResponse(role)).thenReturn(new RoleResponse());
+        when(roleMapper.toRoleResponse(role)).thenReturn(RoleResponse.builder().build());
 
         roleService.updateRole("ADMIN", request);
 
@@ -116,7 +116,7 @@ public class RoleServiceTest {
     void getAllRoles_shouldMapEveryRole() {
         Role role = Role.builder().name("USER").build();
         when(roleRepository.findAll()).thenReturn(List.of(role));
-        when(roleMapper.toRoleResponse(role)).thenReturn(new RoleResponse());
+        when(roleMapper.toRoleResponse(role)).thenReturn(RoleResponse.builder().build());
 
         assertThat(roleService.getAllRoles()).hasSize(1);
     }
@@ -131,7 +131,7 @@ public class RoleServiceTest {
         when(roleRepository.findById("ADMIN")).thenReturn(Optional.of(role));
         when(permissionRepository.findByNameIn(Set.of("NEW"))).thenReturn(List.of(added));
         when(roleRepository.save(role)).thenReturn(role);
-        when(roleMapper.toRoleResponse(role)).thenReturn(new RoleResponse());
+        when(roleMapper.toRoleResponse(role)).thenReturn(RoleResponse.builder().build());
 
         roleService.addPermissionsToRole("ADMIN", Set.of("NEW"));
 
@@ -148,7 +148,7 @@ public class RoleServiceTest {
 
         when(roleRepository.findById("ADMIN")).thenReturn(Optional.of(role));
         when(roleRepository.save(role)).thenReturn(role);
-        when(roleMapper.toRoleResponse(role)).thenReturn(new RoleResponse());
+        when(roleMapper.toRoleResponse(role)).thenReturn(RoleResponse.builder().build());
 
         roleService.removePermissionsFromRole("ADMIN", Set.of("REMOVE"));
 

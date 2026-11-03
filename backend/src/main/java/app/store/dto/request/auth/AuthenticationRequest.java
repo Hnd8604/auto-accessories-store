@@ -1,16 +1,13 @@
 package app.store.dto.request.auth;
 
+import jakarta.validation.constraints.NotBlank;
+import lombok.Builder;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class AuthenticationRequest {
-    String email;
-    String password;
+public record AuthenticationRequest(
+        @NotBlank(message = "Email is required")
+        String email,
+        @NotBlank(message = "Password is required")
+        String password
+) {
 }

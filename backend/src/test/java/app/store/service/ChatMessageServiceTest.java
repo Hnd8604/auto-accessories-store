@@ -1,10 +1,13 @@
 package app.store.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -21,6 +24,9 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import app.store.dto.request.SendChatMessageRequest;
 import app.store.dto.response.ChatMessageResponse;
 import app.store.entity.ChatMessage;
+import app.store.enums.SenderType;
+import app.store.exception.AppException;
+import app.store.exception.ErrorCode;
 import app.store.repository.ChatMessageRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,19 +41,20 @@ public class ChatMessageServiceTest {
     @InjectMocks
     ChatMessageService chatMessageService;
 
-    private SendChatMessageRequest request(String senderType) {
-        return new SendChatMessageRequest("c1", "Xin chào", senderType);
+    private SendChatMessageRequest request() {
+        return new SendChatMessageRequest("c1", "Xin chào");
     }
 
     @Test
     void send_fromCustomer_shouldBroadcast_andIncrementUnreadForAdmin() {
         when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        ChatMessageResponse response = chatMessageService.send(request("CUSTOMER"));
+        ChatMessageResponse response = chatMessageService.send(request(), SenderType.CUSTOMER);
 
-        assertThat(response.getContent()).isEqualTo("Xin chào");
-        assertThat(response.getSenderType()).isEqualTo("CUSTOMER");
+        assertThat(response.content()).isEqualTo("Xin chào");
+        assertThat(response.senderType()).isEqualTo(SenderType.CUSTOMER);
 
+        verify(conversationService).getOpenConversation("c1");
         verify(messagingTemplate).convertAndSend(eq("/topic/conversation/c1"), any(Object.class));
         verify(messagingTemplate).convertAndSend(eq("/topic/admin/new-message"), any(Object.class));
         verify(conversationService).incrementUnread("c1", "Xin chào");
@@ -58,8 +65,9 @@ public class ChatMessageServiceTest {
     void send_fromAdmin_shouldOnlyUpdateLastMessage() {
         when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        chatMessageService.send(request("ADMIN"));
+        ChatMessageResponse response = chatMessageService.send(request(), SenderType.ADMIN);
 
+        assertThat(response.senderType()).isEqualTo(SenderType.ADMIN);
         verify(messagingTemplate).convertAndSend(eq("/topic/conversation/c1"), any(Object.class));
         verify(messagingTemplate, never()).convertAndSend(eq("/topic/admin/new-message"), any(Object.class));
         verify(conversationService).updateLastMessage("c1", "Xin chào");
@@ -67,9 +75,37 @@ public class ChatMessageServiceTest {
     }
 
     @Test
+    void send_shouldRejectWithoutSaving_whenConversationNotExisted() {
+        when(conversationService.getOpenConversation(anyString()))
+                .thenThrow(new AppException(ErrorCode.CONVERSATION_NOT_EXISTED));
+
+        assertThatThrownBy(() -> chatMessageService.send(request(), SenderType.CUSTOMER))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.CONVERSATION_NOT_EXISTED);
+
+        verify(chatMessageRepository, never()).save(any());
+        verifyNoInteractions(messagingTemplate);
+    }
+
+    @Test
+    void send_shouldRejectWithoutSaving_whenConversationClosed() {
+        when(conversationService.getOpenConversation(anyString()))
+                .thenThrow(new AppException(ErrorCode.CONVERSATION_CLOSED));
+
+        assertThatThrownBy(() -> chatMessageService.send(request(), SenderType.ADMIN))
+                .isInstanceOf(AppException.class)
+                .extracting(e -> ((AppException) e).getErrorCode())
+                .isEqualTo(ErrorCode.CONVERSATION_CLOSED);
+
+        verify(chatMessageRepository, never()).save(any());
+        verifyNoInteractions(messagingTemplate);
+    }
+
+    @Test
     void getMessages_shouldPageInAscendingOrder() {
         ChatMessage message = ChatMessage.builder()
-                .id("m1").conversationId("c1").senderType("ADMIN").content("Chào bạn").build();
+                .id("m1").conversationId("c1").senderType(SenderType.ADMIN).content("Chào bạn").build();
 
         when(chatMessageRepository.findByConversationIdOrderByCreatedAtAsc("c1", PageRequest.of(0, 50)))
                 .thenReturn(new PageImpl<>(List.of(message)));
@@ -77,6 +113,6 @@ public class ChatMessageServiceTest {
         var page = chatMessageService.getMessages("c1", 0, 50);
 
         assertThat(page.getContent()).hasSize(1);
-        assertThat(page.getContent().get(0).getContent()).isEqualTo("Chào bạn");
+        assertThat(page.getContent().get(0).content()).isEqualTo("Chào bạn");
     }
 }

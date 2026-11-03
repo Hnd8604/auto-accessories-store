@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -18,8 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
+import { StoreLayout } from "@/app/components/StoreLayout";
 import { Eye, EyeOff, Car, Loader2 } from "lucide-react";
 import {
   Form,
@@ -30,8 +29,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { isAdmin } from "@/features/auth/hooks/useAuth";
-import { useAuth } from "@/context/auth-context";
+import { isAdmin } from "@/features/auth/lib/roles";
+import { rememberReturnPath, returnPathFromState, takeRememberedReturnPath } from "@/features/auth/lib/returnPath";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 const loginSchema = z.object({
   email: z
@@ -52,7 +52,7 @@ const registerSchema = z
     phone: z.string().min(1, { message: "Số điện thoại không được để trống." }),
     password: z
       .string()
-      .min(6, { message: "Mật khẩu phải có ít nhất 6 ký tự." }),
+      .min(8, { message: "Mật khẩu phải có ít nhất 8 ký tự." }),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -61,9 +61,11 @@ const registerSchema = z
   });
 
 const AuthPage = () => {
+  const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { login: authLogin } = useAuth();
   const queryClient = useQueryClient();
@@ -107,13 +109,11 @@ const AuthPage = () => {
       const hasAdminRole = isAdmin(data.user);
 
       // Redirect based on role
-      if (hasAdminRole) {
-        navigate("/admin");
-      } else {
-        navigate("/");
-      }
+      const rememberedPath = takeRememberedReturnPath();
+      const requestedPath = returnPathFromState(location.state) ?? rememberedPath;
+      navigate(requestedPath || (hasAdminRole ? "/admin" : "/"), { replace: true });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Đăng nhập thất bại.",
@@ -122,17 +122,18 @@ const AuthPage = () => {
     },
   });
 
-  // TODO: Replace with actual register API call
   const registerMutation = useMutation({
     mutationFn: AuthService.register,
     onSuccess: () => {
+      loginForm.reset({ email: registerForm.getValues("email"), password: "" });
+      registerForm.reset();
+      setActiveTab("login");
       toast({
         title: "Đăng ký thành công!",
         description: "Bây giờ bạn có thể đăng nhập.",
       });
-      // Chuyển sang tab đăng nhập hoặc xử lý tiếp
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Đăng ký thất bại.",
@@ -156,16 +157,15 @@ const AuthPage = () => {
       username: rest.username,
       password: rest.password,
       email: rest.email,
-      firstName: rest.firstName,
-      lastName: rest.lastName,
+      // API chỉ có fullName: ghép "Họ Tên"
+      fullName: `${rest.firstName} ${rest.lastName}`.trim(),
       phoneNumber: rest.phone, // Note: API expects 'phoneNumber', form has 'phone'
     };
     registerMutation.mutate(payload);
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <StoreLayout>
       <div className="pt-20 pb-16 px-4">
         <div className="container mx-auto max-w-md">
           <div className="text-center mb-8">
@@ -176,7 +176,7 @@ const AuthPage = () => {
             <p className="text-muted-foreground">Tài khoản của bạn</p>
           </div>
 
-          <Tabs defaultValue="login" className="w-full">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "login" | "register")} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Đăng nhập</TabsTrigger>
               <TabsTrigger value="register">Đăng ký</TabsTrigger>
@@ -279,6 +279,7 @@ const AuthPage = () => {
                         variant="outline"
                         className="w-full"
                         onClick={() => {
+                          rememberReturnPath(returnPathFromState(location.state));
                           const scope = "openid email profile";
                           const url =
                             `https://accounts.google.com/o/oauth2/v2/auth?` +
@@ -500,8 +501,7 @@ const AuthPage = () => {
           </Tabs>
         </div>
       </div>
-      <Footer />
-    </div>
+    </StoreLayout>
   );
 };
 

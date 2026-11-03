@@ -76,7 +76,7 @@ public class ProductImageServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(cloudinaryService.uploadImage(file, "store/products")).thenReturn("http://cloud/new.png");
         when(productImageRepository.save(mapped)).thenReturn(mapped);
-        when(productImageMapper.toProductImageResponse(mapped)).thenReturn(new ProductImageResponse());
+        when(productImageMapper.toProductImageResponse(mapped)).thenReturn(ProductImageResponse.builder().build());
 
         productImageService.createProductImage(file, request);
 
@@ -117,7 +117,7 @@ public class ProductImageServiceTest {
         ProductImage image = buildImage(1L, buildProduct(1L));
 
         when(productImageRepository.getProductImageByProductId(1L)).thenReturn(List.of(image));
-        when(productImageMapper.toProductImageResponse(image)).thenReturn(new ProductImageResponse());
+        when(productImageMapper.toProductImageResponse(image)).thenReturn(ProductImageResponse.builder().build());
 
         assertThat(productImageService.getProductImagesByProductId(1L)).hasSize(1);
     }
@@ -131,7 +131,7 @@ public class ProductImageServiceTest {
 
         when(productImageRepository.findById(1L)).thenReturn(Optional.of(image));
         when(productImageRepository.save(image)).thenReturn(image);
-        when(productImageMapper.toProductImageResponse(image)).thenReturn(new ProductImageResponse());
+        when(productImageMapper.toProductImageResponse(image)).thenReturn(ProductImageResponse.builder().build());
 
         productImageService.updateProductImage(1L, request);
 
@@ -140,15 +140,16 @@ public class ProductImageServiceTest {
     }
 
     @Test
-    void deleteProductImage_shouldRemoveFromCloudinaryThenDb() {
+    void deleteProductImage_shouldRemoveFromDbThenCloudinary() {
         ProductImage image = buildImage(1L, buildProduct(1L));
         when(productImageRepository.findById(1L)).thenReturn(Optional.of(image));
 
         productImageService.deleteProductImage(1L);
 
-        var order = inOrder(cloudinaryService, productImageRepository);
-        order.verify(cloudinaryService).deleteImage("http://cloud/old.png");
+        // Xóa DB trước, Cloudinary sau (sau commit) để không còn record trỏ tới ảnh đã xóa
+        var order = inOrder(productImageRepository, cloudinaryService);
         order.verify(productImageRepository).delete(image);
+        order.verify(cloudinaryService).deleteImage("http://cloud/old.png");
     }
 
     // ==================== setPrimaryImage ====================
@@ -185,8 +186,8 @@ public class ProductImageServiceTest {
         when(productImageRepository.findById(1L)).thenReturn(Optional.of(image));
 
         assertThatThrownBy(() -> productImageService.setPrimaryImage(1L, 10L))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("does not belong");
+                .isInstanceOfSatisfying(AppException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.IMAGE_NOT_IN_PRODUCT));
 
         verify(productImageRepository, never()).setNewPrimaryImage(any(), any());
     }

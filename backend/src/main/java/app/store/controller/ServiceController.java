@@ -1,5 +1,6 @@
 package app.store.controller;
 
+import jakarta.validation.Valid;
 import app.store.dto.request.ServiceRequest;
 import app.store.dto.response.ServiceResponse;
 import app.store.dto.response.auth.ApiResponse;
@@ -50,7 +51,7 @@ public class ServiceController {
 
     @PostMapping
     @Operation(summary = "Create a new service")
-    public ApiResponse<ServiceResponse> createService(@RequestBody ServiceRequest request) {
+    public ApiResponse<ServiceResponse> createService(@Valid @RequestBody ServiceRequest request) {
         return ApiResponse.<ServiceResponse>builder()
                 .result(professionalServiceService.createService(request))
                 .build();
@@ -58,7 +59,7 @@ public class ServiceController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Update a service")
-    public ApiResponse<ServiceResponse> updateService(@PathVariable Long id, @RequestBody ServiceRequest request) {
+    public ApiResponse<ServiceResponse> updateService(@PathVariable Long id, @Valid @RequestBody ServiceRequest request) {
         return ApiResponse.<ServiceResponse>builder()
                 .result(professionalServiceService.updateService(id, request))
                 .build();

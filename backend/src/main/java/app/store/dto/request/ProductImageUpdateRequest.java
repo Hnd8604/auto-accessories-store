@@ -1,17 +1,15 @@
 package app.store.dto.request;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
+import lombok.Builder;
 
-@Getter
-@Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE)
-public class ProductImageUpdateRequest {
-    String imageUrl;
-    String altText;
-    Boolean isPrimary;
-    Integer sortOrder;
+public record ProductImageUpdateRequest(
+
+                @NotBlank(message = "Image URL is required") @Size(max = 255, message = "Image URL must not exceed {max} characters") String imageUrl,
+                @Size(max = 255, message = "Alt text must not exceed {max} characters") String altText,
+                Boolean isPrimary,
+                @PositiveOrZero(message = "Sort order must not be negative") Integer sortOrder) {
 }
